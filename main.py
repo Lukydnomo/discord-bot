@@ -25,6 +25,8 @@ async def punir(ctx, member: discord.Member, punishChannel: discord.VoiceChannel
 
     # Verifica se o autor tem um cargo superior ao do bot
     if author_top_role.position <= bot_top_role.position:
+        await ctx.send("Você não pode usar este comando porque o seu cargo é inferior ou igual ao meu!")
+        return
         await ctx.send("Você precisa ter um cargo superior ao meu para usar este comando!")
     
     # Verifica se o autor tem um cargo superior ao membro que está tentando punir
