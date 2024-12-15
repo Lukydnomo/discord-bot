@@ -32,11 +32,6 @@ async def punir(ctx, member: discord.Member, punishChannel: discord.VoiceChannel
             await ctx.send("❌ **Você precisa ter um cargo superior ao meu para usar este comando!**")
             return
 
-        # Verifica se o autor tem um cargo superior ao membro a ser punido
-        if author_top_role <= member_top_role:
-            await ctx.send("❌ **Você precisa ter um cargo superior ao membro que deseja punir!**")
-            return
-
         # Verifica se o autor está em um canal de voz
         if not ctx.author.voice or not ctx.author.voice.channel:
             await ctx.send("❌ **Você precisa estar em um canal de voz para usar este comando!**")
