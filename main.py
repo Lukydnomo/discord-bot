@@ -18,10 +18,21 @@ async def on_ready():
 
 @bot.command()
 async def punir(ctx, member: discord.Member, punishChannel: discord.VoiceChannel):
+    # Obtém o cargo mais alto do autor e do bot
+    author_top_role = ctx.author.top_role
+    bot_top_role = ctx.guild.me.top_role  # Cargo mais alto do bot
+    
+    # Verifica se o autor tem um cargo superior ao do bot
+    if author_top_role <= bot_top_role:
+        await ctx.send("Você precisa ter um cargo superior ao meu para usar este comando!")
+        return
+    
+    # Verifica se o autor está em um canal de voz
     author_channel = ctx.author.voice.channel if ctx.author.voice else None
     if not author_channel:
         await ctx.send("Você não está em um canal de voz!")
         return
+
     try:
         # Desabilita a permissão de conectar a outros canais de voz
         for channel in ctx.guild.voice_channels:
