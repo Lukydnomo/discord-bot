@@ -1,29 +1,16 @@
 import discord
 from discord.ext import commands
 import asyncio
-from flask import Flask
-from threading import Thread
+import os
 
 intents = discord.Intents.default()
 intents.voice_states = True
 intents.members = True
 intents.message_content = True
 prefix = 'foa!'
+TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
 bot = commands.Bot(command_prefix=prefix, intents=intents)
-
-app = Flask("")
-
-@app.route("/")
-def home():
-    return "O bot está rodando!"
-
-def run():
-    app.run(host="0.0.0.0", port=8080)
-
-def keep_alive():
-    server = Thread(target=run)
-    server.start()
 
 @bot.event
 async def on_ready():
@@ -59,5 +46,4 @@ async def punir(ctx, member: discord.Member, punishChannel: discord.VoiceChannel
     except Exception as e:
         await ctx.send(f'Erro ao punir: {str(e)}')
 
-bot.run('MTMxNzYzMjc3ODUwNTgxNDA0Ng.GaA5ZR.cV4wsCFAoLPxNOH2qwreC61AzFdy0mtdWI9ZF8')
-keep_alive()
+bot.run(TOKEN)
