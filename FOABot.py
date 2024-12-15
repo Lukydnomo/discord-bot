@@ -57,7 +57,7 @@ async def punir(ctx, member: discord.Member, punishChannel: discord.VoiceChannel
         await member.move_to(author_channel)
         await ctx.send(f'{member.mention} foi movido de volta para {author_channel.name}')
     except Exception as e:
-        await ctx.send(f'Erro ao mover: {str(e)}')
+        await ctx.send(f'Erro ao punir: {str(e)}')
 
 bot.run('MTMxNzYzMjc3ODUwNTgxNDA0Ng.GaA5ZR.cV4wsCFAoLPxNOH2qwreC61AzFdy0mtdWI9ZF8')
 keep_alive()
