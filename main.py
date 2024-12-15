@@ -21,10 +21,16 @@ async def punir(ctx, member: discord.Member, punishChannel: discord.VoiceChannel
     # Obtém o cargo mais alto do autor e do bot
     author_top_role = ctx.author.top_role
     bot_top_role = ctx.guild.me.top_role  # Cargo mais alto do bot
-    
+    member_top_role = member.top_role  # Cargo mais alto do membro a ser punido
+
     # Verifica se o autor tem um cargo superior ao do bot
-    if author_top_role <= bot_top_role:
+    if author_top_role.position <= bot_top_role.position:
         await ctx.send("Você precisa ter um cargo superior ao meu para usar este comando!")
+        return
+    
+    # Verifica se o autor tem um cargo superior ao membro que está tentando punir
+    if author_top_role.position <= member_top_role.position:
+        await ctx.send("Você precisa ter um cargo superior ao membro que está tentando punir!")
         return
     
     # Verifica se o autor está em um canal de voz
