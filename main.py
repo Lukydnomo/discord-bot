@@ -12,37 +12,11 @@ intents.message_content = True
 prefix = 'foa!'
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
-# Inicializa o bot com comandos prefixados
+# Criação do bot com intents
 bot = commands.Bot(command_prefix=prefix, intents=intents)
 
-# Cria um cliente para os comandos de barra
-tree = app_commands.CommandTree(bot)
-
-# Evento que confirma que o bot está online e sincroniza os comandos de barra
-@bot.event
-async def on_ready():
-    await tree.sync()  # Sincroniza os comandos de barra com a API do Discord
-    print(f'Bot conectado como {bot.user}, command prefix: {prefix}')
-    print("Slash commands sincronizados!")
-
-# Comando prefixado "punir" (foa!punir)
-@bot.command()
-async def punir(ctx, member: discord.Member, punishChannel: discord.VoiceChannel):
-    await punir_logic(ctx, member, punishChannel)
-
-# Comando de barra "/punir"
-@tree.command(name="punir", description="Pune um membro movendo-o para um canal de voz específico.")
-@app_commands.describe(
-    member="Membro a ser punido",
-    punish_channel="Canal de voz onde o membro será movido"
-)
-async def slash_punir(interaction: discord.Interaction, member: discord.Member, punish_channel: discord.VoiceChannel):
-    # Converte o Interaction em um formato semelhante ao ctx do comando prefixado
-    fake_ctx = await commands.Context.from_interaction(interaction)
-    await punir_logic(fake_ctx, member, punish_channel)
-
-# Função compartilhada pela lógica dos comandos
-async def punir_logic(ctx, member: discord.Member, punishChannel: discord.VoiceChannel):
+# Função de lógica para o comando "punir" (reutilizável para prefixado e slash command)
+async def punir_logic(ctx, member: discord.Member, punish_channel: discord.VoiceChannel):
     try:
         # Obtém o cargo mais alto do autor, do bot e do membro
         author_top_role = ctx.author.top_role
@@ -63,12 +37,12 @@ async def punir_logic(ctx, member: discord.Member, punishChannel: discord.VoiceC
         original_channel = member.voice.channel if member.voice else None
 
         # Move o membro para o canal de punição
-        await member.move_to(punishChannel)
-        await ctx.send(f'✅ **{member.mention} foi punido e movido para {punishChannel.name}**')
+        await member.move_to(punish_channel)
+        await ctx.send(f'✅ **{member.mention} foi punido e movido para {punish_channel.name}**')
 
         # Desativa a permissão de conectar a outros canais
         for channel in ctx.guild.voice_channels:
-            if channel != punishChannel:
+            if channel != punish_channel:
                 await channel.set_permissions(member, connect=False)
 
         # Espera 60 segundos
@@ -76,7 +50,7 @@ async def punir_logic(ctx, member: discord.Member, punishChannel: discord.VoiceC
 
         # Restaura as permissões de conexão
         for channel in ctx.guild.voice_channels:
-            if channel != punishChannel:
+            if channel != punish_channel:
                 await channel.set_permissions(member, overwrite=None)
 
         # Move o membro de volta para o canal original (se possível)
@@ -92,6 +66,32 @@ async def punir_logic(ctx, member: discord.Member, punishChannel: discord.VoiceC
         await ctx.send(f"❌ **Ocorreu um erro ao mover o membro: {e}**")
     except Exception as e:
         await ctx.send(f"❌ **Algo deu errado: {e}**")
+
+
+# Evento on_ready que sincroniza os comandos de barra
+@bot.event
+async def on_ready():
+    await bot.tree.sync()
+    print(f'Bot conectado como {bot.user}, command prefix: {prefix}')
+    print("Slash commands sincronizados!")
+
+
+# Comando prefixado "punir"
+@bot.command(name="punir")
+async def punir(ctx, member: discord.Member, punish_channel: discord.VoiceChannel):
+    await punir_logic(ctx, member, punish_channel)
+
+
+# Comando de barra "/punir"
+@bot.tree.command(name="punir", description="Pune um membro movendo-o para um canal de voz específico.")
+@app_commands.describe(
+    member="Membro a ser punido",
+    punish_channel="Canal de voz onde o membro será movido"
+)
+async def slash_punir(interaction: discord.Interaction, member: discord.Member, punish_channel: discord.VoiceChannel):
+    fake_ctx = await commands.Context.from_interaction(interaction)  # Converte interaction para ctx
+    await punir_logic(fake_ctx, member, punish_channel)
+
 
 # Inicia o bot
 bot.run(TOKEN)
