@@ -12,42 +12,37 @@ intents.message_content = True
 prefix = 'foa!'
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
-# Definindo o bot e a árvore de comandos
+# Inicializa o bot com comandos prefixados
 bot = commands.Bot(command_prefix=prefix, intents=intents)
-tree = bot.tree  # Para comandos de barra (slash commands)
 
-# Evento que confirma que o bot está online
+# Cria um cliente para os comandos de barra
+tree = app_commands.CommandTree(bot)
+
+# Evento que confirma que o bot está online e sincroniza os comandos de barra
 @bot.event
 async def on_ready():
-    await tree.sync()  # Sincroniza os comandos com o servidor
+    await tree.sync()  # Sincroniza os comandos de barra com a API do Discord
     print(f'Bot conectado como {bot.user}, command prefix: {prefix}')
-    print("Comandos de barra sincronizados!")
+    print("Slash commands sincronizados!")
 
-# Comando tradicional com prefixo (foa!punir)
+# Comando prefixado "punir" (foa!punir)
 @bot.command()
 async def punir(ctx, member: discord.Member, punishChannel: discord.VoiceChannel):
-    await execute_punish(ctx, member, punishChannel)
+    await punir_logic(ctx, member, punishChannel)
 
-# Comando de barra (/punir)
-@tree.command(name="punir", description="Pune um usuário movendo-o para um canal de voz específico")
-async def slash_punir(interaction: discord.Interaction, 
-                      member: discord.Member, 
-                      punishChannel: discord.VoiceChannel):
-    # Executa o mesmo código de punição, mas usando o contexto da interação
-    class DummyContext:
-        async def send(self, message):
-            await interaction.response.send_message(message)
-        @property
-        def author(self):
-            return interaction.user
-        @property
-        def guild(self):
-            return interaction.guild
+# Comando de barra "/punir"
+@tree.command(name="punir", description="Pune um membro movendo-o para um canal de voz específico.")
+@app_commands.describe(
+    member="Membro a ser punido",
+    punish_channel="Canal de voz onde o membro será movido"
+)
+async def slash_punir(interaction: discord.Interaction, member: discord.Member, punish_channel: discord.VoiceChannel):
+    # Converte o Interaction em um formato semelhante ao ctx do comando prefixado
+    fake_ctx = await commands.Context.from_interaction(interaction)
+    await punir_logic(fake_ctx, member, punish_channel)
 
-    await execute_punish(DummyContext(), member, punishChannel)
-
-# Função compartilhada para evitar duplicação de código
-async def execute_punish(ctx, member: discord.Member, punishChannel: discord.VoiceChannel):
+# Função compartilhada pela lógica dos comandos
+async def punir_logic(ctx, member: discord.Member, punishChannel: discord.VoiceChannel):
     try:
         # Obtém o cargo mais alto do autor, do bot e do membro
         author_top_role = ctx.author.top_role
