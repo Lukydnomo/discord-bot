@@ -3,30 +3,49 @@ name: Run Discord Bot
 on:  
   push:
     branches:
-      - main
-  workflow_dispatch:
+      - main  # Dispara o workflow ao fazer push na branch 'main'
+  workflow_dispatch:  # Permite iniciar manualmente
   schedule:
-    - cron: "0 * * * *" # A cada hora (mantém o bot ativo)
+    - cron: "0 * * * *"  # Executa a cada hora para manter o bot ativo
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
 
     steps:
+    # Passo 1: Checkout do código
     - name: Checkout Code
       uses: actions/checkout@v3
 
+    # Passo 2: Configurar Python
     - name: Set up Python
       uses: actions/setup-python@v3
       with:
         python-version: '3.x'
 
+    # Passo 3: Instalar dependências
     - name: Install Dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
+    # Passo 4: Encerrar instâncias anteriores do bot
+    - name: Stop Previous Bot Instances
+      run: |
+        pkill -f "python main.py" || echo "Nenhuma instância anterior encontrada."
+
+    # Passo 5: Iniciar o bot
     - name: Run Bot
       run: python main.py
       env:
         DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+      if: success()
+
+    # Passo 6: Reiniciar o bot em caso de falha
+    - name: Restart Bot on Failure
+      run: |
+        echo "⚠️ O bot falhou, tentando reiniciar..."
+        python main.py
+      env:
+        DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+      if: failure()
