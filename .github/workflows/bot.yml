@@ -29,17 +29,19 @@ jobs:
 
       # Passo 4: Executar o bot
       - name: Run Bot
+        id: run_bot
         run: |
           echo "Iniciando o bot..."
           python main.py
         env:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
 
-      # Passo 5: Reiniciar em caso de falha
-      - name: Restart Bot on Failure
+      # Passo 5: Reagendar workflow se der falha
+      - name: Schedule Retry on Failure
         if: failure()
         run: |
-          echo "⚠️ O bot falhou! Reiniciando..."
-          python main.py
+          echo "⚠️ O bot falhou! Agendando nova execução em 30 segundos..."
+          gh workflow run "${{ github.workflow }}" -f ref="${{ github.ref }}"
+          sleep 30
         env:
-          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
