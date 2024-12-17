@@ -73,17 +73,17 @@ async def punir_logic(ctx, member: discord.Member, punish_channel: discord.Voice
 async def on_ready():
     print(f'Bot conectado como {bot.user}, command prefix: {prefix}')
     print("Sincronizando comandos de barra...")
-    
-    # Aqui você pode sincronizar comandos de barra apenas para uma guilda específica (servidor).
-    # Substitua 'guild_id' pelo ID do seu servidor.
-    guild = discord.utils.get(bot.guilds, id=int('YOUR_SERVER_ID'))  # Substitua pelo ID do servidor
-    if guild:
-        # Sincroniza os comandos na guilda (servidor) específico
-        await bot.tree.sync(guild=guild)
-        print(f"Comandos de barra sincronizados para o servidor: {guild.name}")
-    else:
-        await bot.tree.sync()
-        print("Comandos de barra sincronizados globalmente.")
+
+    # Pega automaticamente todos os servidores onde o bot está presente
+    for guild in bot.guilds:
+        try:
+            print(f"Sincronizando comandos para o servidor: {guild.name} (ID: {guild.id})")
+            await bot.tree.sync(guild=guild)
+            print(f"✅ Comandos sincronizados com sucesso para o servidor: {guild.name}")
+        except Exception as e:
+            print(f"❌ Falha ao sincronizar comandos no servidor {guild.name}: {e}")
+
+    print("✔️ Sincronização concluída.")
 
 
 # Comando prefixado "punir"
