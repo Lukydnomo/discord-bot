@@ -59,6 +59,9 @@ async def on_ready():
         except Exception as e:
             print(f"❌ Falha ao sincronizar comandos no servidor {guild.name}: {e}")
 
+    # Certifique-se de sincronizar também o comando de barra /moeda
+    await bot.tree.sync()
+
     print("✔️ Sincronização concluída.")
 
 
