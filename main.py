@@ -85,6 +85,18 @@ async def on_ready():
 
     print("✔️ Sincronização concluída.")
 
+    activity = discord.Activity(
+        type=discord.ActivityType.playing,  # Pode ser "playing", "streaming", "listening", "watching"
+        name="Punindo membros",  # Nome do que o bot está fazendo
+        details="Punindo jogadores no servidor",  # Descrição adicional
+        large_image="punish",  # Nome do asset do image (uploadado no Developer Portal)
+        large_text="Punindo membros",  # Texto que aparece ao passar o mouse sobre a imagem
+        small_image="punish",  # Nome do asset do image (uploadado no Developer Portal)
+        small_text="Comando ativo",  # Texto que aparece ao passar o mouse sobre a pequena imagem
+    )
+
+    await bot.change_presence(activity=activity)
+
 
 # Comando prefixado "punir"
 @bot.command(name="punir")
