@@ -81,7 +81,7 @@ async def on_ready():
             await bot.tree.sync(guild=guild)
             print(f"✅ Comandos sincronizados com sucesso para o servidor: {guild.name}")
         except Exception as e:
-            print(f"❌ Falha ao sincronizar comandos no servidor {guild.name}: {e}")
+            print(f"❌ Falha ao sincronizar comandos no servidor {guild.name}: {e}<>")
 
     print("✔️ Sincronização concluída.")
 
