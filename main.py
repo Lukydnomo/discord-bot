@@ -38,7 +38,7 @@ async def punir_logic(ctx, member: discord.Member, punish_channel: discord.Voice
 
         # Move o membro para o canal de punição
         await member.move_to(punish_channel)
-        await ctx.send(f'✅ **{member.mention} foi punido e movido para {punish_channel.name}**')
+        await ctx.send(f'✅ **{member.mention} foi punido e movido para {punish_channel.name} por {duration} minutos**')
 
         # Desativa a permissão de conectar a outros canais
         for channel in ctx.guild.voice_channels:
