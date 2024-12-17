@@ -14,7 +14,7 @@ TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
 class MyBot(commands.Bot):
     def __init__(self):
-        super().__init__(command_prefix="!", intents=intents)
+        super().__init__(command_prefix=prefix, intents=intents)
 
     # Método para sincronizar os comandos
     async def setup_hook(self):
