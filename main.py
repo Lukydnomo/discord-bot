@@ -12,8 +12,17 @@ intents.message_content = True
 prefix = 'foa!'
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
-# Criação do bot com intents
-bot = commands.Bot(command_prefix=prefix, intents=intents)
+class MyBot(commands.Bot):
+    def __init__(self):
+        super().__init__(command_prefix=prefix, intents=intents)
+        self.tree = app_commands.CommandTree(self)
+
+    async def setup_hook(self):
+        # Sincroniza comandos globalmente
+        await self.tree.sync()
+        print("✅ Comandos sincronizados globalmente!")
+
+bot = MyBot()
 
 # Função de lógica para o comando "punir" (reutilizável para prefixado e slash command)
 async def punir_logic(ctx, member: discord.Member, punish_channel: discord.VoiceChannel, duration: int = 1):
