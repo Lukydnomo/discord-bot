@@ -16,7 +16,7 @@ TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 bot = commands.Bot(command_prefix=prefix, intents=intents)
 
 # Função de lógica para o comando "punir" (reutilizável para prefixado e slash command)
-async def punir_logic(ctx, member: discord.Member, punish_channel: discord.VoiceChannel, duration: int):
+async def punir_logic(ctx, member: discord.Member, punish_channel: discord.VoiceChannel, duration: int = 1):
     try:
         # Obtém o cargo mais alto do autor, do bot e do membro
         author_top_role = ctx.author.top_role
@@ -100,7 +100,7 @@ async def on_ready():
 
 # Comando prefixado "punir"
 @bot.command(name="punir")
-async def punir(ctx, member: discord.Member, punish_channel: discord.VoiceChannel, duration: int):
+async def punir(ctx, member: discord.Member, punish_channel: discord.VoiceChannel, duration: int = 1):
     await punir_logic(ctx, member, punish_channel, duration)
 
 
@@ -109,9 +109,9 @@ async def punir(ctx, member: discord.Member, punish_channel: discord.VoiceChanne
 @app_commands.describe(
     member="Membro a ser punido",
     punish_channel="Canal de voz onde o membro será movido",
-    duration="Duração da punição em minutos"
+    duration="Duração da punição em minutos (opcional, padrão: 1 minuto)"
 )
-async def slash_punir(interaction: discord.Interaction, member: discord.Member, punish_channel: discord.VoiceChannel, duration: int):
+async def slash_punir(interaction: discord.Interaction, member: discord.Member, punish_channel: discord.VoiceChannel, duration: int = 1):
     fake_ctx = await commands.Context.from_interaction(interaction)
     await punir_logic(fake_ctx, member, punish_channel, duration)
 
