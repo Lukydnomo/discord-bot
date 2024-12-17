@@ -14,16 +14,17 @@ TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
 class MyBot(commands.Bot):
     def __init__(self):
-        super().__init__(command_prefix=prefix, intents=intents)
-        self.tree = app_commands.CommandTree(self)
+        super().__init__(command_prefix="!", intents=intents)
 
+    # Método para sincronizar os comandos
     async def setup_hook(self):
-        # Sincroniza comandos globalmente
-        await self.tree.sync()
+        await self.tree.sync()  # Sincroniza comandos globalmente
         print("✅ Comandos sincronizados globalmente!")
 
 bot = MyBot()
 
+# Evento: Bot pronto
+@bot.event
 # Função de lógica para o comando "punir" (reutilizável para prefixado e slash command)
 async def punir_logic(ctx, member: discord.Member, punish_channel: discord.VoiceChannel, duration: int = 1):
     try:
