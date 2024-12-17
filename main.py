@@ -111,7 +111,7 @@ async def punir(ctx, member: discord.Member, punish_channel: discord.VoiceChanne
     punish_channel="Canal de voz onde o membro será movido",
     duration="Duração da punição em minutos (opcional, padrão: 1 minuto)"
 )
-async def slash_punir(interaction: discord.Interaction, member: discord.Member, punish_channel: discord.VoiceChannel, duration: int = 1):
+async def punir(self, interaction: discord.Interaction, member: discord.Member, punish_channel: discord.VoiceChannel, duration: int = 1):
     fake_ctx = await commands.Context.from_interaction(interaction)
     await punir_logic(fake_ctx, member, punish_channel, duration)
 
