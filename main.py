@@ -93,12 +93,12 @@ async def on_ready():
 
     activity = discord.Activity(
         type=discord.ActivityType.playing,
-        name="Punindo membros",
-        details="Punindo jogadores no servidor",
+        name="Trabalhando pro Myuki",
+        details="(E pro Luky)",
         large_image="punish",
-        large_text="Punindo membros",
+        large_text="Moderando",
         small_image="punish",
-        small_text="Comando ativo",
+        small_text="Feito por Luky",
     )
     await bot.change_presence(activity=activity)
 
@@ -108,15 +108,8 @@ async def punir(ctx, member: discord.Member, punish_channel: discord.VoiceChanne
     await punir_logic(ctx, member, punish_channel, duration)
 
 @bot.command(name="iniciarSessao")
-async def iniciarSessao(ctx, member: discord.Member, times: int = 1):
-    await iniciarSessao_logic(ctx, member, times)
-
-@app_commands.choices(
-    mesa=[
-        app_commands.Choice(name="Mesa 1", value="mesa-1"),
-        app_commands.Choice(name="Mesa 2", value="mesa-2")
-    ]
-)
+async def iniciarSessao(ctx, mesa: str):
+    await iniciarSessao_logic(ctx, mesa)
 
 # Comando de barra "/punir"
 @bot.tree.command(name="punir", description="Pune um membro movendo-o para um canal de voz específico por um tempo determinado.")
@@ -129,14 +122,19 @@ async def punir(interaction: discord.Interaction, member: discord.Member, punish
     fake_ctx = await commands.Context.from_interaction(interaction)
     await punir_logic(fake_ctx, member, punish_channel, duration)
 
-@bot.tree.command(name="teste", description="Teste pogg")
+@bot.tree.command(name="iniciarSessao", description="Iniciar a sessão")
 @app_commands.describe(
-    member="Membro a ser testado",
-    times="Quantidade"
+    mesa="Mesa a ser marcada"
 )
-async def iniciarSessao(interaction: discord.Interaction, member: discord.Member, times: int = 1):
+@app_commands.choices(
+    mesa=[
+        app_commands.Choice(name="Mesa 1", value="mesa-1"),
+        app_commands.Choice(name="Mesa 2", value="mesa-2")
+    ]
+)
+async def iniciarSessao(interaction: discord.Interaction, mesa: str):
     fake_ctx = await commands.Context.from_interaction(interaction)
-    await iniciarSessao_logic(fake_ctx, member, times)
+    await iniciarSessao_logic(fake_ctx, mesa)
 
 # Inicia o bot
 bot.run(TOKEN)
