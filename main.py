@@ -70,14 +70,15 @@ async def punir_logic(ctx, member: discord.Member, punish_channel: discord.Voice
         await ctx.send(f"❌ **Algo deu errado: {e}**")
 
 async def iniciarsessao_logic(ctx, mesa: str):
-    mesa1Cargo = 1319301421216301179
+    playersCargo = 1319301421216301179
     canalAviso = bot.get_channel(1319306482470228020)
+    callSessao =  1228387539702775839
 
-    cargo = discord.utils.get(ctx.guild.roles, id=mesa1Cargo)
+    cargo = discord.utils.get(ctx.guild.roles, id=playersCargo)
 
     try:
         if canalAviso:
-            await canalAviso.send(f"{cargo.mention}")
+            await canalAviso.send(f"Atenção players da {cargo.mention}! A sessão começou, vão para a call {callSessao.name}!")
         await ctx.send(f"Sessão iniciada na {mesa}!")
     except Exception as e:
         await ctx.send(f"**Algo deu errado: {e}**")
