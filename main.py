@@ -91,7 +91,6 @@ async def togglesessao_logic(ctx, mesa: str, interaction: discord.Interaction = 
     sessaoclosedopen = 0
 
     if sessaoclosedopen == 0:
-        await sessaoclosedopen = 1
         try:
             if canalAviso:
                 if mesa == "mesa-principal":
@@ -102,13 +101,13 @@ async def togglesessao_logic(ctx, mesa: str, interaction: discord.Interaction = 
                 await interaction.response.send_message(f"Sessão iniciada na {mesa}!")  # Responde a interação
             else:
                 await ctx.send(f"Sessão iniciada na {mesa}!")  # Para comandos prefixados
+            sessaoclosedopen = 1
         except Exception as e:
             if interaction:
                 await interaction.response.send_message(f"**Algo deu errado: {e}**")  # Responde a interação de erro
             else:
                 await ctx.send(f"**Algo deu errado: {e}**")
     else:
-        await sessaoclosedopen = 0
         try:
             if canalAviso:
                 if mesa == "mesa-principal":
@@ -119,6 +118,7 @@ async def togglesessao_logic(ctx, mesa: str, interaction: discord.Interaction = 
                 await interaction.response.send_message(f"Sessão encerrada na {mesa}!")  # Responde a interação
             else:
                 await ctx.send(f"Sessão encerrada na {mesa}!")  # Para comandos prefixados
+            sessaoclosedopen = 0
         except Exception as e:
             if interaction:
                 await interaction.response.send_message(f"**Algo deu errado: {e}**")  # Responde a interação de erro
