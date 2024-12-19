@@ -72,19 +72,16 @@ async def punir_logic(ctx, member: discord.Member, punish_channel: discord.Voice
 async def iniciarsessao_logic(ctx, mesa: str):
     mesa1Cargo = 1319301421216301179
     canalAviso = bot.get_channel(1319306482470228020)
-    # Simula um tempo de processamento (como buscar o cargo ou fazer outra operação)
-    await ctx.response.defer()  # Avise ao Discord que o bot está processando
-
-    await asyncio.sleep(2)  # Simula algum processamento demorado (exemplo)
 
     cargo = discord.utils.get(ctx.guild.roles, id=mesa1Cargo)
 
     try:
         if canalAviso:
             await canalAviso.send(f"{cargo.mention}")
+        await ctx.send(f"Sessão iniciada na {mesa}!")
     except Exception as e:
         await ctx.send(f"**Algo deu errado: {e}**")
-
+    
 # Evento de quando o bot estiver pronto
 @bot.event
 async def on_ready():
