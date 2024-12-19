@@ -13,7 +13,7 @@ intents.members = True
 intents.message_content = True
 prefix = 'foa!'
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-updateyn = 1
+updateyn = 0
 
 # Nome do arquivo Markdown
 arquivo_md = "changelog.md"
@@ -81,14 +81,14 @@ async def punir_logic(ctx, member: discord.Member, punish_channel: discord.Voice
     except Exception as e:
         await ctx.send(f"❌ **Algo deu errado: {e}**")
 
-sessaoclosedopen = 0
-
 # Lógica para iniciar a sessão
 async def togglesessao_logic(ctx, mesa: str, interaction: discord.Interaction = None):
     canalAviso = bot.get_channel(1319306482470228020)
 
     avisoOpen = random.choice(avisosOpen["avisos_sessaoOpen"])
     avisoClosed = random.choice(avisosOpen["avisos_sessaoClose"])
+
+    sessaoclosedopen = 0
 
     if sessaoclosedopen == 0:
         sessaoclosedopen = 1
