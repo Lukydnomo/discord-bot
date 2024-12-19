@@ -13,7 +13,7 @@ intents.members = True
 intents.message_content = True
 prefix = 'foa!'
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-updateyn = 0
+updateyn = 1
 
 # Nome do arquivo Markdown
 arquivo_md = "changelog.md"
@@ -81,7 +81,8 @@ async def punir_logic(ctx, member: discord.Member, punish_channel: discord.Voice
     except Exception as e:
         await ctx.send(f"❌ **Algo deu errado: {e}**")
 
-async def iniciarsessao_logic(ctx, mesa: str):
+# Lógica para iniciar a sessão
+async def iniciarsessao_logic(ctx, mesa: str, interaction: discord.Interaction = None):
     canalAviso = bot.get_channel(1319306482470228020)
 
     aviso = random.choice(avisos["avisos_sessao"])
@@ -91,11 +92,17 @@ async def iniciarsessao_logic(ctx, mesa: str):
             if mesa == "mesa-principal":
                 await canalAviso.send(aviso)
             else:
-                await ctx.send("Mesa não encontrada")
-        await ctx.send(f"Sessão iniciada na {mesa}!")
+                await ctx.send("Mesa não encontrada")  # Isso é para comandos prefixados
+        if interaction:  # Se for uma interação de slash command
+            await interaction.response.send_message(f"Sessão iniciada na {mesa}!")  # Responde a interação
+        else:
+            await ctx.send(f"Sessão iniciada na {mesa}!")  # Para comandos prefixados
     except Exception as e:
-        await ctx.send(f"**Algo deu errado: {e}**")
-    
+        if interaction:
+            await interaction.response.send_message(f"**Algo deu errado: {e}**")  # Responde a interação de erro
+        else:
+            await ctx.send(f"**Algo deu errado: {e}**")
+
 # Evento de quando o bot estiver pronto
 @bot.event
 async def on_ready():
@@ -122,8 +129,12 @@ async def on_ready():
     await bot.change_presence(activity=activity)
 
     if updateyn == 1:
-        await updatechannel.send(f"{conteudo}\n\n<@&1319355628195549247>")
-    else: None
+        if updatechannel:
+            await updatechannel.send(f"{conteudo}\n\n<@&1319355628195549247>")
+        else:
+            print("❌ Canal de atualização não encontrado.")
+    else:
+        print("❌ Atualização não habilitada.")
 
 # Comando prefixado "punir"
 @bot.command(name="punir")
