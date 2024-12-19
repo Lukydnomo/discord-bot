@@ -118,7 +118,7 @@ async def punir(interaction: discord.Interaction, member: discord.Member, punish
     fake_ctx = await commands.Context.from_interaction(interaction)
     await punir_logic(fake_ctx, member, punish_channel, duration)
 
-@bot.tree.command(name="punir", description="Teste pogg")
+@bot.tree.command(name="teste", description="Teste pogg")
 @app_commands.describe(
     member="Membro a ser testado",
     times="Quantidade"
