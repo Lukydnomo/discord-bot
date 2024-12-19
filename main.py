@@ -69,10 +69,13 @@ async def punir_logic(ctx, member: discord.Member, punish_channel: discord.Voice
     except Exception as e:
         await ctx.send(f"❌ **Algo deu errado: {e}**")
 
-async def teste_logic(ctx, member: discord.Member, times: int = 1):
+async def iniciarSessao_logic(ctx, mesa: str):
+    mesa1Cargo = 1319301421216301179
+    canalAviso = bot.get_channel(1319306482470228020)
+
     try:
-        for _ in range(times):
-            await ctx.send(f"{member.mention}, {times}")
+        if canalAviso:
+            await canalAviso.send(f"{mesa1Cargo.mention}")
     except Exception as e:
         await ctx.send(f"**Algo deu errado: {e}**")
 
@@ -107,6 +110,13 @@ async def punir(ctx, member: discord.Member, punish_channel: discord.VoiceChanne
 @bot.command(name="teste")
 async def teste(ctx, member: discord.Member, times: int = 1):
     await teste_logic(ctx, member, times)
+
+@app_commands.choices(
+    mesa=[
+        app_commands.Choice(name="Mesa 1", value="mesa-1"),
+        app_commands.Choice(name="Mesa 2", value="mesa-2")
+    ]
+)
 
 # Comando de barra "/punir"
 @bot.tree.command(name="punir", description="Pune um membro movendo-o para um canal de voz específico por um tempo determinado.")
