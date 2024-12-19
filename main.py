@@ -69,7 +69,7 @@ async def punir_logic(ctx, member: discord.Member, punish_channel: discord.Voice
     except Exception as e:
         await ctx.send(f"❌ **Algo deu errado: {e}**")
 
-async def iniciarSessao_logic(ctx, mesa: str):
+async def iniciarsessao_logic(ctx, mesa: str):
     mesa1Cargo = 1319301421216301179
     canalAviso = bot.get_channel(1319306482470228020)
 
@@ -107,9 +107,9 @@ async def on_ready():
 async def punir(ctx, member: discord.Member, punish_channel: discord.VoiceChannel, duration: int = 1):
     await punir_logic(ctx, member, punish_channel, duration)
 
-@bot.command(name="iniciarSessao")
-async def iniciarSessao(ctx, mesa: str):
-    await iniciarSessao_logic(ctx, mesa)
+@bot.command(name="iniciarsessao")
+async def iniciarsessao(ctx, mesa: str):
+    await iniciarsessao_logic(ctx, mesa)
 
 # Comando de barra "/punir"
 @bot.tree.command(name="punir", description="Pune um membro movendo-o para um canal de voz específico por um tempo determinado.")
@@ -122,7 +122,7 @@ async def punir(interaction: discord.Interaction, member: discord.Member, punish
     fake_ctx = await commands.Context.from_interaction(interaction)
     await punir_logic(fake_ctx, member, punish_channel, duration)
 
-@bot.tree.command(name="iniciarSessao", description="Iniciar a sessão")
+@bot.tree.command(name="iniciarsessao", description="Iniciar a sessão")
 @app_commands.describe(
     mesa="Mesa a ser marcada"
 )
@@ -132,9 +132,9 @@ async def punir(interaction: discord.Interaction, member: discord.Member, punish
         app_commands.Choice(name="Mesa 2", value="mesa-2")
     ]
 )
-async def iniciarSessao(interaction: discord.Interaction, mesa: str):
+async def iniciarsessao(interaction: discord.Interaction, mesa: str):
     fake_ctx = await commands.Context.from_interaction(interaction)
-    await iniciarSessao_logic(fake_ctx, mesa)
+    await iniciarsessao_logic(fake_ctx, mesa)
 
 # Inicia o bot
 bot.run(TOKEN)
