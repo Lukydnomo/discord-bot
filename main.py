@@ -35,7 +35,8 @@ class MyBot(commands.Bot):
 
 bot = MyBot()
 
-# Lógicas 
+# Lógicas
+sessaoclosedopen = 1
 # Função para punir um membro
 async def punir_logic(ctx, member: discord.Member, punish_channel: discord.VoiceChannel, duration: int = 1):
     try:
@@ -83,12 +84,11 @@ async def punir_logic(ctx, member: discord.Member, punish_channel: discord.Voice
 
 # Lógica para iniciar a sessão
 async def togglesessao_logic(ctx, mesa: str, interaction: discord.Interaction = None):
+    global sessaoclosedopen
     canalAviso = bot.get_channel(1319306482470228020)
 
     avisoOpen = random.choice(avisosOpen["avisos_sessaoOpen"])
     avisoClosed = random.choice(avisosOpen["avisos_sessaoClose"])
-
-    sessaoclosedopen = 0
 
     if sessaoclosedopen == 0:
         try:
