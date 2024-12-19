@@ -1,5 +1,5 @@
 # Changelog
 
-## [1.0.1v2] - 2024-12-19
+## [1.0.1v3] - 2024-12-19
 ### Fixed
-- Ajustes no código
+- JSON sendo bugado como sempre
