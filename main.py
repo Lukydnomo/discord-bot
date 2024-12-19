@@ -73,6 +73,8 @@ async def iniciarsessao_logic(ctx, mesa: str):
     mesa1Cargo = 1319301421216301179
     canalAviso = bot.get_channel(1319306482470228020)
 
+    cargo = discord.utils.get(ctx.guild.roles, id=mesa1Cargo)
+
     try:
         if canalAviso:
             await canalAviso.send(f"{mesa1Cargo.mention}")
