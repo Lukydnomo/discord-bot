@@ -3,6 +3,8 @@ from discord.ext import commands
 from discord import app_commands
 import asyncio
 import os
+import random
+import json
 
 # Configuração do bot
 intents = discord.Intents.default()
@@ -18,6 +20,8 @@ arquivo_md = "changelog.md"
 # Abrir o arquivo em modo leitura
 with open(arquivo_md, "r", encoding="utf-8") as arquivo:
     conteudo = arquivo.read()  # Lê todo o conteúdo do arquivo e coloca na variável
+with open('aviso_sessao.json', 'r') as file:
+    avisos = json.load(file)
 
 class MyBot(commands.Bot):
     def __init__(self):
@@ -83,10 +87,12 @@ async def iniciarsessao_logic(ctx, mesa: str):
 
     cargo = discord.utils.get(ctx.guild.roles, id=playersCargo)
 
+    aviso = random.choice(avisos["avisos_sessao"])
+
     try:
         if canalAviso:
             if mesa == "mesa-principal":
-                await canalAviso.send(f"Atenção players da {cargo.mention}! A sessão começou, vão para a call {callSessao.mention}!")
+                await canalAviso.send(aviso)
             else:
                 await ctx.send("Mesa não encontrada")
         await ctx.send(f"Sessão iniciada na {mesa}!")

@@ -1,5 +1,5 @@
 # Changelog
 
-## [1.0.0v3] - 2024-12-19
-### Fixed
-- Arquivo inteiro de changelog sendo enviado (esqueci q agr é o bot q faz meu trabalho sujo)
+## [1.0.1] - 2024-12-19
+### Changed
+- Foi mudado como o aviso que a sessão iria iniciar era interpretado, agr ele escolhe uma entre 30 opções pra manter a fluídes do bglh
