@@ -5,6 +5,8 @@ on:
     branches:
       - main  # Executa o workflow ao fazer push na branch 'main'
   workflow_dispatch:  # Permite iniciar manualmente
+  schedule:
+    - cron: '0 */6 * * *'  # Executa a cada 6 horas
 
 jobs:
   run-bot:
@@ -35,13 +37,3 @@ jobs:
           python main.py
         env:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-
-      # Passo 5: Reagendar workflow se der falha
-      - name: Schedule Retry on Failure
-        if: failure()
-        run: |
-          echo "⚠️ O bot falhou! Agendando nova execução em 30 segundos..."
-          gh workflow run "${{ github.workflow }}" -f ref="${{ github.ref }}"
-          sleep 30
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
