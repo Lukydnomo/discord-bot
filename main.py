@@ -107,7 +107,7 @@ async def togglesessao_logic(ctx, mesa: str, interaction: discord.Interaction = 
                 await interaction.response.send_message(f"**Algo deu errado: {e}**")  # Responde a interação de erro
             else:
                 await ctx.send(f"**Algo deu errado: {e}**")
-    else:
+    elif sessaoclosedopen == 1:
         try:
             if canalAviso:
                 if mesa == "mesa-principal":
