@@ -77,7 +77,7 @@ async def iniciarsessao_logic(ctx, mesa: str):
 
     try:
         if canalAviso:
-            await canalAviso.send(f"{mesa1Cargo.mention}")
+            await canalAviso.send(f"{cargo.mention}")
     except Exception as e:
         await ctx.send(f"**Algo deu errado: {e}**")
 
