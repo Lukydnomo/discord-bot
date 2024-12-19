@@ -118,7 +118,7 @@ async def on_ready():
     )
     await bot.change_presence(activity=activity)
 
-    await updatechannel.send(f"{conteudo}\n<@1319355628195549247>")
+    await updatechannel.send(f"{conteudo}\n\n<@&1319355628195549247>")
 
 # Comando prefixado "punir"
 @bot.command(name="punir")
