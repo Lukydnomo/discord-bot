@@ -91,7 +91,7 @@ async def togglesessao_logic(ctx, mesa: str, interaction: discord.Interaction = 
     sessaoclosedopen = 0
 
     if sessaoclosedopen == 0:
-        sessaoclosedopen = 1
+        await sessaoclosedopen = 1
         try:
             if canalAviso:
                 if mesa == "mesa-principal":
@@ -108,7 +108,7 @@ async def togglesessao_logic(ctx, mesa: str, interaction: discord.Interaction = 
             else:
                 await ctx.send(f"**Algo deu errado: {e}**")
     else:
-        sessaoclosedopen = 0
+        await sessaoclosedopen = 0
         try:
             if canalAviso:
                 if mesa == "mesa-principal":
