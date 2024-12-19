@@ -5,9 +5,6 @@ on:
     branches:
       - main  # Executa o workflow ao fazer push na branch 'main'
   workflow_dispatch:  # Permite iniciar manualmente
-  schedule:
-    # Configurações para rodar em intervalos de 5 horas e meia
-    - cron: "0 0,5,10,15,20 * * *"  # Inicia às 00:00, 05:00, 10:00, 15:00, e 20:00
 
 jobs:
   run-bot:
