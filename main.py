@@ -13,6 +13,7 @@ intents.members = True
 intents.message_content = True
 prefix = 'foa!'
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
+updateyn = 0
 
 # Nome do arquivo Markdown
 arquivo_md = "changelog.md"
@@ -81,11 +82,7 @@ async def punir_logic(ctx, member: discord.Member, punish_channel: discord.Voice
         await ctx.send(f"❌ **Algo deu errado: {e}**")
 
 async def iniciarsessao_logic(ctx, mesa: str):
-    playersCargo = 1319301421216301179
     canalAviso = bot.get_channel(1319306482470228020)
-    callSessao = bot.get_channel(1228387539702775839)
-
-    cargo = discord.utils.get(ctx.guild.roles, id=playersCargo)
 
     aviso = random.choice(avisos["avisos_sessao"])
 
@@ -124,7 +121,9 @@ async def on_ready():
     )
     await bot.change_presence(activity=activity)
 
-    await updatechannel.send(f"{conteudo}\n\n<@&1319355628195549247>")
+    if updateyn == 1:
+        await updatechannel.send(f"{conteudo}\n\n<@&1319355628195549247>")
+    else: None
 
 # Comando prefixado "punir"
 @bot.command(name="punir")
