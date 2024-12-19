@@ -72,7 +72,7 @@ async def punir_logic(ctx, member: discord.Member, punish_channel: discord.Voice
 async def iniciarsessao_logic(ctx, mesa: str):
     playersCargo = 1319301421216301179
     canalAviso = bot.get_channel(1319306482470228020)
-    callSessao =  1228387539702775839
+    callSessao = bot.get_channel(1228387539702775839)
 
     cargo = discord.utils.get(ctx.guild.roles, id=playersCargo)
 
