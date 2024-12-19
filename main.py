@@ -107,9 +107,9 @@ async def on_ready():
 async def punir(ctx, member: discord.Member, punish_channel: discord.VoiceChannel, duration: int = 1):
     await punir_logic(ctx, member, punish_channel, duration)
 
-@bot.command(name="teste")
-async def teste(ctx, member: discord.Member, times: int = 1):
-    await teste_logic(ctx, member, times)
+@bot.command(name="iniciarSessao")
+async def iniciarSessao(ctx, member: discord.Member, times: int = 1):
+    await iniciarSessao_logic(ctx, member, times)
 
 @app_commands.choices(
     mesa=[
@@ -134,9 +134,9 @@ async def punir(interaction: discord.Interaction, member: discord.Member, punish
     member="Membro a ser testado",
     times="Quantidade"
 )
-async def teste(interaction: discord.Interaction, member: discord.Member, times: int = 1):
+async def iniciarSessao(interaction: discord.Interaction, member: discord.Member, times: int = 1):
     fake_ctx = await commands.Context.from_interaction(interaction)
-    await teste_logic(fake_ctx, member, times)
+    await iniciarSessao_logic(fake_ctx, member, times)
 
 # Inicia o bot
 bot.run(TOKEN)
