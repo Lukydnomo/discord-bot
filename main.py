@@ -79,7 +79,7 @@ async def iniciarsessao_logic(ctx, mesa: str):
     try:
         if canalAviso:
             if mesa == "mesa-principal":
-                await canalAviso.send(f"Atenção players da {cargo.mention}! A sessão começou, vão para a call <#{callSessao.name}>!")
+                await canalAviso.send(f"Atenção players da {cargo.mention}! A sessão começou, vão para a call {callSessao.mention}!")
             else:
                 await ctx.send("Mesa não encontrada")
         await ctx.send(f"Sessão iniciada na {mesa}!")
