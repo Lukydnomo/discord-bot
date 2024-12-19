@@ -23,6 +23,7 @@ class MyBot(commands.Bot):
 
 bot = MyBot()
 
+# Lógicas 
 # Função para punir um membro
 async def punir_logic(ctx, member: discord.Member, punish_channel: discord.VoiceChannel, duration: int = 1):
     try:
@@ -68,6 +69,13 @@ async def punir_logic(ctx, member: discord.Member, punish_channel: discord.Voice
     except Exception as e:
         await ctx.send(f"❌ **Algo deu errado: {e}**")
 
+async def teste_logic(ctx, member: discord.Member, times: int = 1):
+    try:
+        for msg in times:
+            await ctx.send(f"**{member.mention} é um monkey**")
+    except Exception as e:
+        await ctx.send(f"**Algo deu errado: {e}**")
+
 # Evento de quando o bot estiver pronto
 @bot.event
 async def on_ready():
@@ -96,6 +104,10 @@ async def on_ready():
 async def punir(ctx, member: discord.Member, punish_channel: discord.VoiceChannel, duration: int = 1):
     await punir_logic(ctx, member, punish_channel, duration)
 
+@bot.command(name="teste")
+async def teste(ctx, member: discord.Member, times: int = 1):
+    await teste_logic(ctx, member, times)
+
 # Comando de barra "/punir"
 @bot.tree.command(name="punir", description="Pune um membro movendo-o para um canal de voz específico por um tempo determinado.")
 @app_commands.describe(
@@ -106,6 +118,15 @@ async def punir(ctx, member: discord.Member, punish_channel: discord.VoiceChanne
 async def punir(interaction: discord.Interaction, member: discord.Member, punish_channel: discord.VoiceChannel, duration: int = 1):
     fake_ctx = await commands.Context.from_interaction(interaction)
     await punir_logic(fake_ctx, member, punish_channel, duration)
+
+@bot.tree.command(name="punir", description="Teste pogg")
+@app_commands.descripe(
+    member="Membro a ser testado",
+    times="Quantidade"
+)
+async def teste(interaction: discord.Interaction, member: discord.Member, times: int = 1):
+    fake_ctx = await commands.Context.from_interaction(interaction)
+    await teste_logic(fake_ctx, member, times)
 
 # Inicia o bot
 bot.run(TOKEN)
