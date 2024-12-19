@@ -78,7 +78,10 @@ async def iniciarsessao_logic(ctx, mesa: str):
 
     try:
         if canalAviso:
-            await canalAviso.send(f"Atenção players da {cargo.mention}! A sessão começou, vão para a call {callSessao.name}!")
+            if mesa == "mesa-principal":
+                await canalAviso.send(f"Atenção players da {cargo.mention}! A sessão começou, vão para a call {callSessao.name}!")
+            else:
+                await ctx.send("Mesa não encontrada")
         await ctx.send(f"Sessão iniciada na {mesa}!")
     except Exception as e:
         await ctx.send(f"**Algo deu errado: {e}**")
@@ -132,7 +135,7 @@ async def punir(interaction: discord.Interaction, member: discord.Member, punish
 )
 @app_commands.choices(
     mesa=[
-        app_commands.Choice(name="Mesa 1", value="mesa-1"),
+        app_commands.Choice(name="Mesa Principal", value="mesa-principal"),
         app_commands.Choice(name="Mesa 2", value="mesa-2")
     ]
 )
