@@ -22,7 +22,7 @@ arquivo_md = "changelog.md"
 with open(arquivo_md, "r", encoding="utf-8") as arquivo:
     conteudo = arquivo.read()  # Lê todo o conteúdo do arquivo e coloca na variável
 with open('avisos_sessao.json', 'r') as file:
-    avisos = json.load(file)
+    avisosOpen = json.load(file)
 
 class MyBot(commands.Bot):
     def __init__(self):
@@ -81,27 +81,48 @@ async def punir_logic(ctx, member: discord.Member, punish_channel: discord.Voice
     except Exception as e:
         await ctx.send(f"❌ **Algo deu errado: {e}**")
 
+sessaoclosedopen = 0
+
 # Lógica para iniciar a sessão
-async def iniciarsessao_logic(ctx, mesa: str, interaction: discord.Interaction = None):
+async def togglesessao_logic(ctx, mesa: str, interaction: discord.Interaction = None):
     canalAviso = bot.get_channel(1319306482470228020)
 
-    aviso = random.choice(avisos["avisos_sessao"])
+    avisoOpen = random.choice(avisosOpen["avisos_sessaoOpen"])
+    avisoClosed = random.choice(avisosOpen["avisos_sessaoClose"])
 
-    try:
-        if canalAviso:
-            if mesa == "mesa-principal":
-                await canalAviso.send(aviso)
+    if sessaoclosedopen == 0:
+        try:
+            if canalAviso:
+                if mesa == "mesa-principal":
+                    await canalAviso.send(avisoOpen)
+                else:
+                    await ctx.send("Mesa não encontrada")  # Isso é para comandos prefixados
+            if interaction:  # Se for uma interação de slash command
+                await interaction.response.send_message(f"Sessão iniciada na {mesa}!")  # Responde a interação
             else:
-                await ctx.send("Mesa não encontrada")  # Isso é para comandos prefixados
-        if interaction:  # Se for uma interação de slash command
-            await interaction.response.send_message(f"Sessão iniciada na {mesa}!")  # Responde a interação
-        else:
-            await ctx.send(f"Sessão iniciada na {mesa}!")  # Para comandos prefixados
-    except Exception as e:
-        if interaction:
-            await interaction.response.send_message(f"**Algo deu errado: {e}**")  # Responde a interação de erro
-        else:
-            await ctx.send(f"**Algo deu errado: {e}**")
+                await ctx.send(f"Sessão iniciada na {mesa}!")  # Para comandos prefixados
+        except Exception as e:
+            if interaction:
+                await interaction.response.send_message(f"**Algo deu errado: {e}**")  # Responde a interação de erro
+            else:
+                await ctx.send(f"**Algo deu errado: {e}**")
+    elif sessaoclosedopen == 1:
+        try:
+            if canalAviso:
+                if mesa == "mesa-principal":
+                    await canalAviso.send(avisoClosed)
+                else:
+                    await ctx.send("Mesa não encontrada")  # Isso é para comandos prefixados
+            if interaction:  # Se for uma interação de slash command
+                await interaction.response.send_message(f"Sessão encerrada na {mesa}!")  # Responde a interação
+            else:
+                await ctx.send(f"Sessão encerrada na {mesa}!")  # Para comandos prefixados
+        except Exception as e:
+            if interaction:
+                await interaction.response.send_message(f"**Algo deu errado: {e}**")  # Responde a interação de erro
+            else:
+                await ctx.send(f"**Algo deu errado: {e}**")
+
 
 # Evento de quando o bot estiver pronto
 @bot.event
@@ -141,9 +162,9 @@ async def on_ready():
 async def punir(ctx, member: discord.Member, punish_channel: discord.VoiceChannel, duration: int = 1):
     await punir_logic(ctx, member, punish_channel, duration)
 
-@bot.command(name="iniciarsessao")
-async def iniciarsessao(ctx, mesa: str):
-    await iniciarsessao_logic(ctx, mesa)
+@bot.command(name="togglesessao")
+async def togglesessao(ctx, mesa: str):
+    await togglesessao_logic(ctx, mesa)
 
 # Comando de barra "/punir"
 @bot.tree.command(name="punir", description="Pune um membro movendo-o para um canal de voz específico por um tempo determinado.")
@@ -156,7 +177,7 @@ async def punir(interaction: discord.Interaction, member: discord.Member, punish
     fake_ctx = await commands.Context.from_interaction(interaction)
     await punir_logic(fake_ctx, member, punish_channel, duration)
 
-@bot.tree.command(name="iniciarsessao", description="Iniciar a sessão")
+@bot.tree.command(name="togglesessao", description="Iniciar a sessão")
 @app_commands.describe(
     mesa="Mesa a ser marcada"
 )
@@ -166,9 +187,9 @@ async def punir(interaction: discord.Interaction, member: discord.Member, punish
         app_commands.Choice(name="Mesa 2", value="mesa-2")
     ]
 )
-async def iniciarsessao(interaction: discord.Interaction, mesa: str):
+async def togglesessao(interaction: discord.Interaction, mesa: str):
     fake_ctx = await commands.Context.from_interaction(interaction)
-    await iniciarsessao_logic(fake_ctx, mesa)
+    await togglesessao_logic(fake_ctx, mesa)
 
 # Inicia o bot
 bot.run(TOKEN)

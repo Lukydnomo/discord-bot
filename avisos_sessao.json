@@ -1,5 +1,5 @@
 {
-    "avisos_sessao": [
+    "avisos_sessaoOpen": [
       "🚨 **Atenção, <@&1319301421216301179>! A sessão já vai começar!** 🚨\n\nÉ hora de se preparar para mais uma aventura épica! 🔥 Não se esqueçam de manter o offrp sob controle, prestar atenção no jogo e tomar cuidado com suas ações. O mestre está atento a tudo!",
       "⚡ **Fiquem ligados, <@&1319301421216301179>! A sessão está começando!** ⚡\n\nVamos começar a nossa jornada! Mantenham o offrp no limite, fiquem atentos e cuidado com as ações. O mestre vai aplicar punições para quem bagunçar!",
       "🎲 **A sessão vai começar, <@&1319301421216301179>!** 🎲\n\nPreparem-se para mais uma rodada de aventuras! Evitem exagerar no offrp, prestem atenção e, claro, fiquem de olho nas suas ações. O mestre está de olho em tudo!",
@@ -28,6 +28,39 @@
       "🎯 **Fiquem atentos, <@&1319301421216301179>! A sessão está prestes a começar!** 🎯\n\nPreparem-se! Evitem o offrp excessivo, prestem atenção e, claro, cuidado com as ações. O mestre está de olho!",
       "🌟 **Atenção, <@&1319301421216301179>! A sessão vai começar!** 🌟\n\nVamos lá, galera! Nada de exageros no offrp, mantenham a atenção e fiquem atentos às ações. O mestre está pronto para punir quem desrespeitar!",
       "💥 **Preparados, <@&1319301421216301179>! A sessão vai começar!** 💥\n\nLembrem-se de não exagerar no offrp, fiquem atentos e tomem cuidado com suas ações. O mestre vai punir quem não colaborar!"
-    ]
+    ],
+    "avisos_sessaoClose": [
+    "👋 **A sessão acabou, <@&1319301421216301179>!** 👋\n\nObrigado por participarem! Até a próxima aventura! 🌟",
+    "🎭 **Fim da sessão, <@&1319301421216301179>!** 🎭\n\nFoi uma ótima jornada hoje. Vejo vocês na próxima! 🎲",
+    "🚨 **Aviso, <@&1319301421216301179>! A sessão chegou ao fim.** 🚨\n\nDescansem bem e preparem-se para o que vem a seguir! Até breve!",
+    "🔥 **A sessão terminou, <@&1319301421216301179>!** 🔥\n\nÓtimo trabalho hoje! Mal posso esperar pela próxima. Tchau!",
+    "🎉 **Fim de sessão, <@&1319301421216301179>!** 🎉\n\nObrigado por jogarem! Nos vemos na próxima aventura! 🧙‍♂️",
+    "🌟 **A aventura termina aqui, <@&1319301421216301179>!** 🌟\n\nAté a próxima jornada! Cuidem-se e até logo!",
+    "💫 **A sessão acabou, <@&1319301421216301179>!** 💫\n\nParabéns por hoje! Nos vemos na próxima vez!",
+    "💥 **Encerramos a sessão, <@&1319301421216301179>!** 💥\n\nFoi incrível! Até a próxima história!",
+    "⚡ **Fim de sessão, <@&1319301421216301179>!** ⚡\n\nQue aventura emocionante! Até breve!",
+    "🎯 **Sessão encerrada, <@&1319301421216301179>!** 🎯\n\nAté mais! Se preparem para o que vem aí!",
+    "🌈 **A sessão chegou ao fim, <@&1319301421216301179>!** 🌈\n\nObrigado por mais uma aventura! Nos vemos na próxima.",
+    "🏹 **Encerramento da sessão, <@&1319301421216301179>!** 🏹\n\nFoi uma noite incrível! Até a próxima!",
+    "🎲 **A sessão termina aqui, <@&1319301421216301179>!** 🎲\n\nEspero que tenham gostado. Até logo!",
+    "🕊️ **Fim da sessão, <@&1319301421216301179>!** 🕊️\n\nDescansem bem! Até a próxima rodada de aventuras.",
+    "🎭 **A sessão chegou ao fim, <@&1319301421216301179>!** 🎭\n\nMal posso esperar para a próxima vez! Adeus por agora.",
+    "🔮 **Fim de sessão, <@&1319301421216301179>!** 🔮\n\nMais um capítulo concluído! Até a próxima jornada.",
+    "🚀 **A sessão terminou, <@&1319301421216301179>!** 🚀\n\nObrigado por participarem! Até breve!",
+    "🌠 **Encerramos a sessão, <@&1319301421216301179>!** 🌠\n\nÓtimo jogo hoje! Nos vemos na próxima.",
+    "🛡️ **Fim da aventura, <@&1319301421216301179>!** 🛡️\n\nFoi um prazer jogar com vocês. Até a próxima!",
+    "⚔️ **Sessão encerrada, <@&1319301421216301179>!** ⚔️\n\nObrigado pela diversão! Até logo.",
+    "🪄 **A sessão terminou aqui, <@&1319301421216301179>!** 🪄\n\nFoi uma jornada épica! Vejo vocês em breve.",
+    "🌌 **A aventura chegou ao fim, <@&1319301421216301179>!** 🌌\n\nNos vemos no próximo capítulo. Adeus por enquanto!",
+    "🗺️ **Fim da sessão, <@&1319301421216301179>!** 🗺️\n\nMais uma história concluída! Até logo.",
+    "💡 **A sessão terminou, <@&1319301421216301179>!** 💡\n\nObrigado por jogarem! Até a próxima.",
+    "✨ **Fim da sessão, <@&1319301421216301179>!** ✨\n\nFoi fantástico! Nos vemos em breve.",
+    "🏰 **Encerramento da sessão, <@&1319301421216301179>!** 🏰\n\nObrigado por participarem. Até a próxima jornada!",
+    "🌄 **A sessão chegou ao fim, <@&1319301421216301179>!** 🌄\n\nMais um capítulo épico concluído! Até logo.",
+    "🌀 **Sessão encerrada, <@&1319301421216301179>!** 🌀\n\nAté a próxima história! Se cuidem.",
+    "🎵 **Fim de sessão, <@&1319301421216301179>!** 🎵\n\nObrigado pela participação! Vejo vocês na próxima aventura.",
+    "🌻 **A sessão terminou, <@&1319301421216301179>!** 🌻\n\nMais uma aventura completa! Até a próxima."
+]
+
   }
   
