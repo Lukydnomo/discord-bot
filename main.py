@@ -12,6 +12,13 @@ intents.message_content = True
 prefix = 'foa!'
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
+# Nome do arquivo Markdown
+arquivo_md = "changelog.md"
+
+# Abrir o arquivo em modo leitura
+with open(arquivo_md, "r", encoding="utf-8") as arquivo:
+    conteudo = arquivo.read()  # Lê todo o conteúdo do arquivo e coloca na variável
+
 class MyBot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix=prefix, intents=intents)
@@ -89,6 +96,8 @@ async def iniciarsessao_logic(ctx, mesa: str):
 # Evento de quando o bot estiver pronto
 @bot.event
 async def on_ready():
+    updatechannel = bot.get_channel(1319356880627171448)
+
     print(f'Bot conectado como {bot.user}')
     for guild in bot.guilds:
         try:
@@ -108,6 +117,8 @@ async def on_ready():
         small_text="Feito por Luky",
     )
     await bot.change_presence(activity=activity)
+
+    await updatechannel.send(f"{conteudo}\n<@1319355628195549247>")
 
 # Comando prefixado "punir"
 @bot.command(name="punir")
