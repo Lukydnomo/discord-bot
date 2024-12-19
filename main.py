@@ -72,7 +72,7 @@ async def punir_logic(ctx, member: discord.Member, punish_channel: discord.Voice
 async def teste_logic(ctx, member: discord.Member, times: int = 1):
     try:
         times = times-1
-        while times > 1:
+        while times > 0:
             await ctx.send(f"{member.mention}, {times}")
     except Exception as e:
         await ctx.send(f"**Algo deu errado: {e}**")
