@@ -22,7 +22,7 @@ arquivo_md = "changelog.md"
 with open(arquivo_md, "r", encoding="utf-8") as arquivo:
     conteudo = arquivo.read()  # Lê todo o conteúdo do arquivo e coloca na variável
 with open('avisos_sessao.json', 'r') as file:
-    avisosOpen = json.load(file)
+    avisos = json.load(file)
 
 class MyBot(commands.Bot):
     def __init__(self):
@@ -87,8 +87,8 @@ async def togglesessao_logic(ctx, mesa: str, interaction: discord.Interaction = 
     global sessaoclosedopen
     canalAviso = bot.get_channel(1319306482470228020)
 
-    avisoOpen = random.choice(avisosOpen["avisos_sessaoOpen"])
-    avisoClosed = random.choice(avisosOpen["avisos_sessaoClose"])
+    avisoOpen = random.choice(avisos["avisos_sessaoOpen"])
+    avisoClosed = random.choice(avisos["avisos_sessaoClose"])
 
     if sessaoclosedopen == 0:
         try:
