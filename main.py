@@ -36,7 +36,7 @@ class MyBot(commands.Bot):
 bot = MyBot()
 
 # Lógicas
-sessaoclosedopen = 1
+sessaoclosedopen = 0
 # Função para punir um membro
 async def punir_logic(ctx, member: discord.Member, punish_channel: discord.VoiceChannel, duration: int = 1):
     try:
