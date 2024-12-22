@@ -194,7 +194,7 @@ async def punir(interaction: discord.Interaction, member: discord.Member, punish
 @app_commands.choices(
     mesa=[
         app_commands.Choice(name="Mesa Principal", value="mesa-principal"),
-        app_commands.Choice(name="Mesa 2", value="mesa-2")
+        app_commands.Choice(name="Mesa Desordem", value="mesa-desordem")
     ]
 )
 async def togglesessao(interaction: discord.Interaction, mesa: str):
