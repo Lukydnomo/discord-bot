@@ -13,7 +13,7 @@ intents.members = True
 intents.message_content = True
 prefix = 'foa!'
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-updateyn = 0
+updateyn = 1
 
 # Nome do arquivo Markdown
 arquivo_md = "changelog.md"
@@ -87,13 +87,17 @@ async def togglesessao_logic(ctx, mesa: str, interaction: discord.Interaction = 
     global sessaoclosedopen
     canalAviso = bot.get_channel(1319306482470228020)
 
-    avisoOpen = random.choice(avisos["avisos_sessaoOpen"])
-    avisoClosed = random.choice(avisos["avisos_sessaoClose"])
+    mesa_principal_cargo = 1319301421216301179
+    mesa_desordem_cargo = 1320516709089673237
 
     if sessaoclosedopen == 0:
         try:
             if canalAviso:
                 if mesa == "mesa-principal":
+                    avisoOpen = random.choice(avisos["avisos_sessaoOpen"]).format(mesa=mesa_principal_cargo)
+                    await canalAviso.send(avisoOpen)
+                elif mesa == "mesa-desordem":
+                    avisoOpen = random.choice(avisos["avisos_sessaoOpen"]).format(mesa=mesa_desordem_cargo)
                     await canalAviso.send(avisoOpen)
                 else:
                     await ctx.send("Mesa não encontrada")  # Isso é para comandos prefixados
@@ -111,6 +115,10 @@ async def togglesessao_logic(ctx, mesa: str, interaction: discord.Interaction = 
         try:
             if canalAviso:
                 if mesa == "mesa-principal":
+                    avisoClosed = random.choice(avisos["avisos_sessaoClose"]).format(mesa=mesa_principal_cargo)
+                    await canalAviso.send(avisoClosed)
+                elif mesa == "mesa-desordem":
+                    avisoClosed = random.choice(avisos["avisos_sessaoClose"]).format(mesa=mesa_desordem_cargo)
                     await canalAviso.send(avisoClosed)
                 else:
                     await ctx.send("Mesa não encontrada")  # Isso é para comandos prefixados
