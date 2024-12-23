@@ -64,9 +64,9 @@ jobs:
       
       # Garantir cache da variável sessaoclosedopen
       - name: Cache variável sessaoclosedopen
-      uses: actions/cache@v3
-      with:
-        path: sessaoclosedopen.json
-        key: ${{ runner.os }}-fdabot-sessaoclosedopen-${{ hashFiles('sessaoclosedopen.json') }}
-        restore-keys: |
-          ${{ runner.os }}-fdabot-sessaoclosedopen
+        uses: actions/cache@v3
+        with:
+          path: sessaoclosedopen.json
+          key: ${{ runner.os }}-fdabot-sessaoclosedopen-${{ hashFiles('sessaoclosedopen.json') }}
+          restore-keys: |
+            ${{ runner.os }}-fdabot-sessaoclosedopen
