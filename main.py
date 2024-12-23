@@ -15,6 +15,18 @@ prefix = 'foa!'
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 updateyn = 1
 
+def salvar_sessao():
+    # Salvar a variável em um arquivo JSON
+    with open("sessaoclosedopen.json", "w") as file:
+        json.dump({"sessaoclosedopen": sessaoclosedopen}, file)
+    
+try:
+    with open("sessaoclosedopen.json", "r") as file:
+        data = json.load(file)
+        sessaoclosedopen = data.get("sessaoclosedopen", "indefinido")  # Valor padrão caso não exista
+except FileNotFoundError:
+    sessaoclosedopen = "indefinido"
+
 # Nome do arquivo Markdown
 arquivo_md = "changelog.md"
 
@@ -106,6 +118,7 @@ async def togglesessao_logic(ctx, mesa: str, interaction: discord.Interaction = 
             else:
                 await ctx.send(f"Sessão iniciada na {mesa}!")  # Para comandos prefixados
             sessaoclosedopen = 1
+            salvar_sessao()
         except Exception as e:
             if interaction:
                 await interaction.response.send_message(f"**Algo deu errado: {e}**")  # Responde a interação de erro
@@ -127,6 +140,7 @@ async def togglesessao_logic(ctx, mesa: str, interaction: discord.Interaction = 
             else:
                 await ctx.send(f"Sessão encerrada na {mesa}!")  # Para comandos prefixados
             sessaoclosedopen = 0
+            salvar_sessao()
         except Exception as e:
             if interaction:
                 await interaction.response.send_message(f"**Algo deu errado: {e}**")  # Responde a interação de erro

@@ -28,6 +28,15 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+      
+      # Restaurar o cache
+      - name: Restaurar cache da variável
+        uses: actions/cache@v3
+        with:
+          path: sessaoclosedopen.json
+          key: ${{ runner.os }}-fdabot-sessaoclosedopen
+          restore-keys: |
+            ${{ runner.os }}-fdabot-sessaoclosedopen
 
       # Passo 4: Executar o bot
       - name: Run Bot
@@ -37,3 +46,10 @@ jobs:
           python main.py
         env:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+        
+      # Salvar o cache depois de rodar o bot (se a variável foi alterada)
+      - name: Cache variável sessaoclosedopen
+        uses: actions/cache@v3
+        with:
+          path: sessaoclosedopen.json
+          key: ${{ runner.os }}-fdabot-sessaoclosedopen
