@@ -38,12 +38,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-fdabot-sessaoclosedopen
 
-      # Passo 4: Executar o bot e capturar o valor da variável
+      # Passo 4: Executar o bot
       - name: Run Bot
         id: run_bot
         run: |
           echo "Iniciando o bot..."
           python main.py
+          # Captura o valor da variável após a execução do bot e define como saída
+          echo "sessaoclosedopen=$(python -c 'import json; f=open(\"sessaoclosedopen.json\"); data=json.load(f); print(data[\"sessaoclosedopen\"])')" >> $GITHUB_ENV
         env:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
 

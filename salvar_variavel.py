@@ -1,8 +1,8 @@
-import sys
+import os
 import json
 
-# Carregar o valor passado pelo argumento
-sessaoclosedopen = int(sys.argv[1])  # O valor que o bot passa
+# Lê o valor da variável de ambiente
+sessaoclosedopen = int(os.getenv("sessaoclosedopen"))
 
 # Salvar no arquivo JSON
 with open('sessaoclosedopen.json', 'w') as file:
