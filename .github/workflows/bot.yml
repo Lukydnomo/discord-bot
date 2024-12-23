@@ -56,7 +56,7 @@ jobs:
       # Salvar variável no cache após a execução
       - name: Salvar variável no cache
         if: ${{ always() }}  # Sempre será executado, mesmo se falhar ou for cancelado
-        run: python salvar_variavel.py
+        run: python salvar_variavel.py ${{ steps.run_bot.outputs.sessaoclosedopen }}
 
       # Garantir cache da variável sessaoclosedopen
       - name: Cache variável sessaoclosedopen
