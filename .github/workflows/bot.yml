@@ -54,16 +54,19 @@ jobs:
           echo "Verificando o arquivo JSON gerado:"
           cat sessaoclosedopen.json
 
-      # Salvar variável no cache após a execução
+      # Passo para salvar a variável no cache após a execução
       - name: Salvar variável no cache
         if: ${{ always() }}  # Sempre será executado, mesmo se falhar ou for cancelado
         run: |
-          sessaoclosedopen=$(cat sessaoclosedopen.json | jq .sessaoclosedopen)
-          echo "sessaoclosedopen=$sessaoclosedopen" >> $GITHUB_ENV
-
+          python salvar_variavel.py ${{ steps.run_bot.outputs.sessaoclosedopen }}
+        env:
+          ACTIONS_STEP_DEBUG: true
+      
       # Garantir cache da variável sessaoclosedopen
       - name: Cache variável sessaoclosedopen
-        uses: actions/cache@v3
-        with:
-          path: sessaoclosedopen.json
-          key: ${{ runner.os }}-fdabot-sessaoclosedopen
+      uses: actions/cache@v3
+      with:
+        path: sessaoclosedopen.json
+        key: ${{ runner.os }}-fdabot-sessaoclosedopen-${{ hashFiles('sessaoclosedopen.json') }}
+        restore-keys: |
+          ${{ runner.os }}-fdabot-sessaoclosedopen
