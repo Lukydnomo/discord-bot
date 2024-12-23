@@ -13,7 +13,7 @@ intents.members = True
 intents.message_content = True
 prefix = 'foa!'
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-updateyn = 1
+updateyn = 0
 
 # Nome do arquivo Markdown
 arquivo_md = "changelog.md"
