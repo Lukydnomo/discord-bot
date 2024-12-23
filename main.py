@@ -14,11 +14,6 @@ intents.message_content = True
 prefix = 'foa!'
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 updateyn = 0
-
-def salvar_sessao():
-    # Salvar a variável em um arquivo JSON
-    with open("sessaoclosedopen.json", "w") as file:
-        json.dump({"sessaoclosedopen": sessaoclosedopen}, file)
     
 try:
     # Verificar se o arquivo existe e não está vazio
@@ -126,7 +121,6 @@ async def togglesessao_logic(ctx, mesa: str, interaction: discord.Interaction = 
             else:
                 await ctx.send(f"Sessão iniciada na {mesa}!")  # Para comandos prefixados
             sessaoclosedopen = 1
-            salvar_sessao()
         except Exception as e:
             if interaction:
                 await interaction.response.send_message(f"**Algo deu errado: {e}**")  # Responde a interação de erro
@@ -148,7 +142,6 @@ async def togglesessao_logic(ctx, mesa: str, interaction: discord.Interaction = 
             else:
                 await ctx.send(f"Sessão encerrada na {mesa}!")  # Para comandos prefixados
             sessaoclosedopen = 0
-            salvar_sessao()
         except Exception as e:
             if interaction:
                 await interaction.response.send_message(f"**Algo deu errado: {e}**")  # Responde a interação de erro

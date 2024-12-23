@@ -52,7 +52,7 @@ jobs:
         if: ${{ always() }}  # Garante que essa etapa será executada mesmo em falhas ou cancelamentos
         run: |
           echo "Salvando a variável no cache..."
-          python -c "import json; with open('sessaoclosedopen.json', 'w') as file: json.dump({'sessaoclosedopen': 0}, file)"  # Aqui você deve substituir 0 pelo valor real da variável 'sessaoclosedopen'
+          python salvar_variavel.py ${{ steps.run_bot.outputs.sessaoclosedopen }}  # Passando o valor da variável como argumento
 
       # Etapa de cache após a execução
       - name: Cache variável sessaoclosedopen
