@@ -46,8 +46,15 @@ jobs:
           python main.py
         env:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-        
-      # Salvar o cache depois de rodar o bot (se a variável foi alterada)
+      
+      # Salvar no cache ou realizar outra ação sempre no final
+      - name: Salvar variável no cache
+        if: ${{ always() }}  # A execução desta etapa será garantida mesmo em falhas ou cancelamento
+        run: |
+          echo "Salvando a variável no cache..."
+          python salvar_variavel.py  # Aqui você salvaria a variável (com base no seu código)
+
+      # Outra ação de cache
       - name: Cache variável sessaoclosedopen
         uses: actions/cache@v3
         with:
