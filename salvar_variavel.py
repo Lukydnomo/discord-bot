@@ -10,6 +10,7 @@ if sessaoclosedopen is None or sessaoclosedopen == '':
 
 try:
     sessaoclosedopen = int(sessaoclosedopen)  # Converte para inteiro
+    print(f"Valor de sessaoclosedopen convertido com sucesso: {sessaoclosedopen}")
 except ValueError:
     print(f"Erro: não foi possível converter o valor '{sessaoclosedopen}' para inteiro.")
     exit(1)
@@ -18,4 +19,4 @@ except ValueError:
 with open('sessaoclosedopen.json', 'w') as file:
     json.dump({'sessaoclosedopen': sessaoclosedopen}, file)
 
-print(f"Valor de sessaoclosedopen salvo: {sessaoclosedopen}")
+print(f"Valor de sessaoclosedopen salvo no arquivo JSON: {sessaoclosedopen}")

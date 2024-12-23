@@ -28,8 +28,12 @@ sessaoclosedopen = carregar_variavel()
 
 # Salva o valor atualizado da variável no arquivo JSON
 def salvar_variavel(valor):
-    with open("sessaoclosedopen.json", "w") as file:
-        json.dump({"sessaoclosedopen": valor}, file)
+    try:
+        with open("sessaoclosedopen.json", "w") as file:
+            json.dump({"sessaoclosedopen": valor}, file)
+            print(f"Valor de sessaoclosedopen salvo com sucesso: {valor}")
+    except Exception as e:
+        print(f"Erro ao salvar a variável no JSON: {e}")
 
 # Nome do arquivo Markdown
 arquivo_md = "changelog.md"
