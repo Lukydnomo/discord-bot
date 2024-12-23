@@ -38,6 +38,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-fdabot-sessaoclosedopen
 
+      # Passo 4: Executar o bot e capturar o valor da variável
       - name: Run Bot
         id: run_bot
         run: |
@@ -45,7 +46,6 @@ jobs:
           python main.py
         env:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-        continue-on-error: true
 
 
       # Verificar arquivo JSON
@@ -57,8 +57,9 @@ jobs:
       # Salvar variável no cache após a execução
       - name: Salvar variável no cache
         if: ${{ always() }}  # Sempre será executado, mesmo se falhar ou for cancelado
-        run: python salvar_variavel.py ${{ steps.run_bot.outputs.sessaoclosedopen }}
-
+        run: |
+          sessaoclosedopen=$(cat sessaoclosedopen.json | jq .sessaoclosedopen)
+          echo "sessaoclosedopen=$sessaoclosedopen" >> $GITHUB_ENV
 
       # Garantir cache da variável sessaoclosedopen
       - name: Cache variável sessaoclosedopen
@@ -66,5 +67,3 @@ jobs:
         with:
           path: sessaoclosedopen.json
           key: ${{ runner.os }}-fdabot-sessaoclosedopen
-        env:
-          ACTIONS_STEP_DEBUG: true
