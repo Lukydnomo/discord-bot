@@ -24,6 +24,8 @@ def carregar_variavel():
     else:
         return 0
 
+sessaoclosedopen = carregar_variavel()
+
 # Salva o valor atualizado da variável no arquivo JSON
 def salvar_variavel(valor):
     with open("sessaoclosedopen.json", "w") as file:
@@ -46,7 +48,6 @@ class MyBot(commands.Bot):
     async def setup_hook(self):
         await self.tree.sync()  # Sincroniza comandos globalmente
         print("✅ Comandos sincronizados globalmente!")
-        sessaoclosedopen = carregar_variavel()
 
 bot = MyBot()
 
