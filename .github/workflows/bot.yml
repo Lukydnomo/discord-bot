@@ -44,26 +44,21 @@ jobs:
         run: |
           echo "Iniciando o bot..."
           python main.py
-          # Captura o valor da variável após a execução do bot e define como saída
-          echo "sessaoclosedopen=$(python -c 'import json; f=open(\"sessaoclosedopen.json\"); data=json.load(f); print(data[\"sessaoclosedopen\"])')" >> $GITHUB_ENV
+          # Pega o valor de sessaoclosedopen do arquivo JSON
+          sessaoclosedopen=$(python -c 'import json; f=open("sessaoclosedopen.json"); data=json.load(f); print(data["sessaoclosedopen"])')
+          echo "sessaoclosedopen=$sessaoclosedopen" >> $GITHUB_ENV  # Define como variável de ambiente
         env:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-
-
-      # Verificar arquivo JSON
-      - name: Verificar arquivo JSON
-        run: |
-          echo "Verificando o arquivo JSON gerado:"
-          cat sessaoclosedopen.json
-
+      
       # Passo para salvar a variável no cache após a execução
       - name: Salvar variável no cache
         if: ${{ always() }}  # Sempre será executado, mesmo se falhar ou for cancelado
         run: |
           echo "Passando valor para o script salvar_variavel.py"
-          python salvar_variavel.py ${{ steps.run_bot.outputs.sessaoclosedopen }}
+          python salvar_variavel.py
         env:
           ACTIONS_STEP_DEBUG: true
+          sessaoclosedopen: ${{ secrets.sessaoclosedopen }}  # A variável de ambiente é passada aqui
       
       # Garantir cache da variável sessaoclosedopen
       - name: Cache variável sessaoclosedopen
@@ -73,3 +68,4 @@ jobs:
           key: ${{ runner.os }}-fdabot-sessaoclosedopen-${{ hashFiles('sessaoclosedopen.json') }}
           restore-keys: |
             ${{ runner.os }}-fdabot-sessaoclosedopen
+      
