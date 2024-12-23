@@ -21,11 +21,19 @@ def salvar_sessao():
         json.dump({"sessaoclosedopen": sessaoclosedopen}, file)
     
 try:
-    with open("sessaoclosedopen.json", "r") as file:
-        data = json.load(file)
-        sessaoclosedopen = data.get("sessaoclosedopen", "indefinido")  # Valor padrão caso não exista
+    # Verificar se o arquivo existe e não está vazio
+    if os.path.exists("sessaoclosedopen.json") and os.path.getsize("sessaoclosedopen.json") > 0:
+        with open("sessaoclosedopen.json", "r") as file:
+            data = json.load(file)
+            sessaoclosedopen = data.get("sessaoclosedopen", "indefinido")
+    else:
+        sessaoclosedopen = "indefinido"  # Valor padrão se o arquivo não existir ou estiver vazio
+except json.JSONDecodeError:
+    sessaoclosedopen = "indefinido"  # Valor padrão caso haja erro no parsing
+    print("Erro ao decodificar o JSON, atribuindo valor padrão.")
 except FileNotFoundError:
-    sessaoclosedopen = "indefinido"
+    sessaoclosedopen = "indefinido"  # Valor padrão caso o arquivo não seja encontrado
+    print("Arquivo não encontrado, atribuindo valor padrão.")
 
 # Nome do arquivo Markdown
 arquivo_md = "changelog.md"
