@@ -50,6 +50,12 @@ jobs:
         env:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
       
+      # Adicionar passo de debug para verificar se a variável está sendo passada corretamente
+      - name: Debug Environment Variable
+        run: |
+          echo "Valor de sessaoclosedopen: $sessaoclosedopen"  # Verifica a variável antes de passar para o script
+          if [ -z "$sessaoclosedopen" ]; then echo "Erro: sessaoclosedopen está vazio!"; fi
+      
       # Passo para salvar a variável no cache após a execução
       - name: Salvar variável no cache
         if: ${{ always() }}  # Sempre será executado, mesmo se falhar ou for cancelado
@@ -58,14 +64,4 @@ jobs:
           python salvar_variavel.py
         env:
           ACTIONS_STEP_DEBUG: true
-          sessaoclosedopen: ${{ secrets.sessaoclosedopen }}  # A variável de ambiente é passada aqui
-      
-      # Garantir cache da variável sessaoclosedopen
-      - name: Cache variável sessaoclosedopen
-        uses: actions/cache@v3
-        with:
-          path: sessaoclosedopen.json
-          key: ${{ runner.os }}-fdabot-sessaoclosedopen-${{ hashFiles('sessaoclosedopen.json') }}
-          restore-keys: |
-            ${{ runner.os }}-fdabot-sessaoclosedopen
-      
+          sessaoclosedopen: ${{ env.sessaoclosedopen }}  # Corrige a passagem da variável para o script
