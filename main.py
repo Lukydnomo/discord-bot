@@ -14,21 +14,20 @@ intents.message_content = True
 prefix = 'foa!'
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 updateyn = 0
-    
-try:
-    # Verificar se o arquivo existe e não está vazio
-    if os.path.exists("sessaoclosedopen.json") and os.path.getsize("sessaoclosedopen.json") > 0:
+
+# Carrega o valor inicial da variável do arquivo JSON
+def carregar_variavel():
+    if os.path.exists("sessaoclosedopen.json"):
         with open("sessaoclosedopen.json", "r") as file:
             data = json.load(file)
-            sessaoclosedopen = data.get("sessaoclosedopen", "indefinido")
+            return data.get("sessaoclosedopen", 0)
     else:
-        sessaoclosedopen = "indefinido"  # Valor padrão se o arquivo não existir ou estiver vazio
-except json.JSONDecodeError:
-    sessaoclosedopen = "indefinido"  # Valor padrão caso haja erro no parsing
-    print("Erro ao decodificar o JSON, atribuindo valor padrão.")
-except FileNotFoundError:
-    sessaoclosedopen = "indefinido"  # Valor padrão caso o arquivo não seja encontrado
-    print("Arquivo não encontrado, atribuindo valor padrão.")
+        return 0
+
+# Salva o valor atualizado da variável no arquivo JSON
+def salvar_variavel(valor):
+    with open("sessaoclosedopen.json", "w") as file:
+        json.dump({"sessaoclosedopen": valor}, file)
 
 # Nome do arquivo Markdown
 arquivo_md = "changelog.md"
@@ -47,11 +46,11 @@ class MyBot(commands.Bot):
     async def setup_hook(self):
         await self.tree.sync()  # Sincroniza comandos globalmente
         print("✅ Comandos sincronizados globalmente!")
+        sessaoclosedopen = carregar_variavel()
 
 bot = MyBot()
 
 # Lógicas
-sessaoclosedopen = 0
 # Função para punir um membro
 async def punir_logic(ctx, member: discord.Member, punish_channel: discord.VoiceChannel, duration: int = 1):
     try:
@@ -121,6 +120,7 @@ async def togglesessao_logic(ctx, mesa: str, interaction: discord.Interaction = 
             else:
                 await ctx.send(f"Sessão iniciada na {mesa}!")  # Para comandos prefixados
             sessaoclosedopen = 1
+            salvar_variavel(sessaoclosedopen)
         except Exception as e:
             if interaction:
                 await interaction.response.send_message(f"**Algo deu errado: {e}**")  # Responde a interação de erro
@@ -142,6 +142,7 @@ async def togglesessao_logic(ctx, mesa: str, interaction: discord.Interaction = 
             else:
                 await ctx.send(f"Sessão encerrada na {mesa}!")  # Para comandos prefixados
             sessaoclosedopen = 0
+            salvar_variavel(sessaoclosedopen)
         except Exception as e:
             if interaction:
                 await interaction.response.send_message(f"**Algo deu errado: {e}**")  # Responde a interação de erro

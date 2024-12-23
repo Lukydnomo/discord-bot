@@ -23,22 +23,21 @@ jobs:
         with:
           python-version: '3.x'
 
-      # Passo 3: Instalar dependências
+      # Passo 3: Restaurar o cache do arquivo JSON (se existir)
+      - name: Restaurar cache do arquivo JSON
+        id: cache-restore
+        uses: actions/cache@v3
+        with:
+          path: sessaoclosedopen.json
+          key: ${{ runner.os }}-fdabot-sessaoclosedopen
+
+      # Passo 4: Instalar dependências
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # Restaurar o cache (se existir)
-      - name: Restaurar cache da variável
-        uses: actions/cache@v3
-        with:
-          path: sessaoclosedopen.json
-          key: ${{ runner.os }}-fdabot-sessaoclosedopen
-          restore-keys: |
-            ${{ runner.os }}-fdabot-sessaoclosedopen
-
-      # Passo 4: Executar o bot
+      # Passo 5: Executar o bot
       - name: Run Bot
         id: run_bot
         run: |
@@ -47,19 +46,20 @@ jobs:
         env:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
 
-      - name: Verificar arquivo JSON
+      # Passo 6: Verificar o estado do arquivo JSON
+      - name: Verificar estado do arquivo JSON
         run: |
-          echo "Verificando o arquivo JSON gerado:"
-          cat sessaoclosedopen.json
+          echo "Verificando o conteúdo de sessaoclosedopen.json:"
+          if [ -f sessaoclosedopen.json ]; then
+            cat sessaoclosedopen.json
+          else
+            echo '{"sessaoclosedopen": 0}' > sessaoclosedopen.json
+          fi
 
-      - name: Salvar variável no cache
-        if: ${{ always() }}
-        run: python salvar_variavel.py ${{ steps.run_bot.outputs.sessaoclosedopen }}
-
-      - name: Cache variável sessaoclosedopen
+      # Passo 7: Salvar o estado no cache
+      - name: Atualizar cache do arquivo JSON
+        id: cache-save
         uses: actions/cache@v3
         with:
           path: sessaoclosedopen.json
           key: ${{ runner.os }}-fdabot-sessaoclosedopen
-        env:
-          ACTIONS_STEP_DEBUG: true
