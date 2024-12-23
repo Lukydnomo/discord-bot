@@ -38,7 +38,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-fdabot-sessaoclosedopen
 
-      # Passo 4: Executar o bot
       - name: Run Bot
         id: run_bot
         run: |
@@ -46,6 +45,8 @@ jobs:
           python main.py
         env:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+        continue-on-error: true
+
 
       # Verificar arquivo JSON
       - name: Verificar arquivo JSON
@@ -57,6 +58,7 @@ jobs:
       - name: Salvar variável no cache
         if: ${{ always() }}  # Sempre será executado, mesmo se falhar ou for cancelado
         run: python salvar_variavel.py ${{ steps.run_bot.outputs.sessaoclosedopen }}
+
 
       # Garantir cache da variável sessaoclosedopen
       - name: Cache variável sessaoclosedopen

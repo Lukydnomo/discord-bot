@@ -122,6 +122,7 @@ async def togglesessao_logic(ctx, mesa: str, interaction: discord.Interaction = 
                 await ctx.send(f"Sessão iniciada na {mesa}!")  # Para comandos prefixados
             sessaoclosedopen = 1
             salvar_variavel(sessaoclosedopen)
+            print(f"::set-output name=sessaoclosedopen::{sessaoclosedopen}")
         except Exception as e:
             if interaction:
                 await interaction.response.send_message(f"**Algo deu errado: {e}**")  # Responde a interação de erro
@@ -144,6 +145,7 @@ async def togglesessao_logic(ctx, mesa: str, interaction: discord.Interaction = 
                 await ctx.send(f"Sessão encerrada na {mesa}!")  # Para comandos prefixados
             sessaoclosedopen = 0
             salvar_variavel(sessaoclosedopen)
+            print(f"::set-output name=sessaoclosedopen::{sessaoclosedopen}")
         except Exception as e:
             if interaction:
                 await interaction.response.send_message(f"**Algo deu errado: {e}**")  # Responde a interação de erro
