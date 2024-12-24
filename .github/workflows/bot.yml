@@ -27,6 +27,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       
+      - name: Verificar conteúdo de bot_state.json
+        run: cat bot_state.json
+        
       # Passo 3: Restaurar o cache do bot (data/bot_state.json)
       - name: Restore bot state cache
         uses: actions/cache@v3

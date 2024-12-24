@@ -34,10 +34,13 @@ def save_state(state):
 # Função para carregar o estado do arquivo
 def load_state():
     try:
-        with open(state_file, "r") as file:
-            return json.load(file)
+        with open(state_file, 'r') as f:
+            bot_state = json.load(f)
+            # Carregar o estado para a variável
+            sessaoclosedopen = bot_state.get('sessaoClosedOpen', 0)  # Valor default, se não existir
     except FileNotFoundError:
-        return {"sessaoclosedopen": 0}  # Retorna o estado padrão se o arquivo não existir
+        # Se o arquivo não for encontrado, inicializa o estado com valores default
+        sessaoclosedopen = 0
 
 # Carregar o estado inicial
 state = load_state()
@@ -233,4 +236,5 @@ async def togglesessao(interaction: discord.Interaction, mesa: str):
     await togglesessao_logic(fake_ctx, mesa)
 
 # Inicia o bot
+print(sessaoclosedopen)
 bot.run(TOKEN)
