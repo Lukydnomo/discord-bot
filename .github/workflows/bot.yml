@@ -23,45 +23,25 @@ jobs:
         with:
           python-version: '3.x'
 
-      # Passo 3: Instalar dependências
+      # Passo 3: Restaurar cache das dependências
+      - name: Cache Dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # Passo 4: Instalar dependências
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # Restaurar o cache (se existir)
-      - name: Restaurar cache da variável
-        uses: actions/cache@v3
-        with:
-          path: sessaoclosedopen.json
-          key: ${{ runner.os }}-fdabot-sessaoclosedopen-${{ hashFiles('sessaoclosedopen.json') }}
-          restore-keys: |
-            ${{ runner.os }}-fdabot-sessaoclosedopen
-
-      # Passo 4: Executar o bot
+      # Passo 5: Executar o bot
       - name: Run Bot
-        id: run_bot
         run: |
           echo "Iniciando o bot..."
           python main.py
-          # Pega o valor de sessaoclosedopen do arquivo JSON
-          sessaoclosedopen=$(python -c 'import json; f=open("sessaoclosedopen.json"); data=json.load(f); print(data["sessaoclosedopen"])')
-          echo "sessaoclosedopen=$sessaoclosedopen" >> $GITHUB_ENV  # Define como variável de ambiente
         env:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-      
-      # Adicionar passo de debug para verificar se a variável está sendo passada corretamente
-      - name: Debug Environment Variable
-        run: |
-          echo "Valor de sessaoclosedopen: $sessaoclosedopen"  # Verifica a variável antes de passar para o script
-          if [ -z "$sessaoclosedopen" ]; then echo "Erro: sessaoclosedopen está vazio!"; fi
-      
-      # Passo para salvar a variável no cache após a execução
-      - name: Salvar variável no cache
-        if: ${{ always() }}  # Sempre será executado, mesmo se falhar ou for cancelado
-        run: |
-          echo "Passando valor para o script salvar_variavel.py"
-          python salvar_variavel.py
-        env:
-          ACTIONS_STEP_DEBUG: true
-          sessaoclosedopen: ${{ env.sessaoclosedopen }}  # Corrige a passagem da variável para o script
