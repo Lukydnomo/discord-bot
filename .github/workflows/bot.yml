@@ -53,3 +53,4 @@ jobs:
         with:
           path: bot_state.json
           key: bot-state-cache-${{ runner.os }}-${{ hashFiles('bot_state.json') }}
+        if: always()  # Garantir que esta etapa seja executada independentemente do sucesso ou falha do job
