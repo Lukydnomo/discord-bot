@@ -18,6 +18,11 @@ updateyn = 0
 # Caminho do arquivo para salvar o estado
 state_file = "bot_state.json"
 
+if not os.path.exists(state_file):
+    # Se não existir, cria com o estado inicial
+    with open(state_file, 'w', encoding='utf-8') as f:
+        json.dump({'sessaoclosedopen': 0}, f, ensure_ascii=False, indent=4)
+
 # Função para salvar o estado no arquivo
 def save_state(state):
     try:
@@ -29,7 +34,7 @@ def save_state(state):
 # Função para carregar o estado do arquivo
 def load_state():
     try:
-        with open('bot_state.json', "r") as file:
+        with open(state_file, "r") as file:
             return json.load(file)
     except FileNotFoundError:
         return {"sessaoclosedopen": 0}  # Retorna o estado padrão se o arquivo não existir
