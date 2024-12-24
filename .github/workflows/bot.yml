@@ -27,7 +27,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       
-      - name: Verificar conteúdo de bot_state.json
+      - name: Verificar conteúdo de bot_state.json 1
         run: cat data/bot_state.json
         
       # Passo 3: Restaurar o cache do bot (data/bot_state.json)
@@ -38,6 +38,9 @@ jobs:
           key: bot-state-cache-${{ runner.os }}-v1
           restore-keys: |
             bot-state-cache-${{ runner.os }}
+        
+      - name: Verificar conteúdo de bot_state.json 2
+        run: cat data/bot_state.json
 
       - name: Run Bot
         id: run_bot
