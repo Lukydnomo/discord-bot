@@ -26,6 +26,15 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+      
+      # Passo 3: Restaurar o cache do bot (data/bot_state.json)
+      - name: Restore bot state cache
+        uses: actions/cache@v3
+        with:
+          path: data/bot_state.json  # Certifique-se de que o arquivo data/bot_state.json esteja aqui
+          key: bot-state-cache-${{ runner.os }}-v1
+          restore-keys: |
+            bot-state-cache-${{ runner.os }}
 
       - name: Run Bot
         id: run_bot
