@@ -19,10 +19,11 @@ jobs:
       # Passo 3: Salvar o estado no cache
       # Salvar sempre um novo estado
       - name: Save Updated Cache
+        if: always()  # Garante que sempre será executado
         uses: actions/cache@v3
         with:
           path: bot_state.json
-          key: bot-state-cache-${{ runner.os }}-${{ github.run_id }}  # Sempre salva um novo
+          key: bot-state-cache-${{ runner.os }}-${{ github.run_id }}  # Sempre salva um novo cache
           restore-keys: |
-            bot-state-cache-${{ runner.os }}  # Restaura o mais recente compatível, se houver
-        if: always()
+            bot-state-cache-${{ runner.os }}
+
