@@ -3,60 +3,40 @@ name: Run Discord Bot
 on:
   push:
     branches:
-      - main  # Executa o workflow ao fazer push na branch 'main'
-  workflow_dispatch:  # Permite iniciar manualmente
+      - main
+  workflow_dispatch:
   schedule:
-    - cron: '0 */5 * * *'  # Executa a cada 6 horas
+    - cron: '0 */5 * * *'
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
-    timeout-minutes: 310  # Limita o tempo do job para 5 horas e meia (evita que o GitHub desative antes de salvar o cache)
+    timeout-minutes: 310  # Tempo máximo do job
 
     steps:
-      # Passo 1: Checkout do código mais recente
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      # Passo 2: Cache do estado do bot (bot_state.json)
-      - name: Cache bot state (before running bot)
-        uses: actions/cache@v3
-        with:
-          path: bot_state.json
-          key: bot-state-cache-${{ runner.os }}-v1  # Chave principal
-          restore-keys: |
-            bot-state-cache-${{ runner.os }}  # Fallback caso a chave principal não seja encontrada
-            bot-state-cache-${{ runner.os }}-v1  # Tentativas anteriores (se houver)
-
-      # Passo 3: Configurar Python
       - name: Set up Python
         uses: actions/setup-python@v3
         with:
           python-version: '3.x'
 
-      # Passo 4: Instalar dependências
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # Passo 5: Executar o bot
       - name: Run Bot
         id: run_bot
         run: |
-          echo "Iniciando o bot..."
           python main.py
         env:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-        
-      - name: Verificar arquivo bot_state.json
-        run: ls -la bot_state.json
-        if: always()
 
-      # Passo 6: Salvar estado no cache (bot_state.json)
-      - name: Save Cache (after bot run)
-        uses: actions/cache@v3
-        with:
-          path: bot_state.json
-          key: bot-state-cache-${{ runner.os }}-v1
-        if: always()  # Garantir que esta etapa seja executada independentemente do sucesso ou falha do job
+      - name: Trigger Save Cache Workflow
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -d '{"event_type": "save_cache"}' \
+            https://api.github.com/repos/${{ github.repository }}/dispatches

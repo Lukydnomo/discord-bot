@@ -1,0 +1,19 @@
+name: Save Cache
+
+on:
+  repository_dispatch:
+    types: [save_cache]  # Esse workflow será acionado pelo primeiro workflow
+
+jobs:
+  save-cache:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Cache bot state
+        uses: actions/cache@v3
+        with:
+          path: bot_state.json
+          key: bot-state-cache-${{ runner.os }}-v1
