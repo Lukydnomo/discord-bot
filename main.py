@@ -49,7 +49,7 @@ arquivo_md = "changelog.md"
 # Abrir o arquivo em modo leitura
 with open(arquivo_md, "r", encoding="utf-8") as arquivo:
     conteudo = arquivo.read()  # Lê todo o conteúdo do arquivo e coloca na variável
-with open('avisos_sessao.json', 'r') as file:
+with open('data/avisos_sessao.json', 'r') as file:
     avisos = json.load(file)
 
 class MyBot(commands.Bot):

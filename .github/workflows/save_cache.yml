@@ -12,8 +12,28 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
+      - name: Verificar se bot_state.json foi gerado
+        run: ls -la bot_state.json
+        if: always()
+
       - name: Cache bot state
         uses: actions/cache@v3
         with:
           path: bot_state.json
+          key: bot-state-cache-${{ runner.os }}-v1
+
+      # Passo 3: Restaurar o cache do bot (bot_state.json)
+      - name: Restore bot state cache
+        uses: actions/cache@v3
+        with:
+          path: bot_state.json  # Certifique-se de que o arquivo bot_state.json esteja aqui
+          key: bot-state-cache-${{ runner.os }}-v1
+          restore-keys: |
+            bot-state-cache-${{ runner.os }}
+
+      # Passo 4: Salvar o estado no cache
+      - name: Save bot state cache
+        uses: actions/cache@v3
+        with:
+          path: bot_state.json  # Caminho correto para o arquivo
           key: bot-state-cache-${{ runner.os }}-v1
