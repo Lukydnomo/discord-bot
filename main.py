@@ -237,5 +237,5 @@ async def togglesessao(interaction: discord.Interaction, mesa: str):
     await togglesessao_logic(fake_ctx, mesa)
 
 # Inicia o bot
-print(sessaoclosedopen)
 bot.run(TOKEN)
+print(sessaoclosedopen)
