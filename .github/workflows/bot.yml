@@ -6,11 +6,12 @@ on:
       - main  # Executa o workflow ao fazer push na branch 'main'
   workflow_dispatch:  # Permite iniciar manualmente
   schedule:
-    - cron: '0 */6 * * *'  # Executa a cada 6 horas
+    - cron: '0 */5 * * *'  # Executa a cada 6 horas
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
+    timeout-minutes: 310  # Limita o tempo do job para 5 horas e meia (evita que o GitHub desative antes de salvar o cache)
 
     steps:
       # Passo 1: Checkout do código mais recente
@@ -18,7 +19,7 @@ jobs:
         uses: actions/checkout@v3
 
       # Passo 2: Cache do estado do bot (bot_state.json)
-      - name: Cache bot state
+      - name: Cache bot state (before running bot)
         uses: actions/cache@v3
         with:
           path: bot_state.json
@@ -53,7 +54,7 @@ jobs:
         if: always()
 
       # Passo 6: Salvar estado no cache (bot_state.json)
-      - name: Save Cache
+      - name: Save Cache (after bot run)
         uses: actions/cache@v3
         with:
           path: bot_state.json
