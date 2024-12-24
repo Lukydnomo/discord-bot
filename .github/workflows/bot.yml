@@ -50,6 +50,7 @@ jobs:
         
       - name: Verificar arquivo bot_state.json
         run: ls -la bot_state.json
+        if: always()
 
       # Passo 6: Salvar estado no cache (bot_state.json)
       - name: Save Cache
