@@ -47,11 +47,14 @@ jobs:
           python main.py
         env:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+        
+      - name: Verificar arquivo bot_state.json
+        run: ls -la bot_state.json
 
       # Passo 6: Salvar estado no cache (bot_state.json)
-      - name: Save bot state
+      - name: Save Cache
         uses: actions/cache@v3
         with:
           path: bot_state.json
-          key: bot-state-cache-${{ runner.os }}-v1  # A mesma chave usada para cache
+          key: bot-state-cache-${{ runner.os }}-v1
         if: always()  # Garantir que esta etapa seja executada independentemente do sucesso ou falha do job
