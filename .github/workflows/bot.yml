@@ -22,11 +22,10 @@ jobs:
         uses: actions/cache@v3
         with:
           path: bot_state.json
-          # Usar uma chave fixa e depois usar uma chave de fallback
-          key: bot-state-cache-${{ runner.os }}-v1
+          key: bot-state-cache-${{ runner.os }}-v1  # Chave principal
           restore-keys: |
-            bot-state-cache-${{ runner.os }}-v1
-            bot-state-cache-${{ runner.os }}
+            bot-state-cache-${{ runner.os }}  # Fallback caso a chave principal não seja encontrada
+            bot-state-cache-${{ runner.os }}-v1  # Tentativas anteriores (se houver)
 
       # Passo 3: Configurar Python
       - name: Set up Python
@@ -54,5 +53,4 @@ jobs:
         uses: actions/cache@v3
         with:
           path: bot_state.json
-          key: bot-state-cache-${{ runner.os }}-v1
-        if: always()  # Garantir que esta etapa seja executada independentemente do sucesso ou falha do job
+          key: bot-state-cache-${{ runner.os }}-v1  # A mesma chave usada para cache
