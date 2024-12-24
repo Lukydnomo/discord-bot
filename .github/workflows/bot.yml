@@ -28,7 +28,7 @@ jobs:
           pip install -r requirements.txt
       
       - name: Verificar conteúdo de bot_state.json
-        run: cat bot_state.json
+        run: cat data/bot_state.json
         
       # Passo 3: Restaurar o cache do bot (data/bot_state.json)
       - name: Restore bot state cache
