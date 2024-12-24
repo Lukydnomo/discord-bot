@@ -17,20 +17,18 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      # Passo 2: Configurar Python
+      # Passo 2: Restaurar cache do estado
+      - name: Restore Bot State
+        uses: actions/cache@v3
+        with:
+          path: bot_state.json  # Arquivo que contém o estado
+          key: bot-state-cache
+
+      # Passo 3: Configurar Python
       - name: Set up Python
         uses: actions/setup-python@v3
         with:
           python-version: '3.x'
-
-      # Passo 3: Restaurar cache das dependências
-      - name: Cache Dependencies
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
 
       # Passo 4: Instalar dependências
       - name: Install Dependencies
@@ -40,8 +38,17 @@ jobs:
 
       # Passo 5: Executar o bot
       - name: Run Bot
+        id: run_bot
         run: |
           echo "Iniciando o bot..."
           python main.py
         env:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+
+      # Passo 6: Salvar cache do estado (essa etapa sempre vai rodar, mesmo se o workflow for cancelado)
+      - name: Save Bot State
+        uses: actions/cache@v3
+        with:
+          path: bot_state.json  # Arquivo que contém o estado
+          key: bot-state-cache
+        if: always()  # Garantir que esta etapa seja executada independentemente do sucesso ou falha do job
