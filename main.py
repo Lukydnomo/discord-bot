@@ -32,15 +32,16 @@ def save_state(state):
         return {"sessaoclosedopen": 0}  # Retorna o estado padrão se o arquivo não existir
 
 # Função para carregar o estado do arquivo
+# Função para carregar o estado do arquivo
 def load_state():
     try:
         with open(state_file, 'r') as f:
             bot_state = json.load(f)
             # Carregar o estado para a variável
-            sessaoclosedopen = bot_state.get('sessaoClosedOpen', 0)  # Valor default, se não existir
+            return bot_state  # Agora retorna o estado carregado
     except FileNotFoundError:
         # Se o arquivo não for encontrado, inicializa o estado com valores default
-        sessaoclosedopen = 0
+        return {'sessaoclosedopen': 0}  # Retorna um estado padrão, caso o arquivo não exista
 
 # Carregar o estado inicial
 state = load_state()
