@@ -16,15 +16,10 @@ jobs:
         run: ls -la data/bot_state.json
         if: always()
 
-      - name: Cache bot state
+      # Passo 3: Salvar o estado no cache
+      - name: Save Cache
         uses: actions/cache@v3
         with:
           path: data/bot_state.json
           key: bot-state-cache-${{ runner.os }}-v1
-
-      # Passo 4: Salvar o estado no cache
-      - name: Save bot state cache
-        uses: actions/cache@v3
-        with:
-          path: data/bot_state.json  # Caminho correto para o arquivo
-          key: bot-state-cache-${{ runner.os }}-v1
+        if: always()  # Garantir que esta etapa seja executada independentemente do sucesso ou falha do job
