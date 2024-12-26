@@ -35,7 +35,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: data/bot_state.json  # Certifique-se de que o arquivo data/bot_state.json esteja aqui
-          key: bot-state-cache-${{ runner.os }}-v1
+          key: bot-state-cache-${{ runner.os }}-${{ github.run_id }}
           restore-keys: |
             bot-state-cache-${{ runner.os }}
         

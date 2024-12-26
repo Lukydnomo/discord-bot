@@ -122,6 +122,7 @@ async def togglesessao_logic(ctx, mesa: str, interaction: discord.Interaction = 
 
     mesa_principal_cargo = 1319301421216301179
     mesa_desordem_cargo = 1320516709089673237
+    dev = 1316481758056808558
 
     if sessaoclosedopen == 0:
         try:
@@ -135,9 +136,9 @@ async def togglesessao_logic(ctx, mesa: str, interaction: discord.Interaction = 
                 else:
                     await ctx.send("Mesa não encontrada")  # Isso é para comandos prefixados
             if interaction:  # Se for uma interação de slash command
-                await interaction.response.send_message(f"Sessão iniciada na {mesa}!")  # Responde a interação
+                await interaction.response.send_message(f"<@&{dev}> Sessão iniciada na {mesa}!")  # Responde a interação
             else:
-                await ctx.send(f"Sessão iniciada na {mesa}!")  # Para comandos prefixados
+                await ctx.send(f"<@&{dev}> Sessão iniciada na {mesa}!")  # Para comandos prefixados
             sessaoclosedopen = 1
             save_state({"sessaoclosedopen": sessaoclosedopen})
         except Exception as e:
@@ -157,9 +158,9 @@ async def togglesessao_logic(ctx, mesa: str, interaction: discord.Interaction = 
                 else:
                     await ctx.send("Mesa não encontrada")  # Isso é para comandos prefixados
             if interaction:  # Se for uma interação de slash command
-                await interaction.response.send_message(f"Sessão encerrada na {mesa}!")  # Responde a interação
+                await interaction.response.send_message(f"<@&{dev}> Sessão encerrada na {mesa}!")  # Responde a interação
             else:
-                await ctx.send(f"Sessão encerrada na {mesa}!")  # Para comandos prefixados
+                await ctx.send(f"<@&{dev}> Sessão encerrada na {mesa}!")  # Para comandos prefixados
             sessaoclosedopen = 0
             save_state({"sessaoclosedopen": sessaoclosedopen})
         except Exception as e:
