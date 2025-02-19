@@ -13,6 +13,8 @@ intents.members = True
 intents.message_content = True
 prefix = 'foa!'
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
+if not TOKEN:
+    raise ValueError("TOKEN não encontrado! Verifique as variáveis de ambiente.")
 updateyn = 0
 
 # Caminho do arquivo para salvar o estado
@@ -53,7 +55,7 @@ arquivo_md = "changelog.md"
 # Abrir o arquivo em modo leitura
 with open(arquivo_md, "r", encoding="utf-8") as arquivo:
     conteudo = arquivo.read()  # Lê todo o conteúdo do arquivo e coloca na variável
-with open('data/avisos_sessao.json', 'r') as file:
+with open('data/avisos_sessao.json', 'r', encoding='utf-8') as file:
     avisos = json.load(file)
 
 class MyBot(commands.Bot):

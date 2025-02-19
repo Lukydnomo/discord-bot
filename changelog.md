@@ -1,5 +1,5 @@
 # Changelog
 
-## [1.0.3v3] - 2024-12-19
-### Fixed
-- (Admins Only) Agora a variável que define se sessões estão abertas ou fechadasé guardada pelo cache do servidor
+## [1.0.4] - 2024-12-19
+### Added
+- Comando "/test" pra testar o bot (ah sério?)
