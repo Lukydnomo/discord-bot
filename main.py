@@ -296,7 +296,47 @@ async def mutar(
             await interaction.response.send_message(f"🚨 Não tenho permissão para mutar {membro.mention}!", ephemeral=True)
 
     await interaction.response.send_message(f"🔇 **{membros_mutados}** membros foram mutados em {canal.mention}!")
-    
+
+# 🔊 Comando para desmutar membros
+@bot.tree.command(name="desmutar", description="Desmuta todos em um canal de voz ou apenas um membro específico")
+@app_commands.describe(
+    canal="Canal de voz onde os membros serão desmutados",
+    apenas_usuario="(Opcional) Desmutar SOMENTE este usuário",
+    apenas_cargo="(Opcional) Desmutar SOMENTE membros desse cargo"
+)
+async def desmutar(
+    interaction: discord.Interaction,
+    canal: discord.VoiceChannel,
+    apenas_usuario: discord.Member = None,
+    apenas_cargo: discord.Role = None
+):
+    if not interaction.user.guild_permissions.mute_members:
+        return await interaction.response.send_message("🚫 Você não tem permissão para desmutar membros!", ephemeral=True)
+
+    if apenas_usuario:
+        try:
+            await apenas_usuario.edit(mute=False)
+            return await interaction.response.send_message(f"🔊 {apenas_usuario.mention} foi desmutado em {canal.mention}!")
+        except discord.Forbidden:
+            return await interaction.response.send_message(f"🚨 Não tenho permissão para desmutar {apenas_usuario.mention}!", ephemeral=True)
+
+    membros_desmutados = 0
+
+    for membro in canal.members:
+        if apenas_cargo and apenas_cargo not in membro.roles:
+            continue  # Pula quem não faz parte do cargo especificado
+
+        try:
+            await membro.edit(mute=False)
+            membros_desmutados += 1
+        except discord.Forbidden:
+            await interaction.response.send_message(f"🚨 Não tenho permissão para desmutar {membro.mention}!", ephemeral=True)
+
+    if apenas_cargo:
+        await interaction.response.send_message(f"🔊 **{membros_desmutados}** membros com o cargo {apenas_cargo.mention} foram desmutados em {canal.mention}!")
+    else:
+        await interaction.response.send_message(f"🔊 **{membros_desmutados}** membros foram desmutados em {canal.mention}!")
+
 # Inicia o bot
 bot.run(TOKEN)
 print(sessaoclosedopen)
