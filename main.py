@@ -258,13 +258,30 @@ async def mover(interaction: discord.Interaction, origem: discord.VoiceChannel, 
 
     await interaction.response.send_message(f"✅ **{membros_movidos}** membros movidos de {origem.mention} para {destino.mention}!")
 
-@bot.tree.command(name="mutar", description="Muta todos em um canal de voz, exceto uma pessoa ou um cargo")
-@app_commands.describe(canal="Canal de voz onde os membros serão mutados",
-                        excecao_usuario="(Opcional) Usuário que NÃO será mutado",
-                        excecao_cargo="(Opcional) Cargo cujos membros NÃO serão mutados")
-async def mutar(interaction: discord.Interaction, canal: discord.VoiceChannel, excecao_usuario: discord.Member = None, excecao_cargo: discord.Role = None):
+@bot.tree.command(name="mutar", description="Muta todos em um canal de voz ou apenas um membro específico")
+@app_commands.describe(
+    canal="Canal de voz onde os membros serão mutados",
+    excecao_usuario="(Opcional) Usuário que NÃO será mutado",
+    excecao_cargo="(Opcional) Cargo cujos membros NÃO serão mutados",
+    apenas_usuario="(Opcional) Mutar SOMENTE este usuário"
+)
+async def mutar(
+    interaction: discord.Interaction,
+    canal: discord.VoiceChannel,
+    excecao_usuario: discord.Member = None,
+    excecao_cargo: discord.Role = None,
+    apenas_usuario: discord.Member = None
+):
     if not interaction.user.guild_permissions.mute_members:
         return await interaction.response.send_message("🚫 Você não tem permissão para mutar membros!", ephemeral=True)
+
+    if apenas_usuario:
+        # Se a opção de mutar apenas um usuário for usada
+        try:
+            await apenas_usuario.edit(mute=True)
+            return await interaction.response.send_message(f"🔇 {apenas_usuario.mention} foi mutado em {canal.mention}!")
+        except discord.Forbidden:
+            return await interaction.response.send_message(f"🚨 Não tenho permissão para mutar {apenas_usuario.mention}!", ephemeral=True)
 
     membros_mutados = 0
 
@@ -279,7 +296,7 @@ async def mutar(interaction: discord.Interaction, canal: discord.VoiceChannel, e
             await interaction.response.send_message(f"🚨 Não tenho permissão para mutar {membro.mention}!", ephemeral=True)
 
     await interaction.response.send_message(f"🔇 **{membros_mutados}** membros foram mutados em {canal.mention}!")
-
+    
 # Inicia o bot
 bot.run(TOKEN)
 print(sessaoclosedopen)
