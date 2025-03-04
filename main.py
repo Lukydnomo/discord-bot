@@ -13,8 +13,6 @@ intents.members = True
 intents.message_content = True
 prefix = 'foa!'
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-if not TOKEN:
-    raise ValueError("TOKEN não encontrado! Verifique as variáveis de ambiente.")
 updateyn = 0
 
 # Caminho do arquivo para salvar o estado
