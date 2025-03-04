@@ -258,6 +258,28 @@ async def mover(interaction: discord.Interaction, origem: discord.VoiceChannel, 
 
     await interaction.response.send_message(f"✅ **{membros_movidos}** membros movidos de {origem.mention} para {destino.mention}!")
 
+@bot.tree.command(name="mutar", description="Muta todos em um canal de voz, exceto uma pessoa ou um cargo")
+@app_commands.describe(canal="Canal de voz onde os membros serão mutados",
+                        excecao_usuario="(Opcional) Usuário que NÃO será mutado",
+                        excecao_cargo="(Opcional) Cargo cujos membros NÃO serão mutados")
+async def mutar(interaction: discord.Interaction, canal: discord.VoiceChannel, excecao_usuario: discord.Member = None, excecao_cargo: discord.Role = None):
+    if not interaction.user.guild_permissions.mute_members:
+        return await interaction.response.send_message("🚫 Você não tem permissão para mutar membros!", ephemeral=True)
+
+    membros_mutados = 0
+
+    for membro in canal.members:
+        if membro == excecao_usuario or (excecao_cargo and excecao_cargo in membro.roles):
+            continue  # Pula quem deve ser ignorado
+
+        try:
+            await membro.edit(mute=True)
+            membros_mutados += 1
+        except discord.Forbidden:
+            await interaction.response.send_message(f"🚨 Não tenho permissão para mutar {membro.mention}!", ephemeral=True)
+
+    await interaction.response.send_message(f"🔇 **{membros_mutados}** membros foram mutados em {canal.mention}!")
+
 # Inicia o bot
 bot.run(TOKEN)
 print(sessaoclosedopen)
