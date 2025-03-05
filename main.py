@@ -27,9 +27,9 @@ def baixar_audio(url):
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
             'preferredquality': '192',
-        }],
-        'cookiefile': COOKIE,  # <- Adiciona os cookies aqui
-    }
+    }],
+    'cookie': COOKIE,  # Usando a variável de ambiente
+}
     
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
