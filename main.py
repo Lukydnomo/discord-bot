@@ -7,6 +7,8 @@ import random
 import json
 import yt_dlp
 import tempfile
+import re
+import requests
 
 # Configuração do bot
 intents = discord.Intents.default()
@@ -20,6 +22,19 @@ luky = 767015394648915978
 usuarios_autorizados = [luky]
 updateyn = 0
 
+def extract_video_id(url):
+    """
+    Extrai o ID do vídeo de uma URL do YouTube.
+    """
+    patterns = [
+        r"v=([a-zA-Z0-9_-]{11})",
+        r"youtu\.be/([a-zA-Z0-9_-]{11})"
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            return match.group(1)
+    return None
 def json_to_netscape(cookies_json_str):
     """
     Converte uma string JSON contendo cookies (lista de dicionários)
@@ -43,35 +58,28 @@ def json_to_netscape(cookies_json_str):
         lines.append(line)
     return "\n".join(lines)
 def baixar_audio(url):
-    # Converte o JSON (do secret) para o formato Netscape
-    netscape_cookie_str = json_to_netscape(COOKIE)
+    # Extrai o ID do vídeo
+    video_id = extract_video_id(url)
+    if not video_id:
+        raise Exception("Não foi possível extrair o ID do vídeo.")
     
-    # Cria um arquivo temporário para os cookies convertidos
-    with tempfile.NamedTemporaryFile(delete=False, mode='w', suffix='.txt') as temp_file:
-        temp_file.write(netscape_cookie_str)
-        temp_cookie_path = temp_file.name
-
-    ydl_opts = {
-    'format': 'bestaudio/best',
-    'outtmpl': 'downloads/%(title)s.%(ext)s',
-    'postprocessors': [{
-        'key': 'FFmpegExtractAudio',
-        'preferredcodec': 'mp3',
-        'preferredquality': '192',
-    }],
-    'cookiefile': temp_cookie_path,  # arquivo temporário com cookies
-    'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
-}
-
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            arquivo = ydl.prepare_filename(info).replace('.webm', '.mp3').replace('.m4a', '.mp3')
-    finally:
-        # Remove o arquivo temporário após o download
-        os.remove(temp_cookie_path)
+    # Define o endpoint da API (exemplo: youtube-mp36)
+    api_url = "https://youtube-mp36.p.rapidapi.com/dl"
+    querystring = {"id": video_id}
+    headers = {
+        "X-RapidAPI-Key": os.getenv("RAPIDAPI_KEY"),
+        "X-RapidAPI-Host": "youtube-mp36.p.rapidapi.com"
+    }
     
-    return arquivo, info.get('title', 'Desconhecido')
+    response = requests.get(api_url, headers=headers, params=querystring)
+    data = response.json()
+    
+    if data.get("status") == "ok":
+        audio_url = data["link"]
+        title = data["title"]
+        return audio_url, title
+    else:
+        raise Exception("Erro ao converter vídeo: " + data.get("msg", ""))
 
 # Nome do arquivo Markdown
 arquivo_md = "changelog.md"
