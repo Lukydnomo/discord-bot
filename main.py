@@ -201,6 +201,28 @@ async def on_ready():
     else:
         print("❌ Atualização não habilitada.")
 
+REACTIONS = {
+    "bem-vindo": ["👋", "🎉"],  # Reage com 👋 e 🎉 a mensagens contendo "bem-vindo"
+    "importante": ["⚠️", "📢"],  # Reage com ⚠️ e 📢 a mensagens contendo "importante"
+    "parabéns": ["🥳", "🎊"],  # Reage com 🥳 e 🎊 a mensagens contendo "parabéns"
+    "obrigado": ["🙏"],  # Reage com 🙏 a mensagens contendo "obrigado"
+}
+
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return  # Ignora mensagens de bots
+
+    for keyword, emojis in REACTIONS.items():
+        if keyword in message.content.lower():
+            for emoji in emojis:
+                try:
+                    await message.add_reaction(emoji)
+                except discord.Forbidden:
+                    print(f"❌ Não tenho permissão para reagir a mensagens em {message.channel}")
+
+    await bot.process_commands(message)  # Permite que outros comandos ainda funcionem
+
 # Comando prefixado "punir"
 @bot.command(name="punir")
 async def punir(ctx, member: discord.Member, punish_channel: discord.VoiceChannel, duration: int = 1):
@@ -349,6 +371,7 @@ async def desmutar(
     else:
         await interaction.response.send_message(f"🔊 **{membros_desmutados}** membros foram desmutados em {canal.mention}!")
 
+# Executar comandos através de DMs
 @bot.tree.command(name="executar_comando", description="Executa comandos específicos em DMs, com escolha do servidor")
 @app_commands.describe(
     comando="Comando que deseja executar",
