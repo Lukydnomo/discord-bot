@@ -17,6 +17,12 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
+      # Instalar o ffmpeg
+      - name: Install ffmpeg
+        run: |
+          sudo apt update
+          sudo apt install -y ffmpeg
+
       - name: Set up Python
         uses: actions/setup-python@v3
         with:
