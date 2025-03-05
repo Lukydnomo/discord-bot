@@ -6,6 +6,7 @@ import os
 import random
 import json
 import yt_dlp
+import tempfile
 
 # Configuração do bot
 intents = discord.Intents.default()
@@ -20,6 +21,12 @@ usuarios_autorizados = [luky]
 updateyn = 0
 
 def baixar_audio(url):
+    # Cria um arquivo temporário para os cookies
+    with tempfile.NamedTemporaryFile(delete=False, mode='w', suffix='.txt') as temp_file:
+        temp_file.write(COOKIE)  # Escreve o conteúdo dos cookies no arquivo temporário
+        temp_cookie_path = temp_file.name  # Guarda o caminho do arquivo temporário
+
+    # Configurações do yt_dlp, agora usando o cookiefile
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': 'downloads/%(title)s.%(ext)s',
@@ -27,13 +34,17 @@ def baixar_audio(url):
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
             'preferredquality': '192',
-    }],
-    'cookie': COOKIE,  # Usando a variável de ambiente
-}
-    
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        arquivo = ydl.prepare_filename(info).replace('.webm', '.mp3').replace('.m4a', '.mp3')
+        }],
+        'cookiefile': temp_cookie_path,  # Usa o arquivo temporário com os cookies
+    }
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            arquivo = ydl.prepare_filename(info).replace('.webm', '.mp3').replace('.m4a', '.mp3')
+    finally:
+        # Remove o arquivo temporário após a extração, mesmo que ocorra um erro
+        os.remove(temp_cookie_path)
     
     return arquivo, info.get('title', 'Desconhecido')
 
