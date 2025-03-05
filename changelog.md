@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.0.4] - 2024-12-19
+## [1.1.0] - 2025-03-05
 ### Added (only authorized users)
 - "/executar_comando"
 
