@@ -52,15 +52,16 @@ def baixar_audio(url):
         temp_cookie_path = temp_file.name
 
     ydl_opts = {
-        'format': 'bestaudio/best',
-        'outtmpl': 'downloads/%(title)s.%(ext)s',
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }],
-        'cookiefile': temp_cookie_path,  # Usa o arquivo temporário convertido
-    }
+    'format': 'bestaudio/best',
+    'outtmpl': 'downloads/%(title)s.%(ext)s',
+    'postprocessors': [{
+        'key': 'FFmpegExtractAudio',
+        'preferredcodec': 'mp3',
+        'preferredquality': '192',
+    }],
+    'cookiefile': temp_cookie_path,  # arquivo temporário com cookies
+    'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
+}
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
