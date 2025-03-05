@@ -6,7 +6,6 @@ import os
 import random
 import json
 import yt_dlp
-import pynacl
 
 # Configuração do bot
 intents = discord.Intents.default()
