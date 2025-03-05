@@ -67,7 +67,7 @@ class MyBot(commands.Bot):
 
 bot = MyBot()
 
-## Lógicas
+# Lógicas
 # Função para punir um membro
 async def punir_logic(ctx, member: discord.Member, punish_channel: discord.VoiceChannel, duration: int = 1):
     try:
@@ -168,24 +168,6 @@ async def togglesessao_logic(ctx, mesa: str, interaction: discord.Interaction = 
             else:
                 await ctx.send(f"**Algo deu errado: {e}**")
 
-# Lógica /mover
-async def mover_logic(ctx, origem: discord.VoiceChannel, destino: discord.VoiceChannel, cargo: discord.Role, interaction: discord.Interaction = None):
-    if not interaction.user.guild_permissions.move_members:
-        return await interaction.response.send_message("🚫 Você não tem permissão para mover membros!", ephemeral=True)
-
-    membros_movidos = 0
-
-    for membro in origem.members:
-        if cargo and cargo not in membro.roles:
-            continue  # Se um cargo foi especificado, ignora membros que não o possuem
-        try:
-            await membro.move_to(destino)
-            membros_movidos += 1
-        except discord.Forbidden:
-            await interaction.response.send_message(f"🚨 Não tenho permissão para mover {membro.mention}!", ephemeral=True)
-
-    await interaction.response.send_message(f"✅ **{membros_movidos}** membros movidos de {origem.mention} para {destino.mention}!")
-
 # Evento de quando o bot estiver pronto
 @bot.event
 async def on_ready():
@@ -258,8 +240,21 @@ async def togglesessao(interaction: discord.Interaction, mesa: str):
                         destino="Canal para onde os usuários serão movidos",
                         cargo="(Opcional) Apenas move membros com um cargo específico")
 async def mover(interaction: discord.Interaction, origem: discord.VoiceChannel, destino: discord.VoiceChannel, cargo: discord.Role = None):
-    fake_ctx = await commands.Context.from_interaction(interaction)
-    await mover_logic(fake_ctx, origem, destino, cargo)
+    if not interaction.user.guild_permissions.move_members:
+        return await interaction.response.send_message("🚫 Você não tem permissão para mover membros!", ephemeral=True)
+
+    membros_movidos = 0
+
+    for membro in origem.members:
+        if cargo and cargo not in membro.roles:
+            continue  # Se um cargo foi especificado, ignora membros que não o possuem
+        try:
+            await membro.move_to(destino)
+            membros_movidos += 1
+        except discord.Forbidden:
+            await interaction.response.send_message(f"🚨 Não tenho permissão para mover {membro.mention}!", ephemeral=True)
+
+    await interaction.response.send_message(f"✅ **{membros_movidos}** membros movidos de {origem.mention} para {destino.mention}!")
 
 @bot.tree.command(name="mutar", description="Muta todos em um canal de voz, um usuário ou um cargo específico")
 @app_commands.describe(
