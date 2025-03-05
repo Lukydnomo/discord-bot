@@ -14,6 +14,7 @@ intents.members = True
 intents.message_content = True
 prefix = 'foa!'
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
+COOKIE = os.getenv("YTDL_COOKIE")
 luky = 767015394648915978
 usuarios_autorizados = [luky]
 updateyn = 0
@@ -27,7 +28,7 @@ def baixar_audio(url):
             'preferredcodec': 'mp3',
             'preferredquality': '192',
         }],
-        'cookiefile': 'cookies.txt',  # <- Adiciona os cookies aqui
+        'cookiefile': COOKIE,  # <- Adiciona os cookies aqui
     }
     
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
