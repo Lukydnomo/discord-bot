@@ -13,6 +13,7 @@ intents.members = True
 intents.message_content = True
 prefix = 'foa!'
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
+usuarios_autorizados = [123456789012345678, 987654321098765432]
 updateyn = 0
 
 # Caminho do arquivo para salvar o estado
@@ -350,6 +351,47 @@ async def desmutar(
         await interaction.response.send_message(f"🔊 **{membros_desmutados}** membros com o cargo {apenas_cargo.mention} foram desmutados em {canal.mention}!")
     else:
         await interaction.response.send_message(f"🔊 **{membros_desmutados}** membros foram desmutados em {canal.mention}!")
+
+@bot.tree.command(name="executar_comando", description="Executa comandos específicos em DMs, com escolha do servidor")
+@app_commands.describe(
+    comando="Comando que deseja executar",
+    servidor="(Opcional) ID do servidor onde o comando será executado"
+)
+async def executar_comando(
+    interaction: discord.Interaction,
+    comando: str,
+    servidor: str = None
+):
+    # Verifica se a interação foi realizada via DM
+    if isinstance(interaction.channel, discord.DMChannel):
+        # Verifica se o usuário é autorizado
+        if interaction.user.id not in usuarios_autorizados:
+            return await interaction.response.send_message("🚫 Você não tem permissão para usar esse comando!", ephemeral=True)
+        
+        # Se o parâmetro de servidor não for especificado, tenta obter o servidor padrão do usuário
+        if not servidor:
+            servidor = interaction.guild.id if interaction.guild else None
+        
+        if servidor:
+            guild = bot.get_guild(int(servidor))  # Obtemos o servidor pelo ID
+            if not guild:
+                return await interaction.response.send_message(f"🚫 O servidor com ID {servidor} não foi encontrado.", ephemeral=True)
+
+            # Verifica se o comando solicitado existe
+            if comando.lower() == "mutar":
+                # Realiza a ação de mutar em um canal do servidor
+                canal = guild.voice_channels[0]  # Exemplo de escolha do canal de voz, você pode personalizar
+                await canal.edit(mute=True)
+                return await interaction.response.send_message(f"🔇 O comando `mutar` foi executado no servidor {guild.name}.")
+            # Adicione mais comandos aqui conforme necessário
+            else:
+                return await interaction.response.send_message(f"🚫 O comando '{comando}' não é reconhecido ou não está implementado.", ephemeral=True)
+
+        else:
+            return await interaction.response.send_message("🚫 Nenhum servidor foi especificado para executar o comando.", ephemeral=True)
+    
+    else:
+        return await interaction.response.send_message("🚫 Este comando só pode ser executado em DMs.", ephemeral=True)
 
 # Inicia o bot
 bot.run(TOKEN)
