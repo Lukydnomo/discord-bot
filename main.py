@@ -13,7 +13,7 @@ intents.members = True
 intents.message_content = True
 prefix = 'foa!'
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-usuarios_autorizados = [123456789012345678, 987654321098765432]
+usuarios_autorizados = [767015394648915978, 987654321098765432]
 updateyn = 0
 
 # Caminho do arquivo para salvar o estado
