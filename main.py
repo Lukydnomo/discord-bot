@@ -21,18 +21,20 @@ updateyn = 0
 def baixar_audio(url):
     ydl_opts = {
         'format': 'bestaudio/best',
-        'outtmpl': 'musica.mp3',
-        'quiet': True,
+        'outtmpl': 'downloads/%(title)s.%(ext)s',
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
             'preferredquality': '192',
         }],
+        'cookiefile': 'cookies.txt',  # <- Adiciona os cookies aqui
     }
-
+    
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
-        return "musica.mp3", info['title']
+        arquivo = ydl.prepare_filename(info).replace('.webm', '.mp3').replace('.m4a', '.mp3')
+    
+    return arquivo, info.get('title', 'Desconhecido')
 
 # Nome do arquivo Markdown
 arquivo_md = "changelog.md"
