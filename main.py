@@ -354,12 +354,14 @@ async def desmutar(
 @bot.tree.command(name="executar_comando", description="Executa comandos específicos em DMs, com escolha do servidor")
 @app_commands.describe(
     comando="Comando que deseja executar",
-    servidor="(Opcional) ID do servidor onde o comando será executado"
+    servidor="(Opcional) ID do servidor onde o comando será executado",
+    parametros="(Opcional) Parâmetros do comando, separados por vírgula (ex: mesa=Mesa Principal, user=123456789)"
 )
 async def executar_comando(
     interaction: discord.Interaction,
     comando: str,
-    servidor: str = None
+    servidor: str = None,
+    parametros: str = None  # Parâmetros opcionais
 ):
     # Verifica se a interação foi realizada via DM
     if isinstance(interaction.channel, discord.DMChannel):
@@ -372,7 +374,7 @@ async def executar_comando(
             servidor = interaction.guild.id if interaction.guild else None
         
         if servidor:
-            guild = bot.get_guild(int(servidor))  # Obtemos o servidor pelo ID
+            guild = bot.get_guild(int(servidor))  # Obtém o servidor pelo ID
             if not guild:
                 return await interaction.response.send_message(f"🚫 O servidor com ID {servidor} não foi encontrado.", ephemeral=True)
 
@@ -382,9 +384,24 @@ async def executar_comando(
             if comando_obj:
                 try:
                     # Criando o contexto para invocar o comando
-                    context = await bot.get_context(interaction)  # Aqui é onde o contexto é criado corretamente
-                    context.guild = guild  # Aqui, definimos o servidor para o contexto
-                    await comando_obj.invoke(context)  # Executando o comando diretamente
+                    context = await bot.get_context(interaction)  # Criando contexto corretamente
+                    context.guild = guild  # Definindo o servidor
+
+                    # Convertendo os parâmetros para um dicionário
+                    args = []
+                    kwargs = {}
+
+                    if parametros:
+                        parametros_lista = parametros.split(",")  # Divide os parâmetros por vírgula
+                        for param in parametros_lista:
+                            chave_valor = param.strip().split("=")  # Divide chave=valor
+                            if len(chave_valor) == 2:
+                                chave, valor = chave_valor
+                                kwargs[chave.strip()] = valor.strip()
+
+                    # Invoca o comando com os argumentos passados
+                    await comando_obj.invoke(context, **kwargs)
+
                     return await interaction.response.send_message(f"✅ O comando `{comando}` foi executado no servidor {guild.name}.")
                 
                 except Exception as e:
