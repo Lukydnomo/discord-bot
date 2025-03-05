@@ -20,13 +20,37 @@ luky = 767015394648915978
 usuarios_autorizados = [luky]
 updateyn = 0
 
+def json_to_netscape(cookies_json_str):
+    """
+    Converte uma string JSON contendo cookies (lista de dicionários)
+    para o formato Netscape, que o yt-dlp espera.
+    """
+    import json
+    cookies = json.loads(cookies_json_str)
+    lines = ["# Netscape HTTP Cookie File"]
+    for cookie in cookies:
+        domain = cookie.get("domain", "")
+        # Se hostOnly for False, queremos permitir subdomínios (TRUE); caso contrário, FALSE.
+        flag = "TRUE" if not cookie.get("hostOnly", False) else "FALSE"
+        path = cookie.get("path", "/")
+        secure = "TRUE" if cookie.get("secure", False) else "FALSE"
+        # expirationDate deve ser um número inteiro (em epoch). Se não existir, usamos 0.
+        expiration = str(int(cookie.get("expirationDate", 0)))
+        name = cookie.get("name", "")
+        value = cookie.get("value", "")
+        # Formato: domain, flag, path, secure, expiration, name, value
+        line = f"{domain}\t{flag}\t{path}\t{secure}\t{expiration}\t{name}\t{value}"
+        lines.append(line)
+    return "\n".join(lines)
 def baixar_audio(url):
-    # Cria um arquivo temporário para os cookies
+    # Converte o JSON (do secret) para o formato Netscape
+    netscape_cookie_str = json_to_netscape(COOKIE)
+    
+    # Cria um arquivo temporário para os cookies convertidos
     with tempfile.NamedTemporaryFile(delete=False, mode='w', suffix='.txt') as temp_file:
-        temp_file.write(COOKIE)  # Escreve o conteúdo dos cookies no arquivo temporário
-        temp_cookie_path = temp_file.name  # Guarda o caminho do arquivo temporário
+        temp_file.write(netscape_cookie_str)
+        temp_cookie_path = temp_file.name
 
-    # Configurações do yt_dlp, agora usando o cookiefile
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': 'downloads/%(title)s.%(ext)s',
@@ -35,7 +59,7 @@ def baixar_audio(url):
             'preferredcodec': 'mp3',
             'preferredquality': '192',
         }],
-        'cookiefile': temp_cookie_path,  # Usa o arquivo temporário com os cookies
+        'cookiefile': temp_cookie_path,  # Usa o arquivo temporário convertido
     }
 
     try:
@@ -43,7 +67,7 @@ def baixar_audio(url):
             info = ydl.extract_info(url, download=True)
             arquivo = ydl.prepare_filename(info).replace('.webm', '.mp3').replace('.m4a', '.mp3')
     finally:
-        # Remove o arquivo temporário após a extração, mesmo que ocorra um erro
+        # Remove o arquivo temporário após o download
         os.remove(temp_cookie_path)
     
     return arquivo, info.get('title', 'Desconhecido')
