@@ -387,7 +387,7 @@ async def executar_comando(
                     context = await bot.get_context(interaction)  # Criando contexto corretamente
                     context.guild = guild  # Definindo o servidor
 
-                    # Convertendo os parâmetros para um dicionário
+                    # Convertendo os parâmetros para uma lista de argumentos
                     args = []
                     kwargs = {}
 
@@ -399,8 +399,13 @@ async def executar_comando(
                                 chave, valor = chave_valor
                                 kwargs[chave.strip()] = valor.strip()
 
-                    # Invoca o comando com os argumentos passados
-                    await comando_obj.invoke(context, **kwargs)
+                    # Invoca o comando com os parâmetros corretamente passados
+                    # Criamos um novo contexto temporário com os parâmetros
+                    ctx = await bot.get_context(interaction)
+                    ctx.args = args
+                    ctx.kwargs = kwargs
+
+                    await comando_obj(ctx)
 
                     return await interaction.response.send_message(f"✅ O comando `{comando}` foi executado no servidor {guild.name}.")
                 
