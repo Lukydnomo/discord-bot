@@ -381,12 +381,10 @@ async def executar_comando(
 
             if comando_obj:
                 try:
-                    # Contexto de interação para enviar a resposta
-                    context = await bot.get_context(interaction)
-                    
-                    # Executando o comando no servidor escolhido
+                    # Criando o contexto para invocar o comando
+                    context = await bot.get_context(interaction)  # Aqui é onde o contexto é criado corretamente
                     context.guild = guild  # Aqui, definimos o servidor para o contexto
-                    await bot.invoke(context)  # Executando o comando
+                    await comando_obj.invoke(context)  # Executando o comando diretamente
                     return await interaction.response.send_message(f"✅ O comando `{comando}` foi executado no servidor {guild.name}.")
                 
                 except Exception as e:
