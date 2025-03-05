@@ -5,6 +5,7 @@ import asyncio
 import os
 import random
 import json
+import yt_dlp
 
 # Configuração do bot
 intents = discord.Intents.default()
@@ -13,8 +14,25 @@ intents.members = True
 intents.message_content = True
 prefix = 'foa!'
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-usuarios_autorizados = [767015394648915978, 987654321098765432]
+luky = 767015394648915978
+usuarios_autorizados = [luky]
 updateyn = 1
+
+def baixar_audio(url):
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'outtmpl': 'musica.mp3',
+        'quiet': True,
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192',
+        }],
+    }
+
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(url, download=True)
+        return "musica.mp3", info['title']
 
 # Nome do arquivo Markdown
 arquivo_md = "changelog.md"
@@ -334,6 +352,66 @@ async def executar_comando(
     else:
         return await interaction.response.send_message("🚫 Este comando só pode ser executado em DMs.", ephemeral=True)
 
+@bot.tree.command(name="tocar", description="Toca uma música do YouTube no canal de voz.")
+@app_commands.describe(musica="Nome ou link da música do YouTube")
+async def tocar(interaction: discord.Interaction, musica: str):
+    if not interaction.user.voice or not interaction.user.voice.channel:
+        return await interaction.response.send_message("🚫 Você precisa estar em um canal de voz para usar este comando!", ephemeral=True)
+
+    canal = interaction.user.voice.channel
+    voice_client = discord.utils.get(bot.voice_clients, guild=interaction.guild)
+
+    if not voice_client:
+        voice_client = await canal.connect()
+
+    await interaction.response.send_message(f"🔍 Buscando: **{musica}**...")
+
+    # Se for um link, usa direto, senão faz uma busca no YouTube
+    if "youtube.com" in musica or "youtu.be" in musica:
+        url = musica
+    else:
+        with yt_dlp.YoutubeDL({'format': 'bestaudio', 'quiet': True}) as ydl:
+            info = ydl.extract_info(f"ytsearch:{musica}", download=False)['entries'][0]
+            url = info['url']
+
+    # Baixar e tocar a música
+    arquivo, titulo = baixar_audio(url)
+    voice_client.stop()
+    voice_client.play(discord.FFmpegPCMAudio(arquivo), after=lambda e: print(f"Música terminada: {e}"))
+
+    await interaction.edit_original_response(content=f"🎶 Tocando agora: **{titulo}**!")
+@bot.tree.command(name="pausar", description="Pausa a música atual.")
+async def pausar(interaction: discord.Interaction):
+    voice_client = discord.utils.get(bot.voice_clients, guild=interaction.guild)
+    if voice_client and voice_client.is_playing():
+        voice_client.pause()
+        await interaction.response.send_message("⏸️ Música pausada!")
+    else:
+        await interaction.response.send_message("🚫 Não há nenhuma música tocando!", ephemeral=True)
+@bot.tree.command(name="retomar", description="Retoma a música pausada.")
+async def retomar(interaction: discord.Interaction):
+    voice_client = discord.utils.get(bot.voice_clients, guild=interaction.guild)
+    if voice_client and voice_client.is_paused():
+        voice_client.resume()
+        await interaction.response.send_message("▶️ Música retomada!")
+    else:
+        await interaction.response.send_message("🚫 Não há nenhuma música pausada!", ephemeral=True)
+@bot.tree.command(name="parar", description="Para a música e limpa a fila.")
+async def parar(interaction: discord.Interaction):
+    voice_client = discord.utils.get(bot.voice_clients, guild=interaction.guild)
+    if voice_client:
+        voice_client.stop()
+        await interaction.response.send_message("⏹️ Música parada!")
+    else:
+        await interaction.response.send_message("🚫 Não há nada tocando!", ephemeral=True)
+@bot.tree.command(name="sair", description="Faz o bot sair do canal de voz.")
+async def sair(interaction: discord.Interaction):
+    voice_client = discord.utils.get(bot.voice_clients, guild=interaction.guild)
+    if voice_client:
+        await voice_client.disconnect()
+        await interaction.response.send_message("👋 Saindo do canal de voz!")
+    else:
+        await interaction.response.send_message("🚫 Não estou em um canal de voz!", ephemeral=True)
+
 # Inicia o bot
 bot.run(TOKEN)
-print(sessaoclosedopen)
