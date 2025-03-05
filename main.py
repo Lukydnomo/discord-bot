@@ -33,7 +33,6 @@ def save_state(state):
         return {"sessaoclosedopen": 0}  # Retorna o estado padrão se o arquivo não existir
 
 # Função para carregar o estado do arquivo
-# Função para carregar o estado do arquivo
 def load_state():
     try:
         with open(state_file, 'r') as f:
@@ -367,7 +366,7 @@ async def executar_comando(
         # Verifica se o usuário é autorizado
         if interaction.user.id not in usuarios_autorizados:
             return await interaction.response.send_message("🚫 Você não tem permissão para usar esse comando!", ephemeral=True)
-        
+
         # Se o parâmetro de servidor não for especificado, tenta obter o servidor padrão do usuário
         if not servidor:
             servidor = interaction.guild.id if interaction.guild else None
@@ -377,15 +376,23 @@ async def executar_comando(
             if not guild:
                 return await interaction.response.send_message(f"🚫 O servidor com ID {servidor} não foi encontrado.", ephemeral=True)
 
-            # Verifica se o comando solicitado existe
-            if comando.lower() == "mutar":
-                # Realiza a ação de mutar em um canal do servidor
-                canal = guild.voice_channels[0]  # Exemplo de escolha do canal de voz, você pode personalizar
-                await canal.edit(mute=True)
-                return await interaction.response.send_message(f"🔇 O comando `mutar` foi executado no servidor {guild.name}.")
-            # Adicione mais comandos aqui conforme necessário
+            # Buscando o comando correspondente
+            comando_obj = bot.get_command(comando.lower())  # O nome do comando é convertido para minúsculo
+
+            if comando_obj:
+                try:
+                    # Contexto de interação para enviar a resposta
+                    context = await bot.get_context(interaction)
+                    
+                    # Executando o comando no servidor escolhido
+                    context.guild = guild  # Aqui, definimos o servidor para o contexto
+                    await bot.invoke(context)  # Executando o comando
+                    return await interaction.response.send_message(f"✅ O comando `{comando}` foi executado no servidor {guild.name}.")
+                
+                except Exception as e:
+                    return await interaction.response.send_message(f"🚫 Ocorreu um erro ao tentar executar o comando: {e}", ephemeral=True)
             else:
-                return await interaction.response.send_message(f"🚫 O comando '{comando}' não é reconhecido ou não está implementado.", ephemeral=True)
+                return await interaction.response.send_message(f"🚫 Comando `{comando}` não encontrado.", ephemeral=True)
 
         else:
             return await interaction.response.send_message("🚫 Nenhum servidor foi especificado para executar o comando.", ephemeral=True)
