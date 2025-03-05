@@ -6,6 +6,7 @@ import os
 import random
 import json
 import yt_dlp
+import pynacl
 
 # Configuração do bot
 intents = discord.Intents.default()
@@ -16,7 +17,7 @@ prefix = 'foa!'
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 luky = 767015394648915978
 usuarios_autorizados = [luky]
-updateyn = 1
+updateyn = 0
 
 def baixar_audio(url):
     ydl_opts = {
