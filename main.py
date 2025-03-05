@@ -398,14 +398,12 @@ async def executar_comando(
                             if len(chave_valor) == 2:
                                 chave, valor = chave_valor
                                 kwargs[chave.strip()] = valor.strip()
+                            else:
+                                # Adiciona o parâmetro como um argumento posicional se não for chave=valor
+                                args.append(param.strip())
 
-                    # Invoca o comando com os parâmetros corretamente passados
-                    # Criamos um novo contexto temporário com os parâmetros
-                    ctx = await bot.get_context(interaction)
-                    ctx.args = args
-                    ctx.kwargs = kwargs
-
-                    await comando_obj(ctx)
+                    # Invoca o comando com os parâmetros passados corretamente
+                    await comando_obj(context, *args, **kwargs)
 
                     return await interaction.response.send_message(f"✅ O comando `{comando}` foi executado no servidor {guild.name}.")
                 
