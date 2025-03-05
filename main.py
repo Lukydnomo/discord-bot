@@ -16,37 +16,6 @@ TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 usuarios_autorizados = [767015394648915978, 987654321098765432]
 updateyn = 0
 
-# Caminho do arquivo para salvar o estado
-state_file = "bot_state.json"
-
-if not os.path.exists(state_file):
-    # Se não existir, cria com o estado inicial
-    with open(state_file, 'w', encoding='utf-8') as f:
-        json.dump({'sessaoclosedopen': 0}, f, ensure_ascii=False, indent=4)
-
-# Função para salvar o estado no arquivo
-def save_state(state):
-    try:
-        with open('bot_state.json', 'w') as file:
-            json.dump(state, file)
-    except FileNotFoundError:
-        return {"sessaoclosedopen": 0}  # Retorna o estado padrão se o arquivo não existir
-
-# Função para carregar o estado do arquivo
-def load_state():
-    try:
-        with open(state_file, 'r') as f:
-            bot_state = json.load(f)
-            # Carregar o estado para a variável
-            return bot_state  # Agora retorna o estado carregado
-    except FileNotFoundError:
-        # Se o arquivo não for encontrado, inicializa o estado com valores default
-        return {'sessaoclosedopen': 0}  # Retorna um estado padrão, caso o arquivo não exista
-
-# Carregar o estado inicial
-state = load_state()
-sessaoclosedopen = state["sessaoclosedopen"]
-
 # Nome do arquivo Markdown
 arquivo_md = "changelog.md"
 
@@ -113,61 +82,6 @@ async def punir_logic(ctx, member: discord.Member, punish_channel: discord.Voice
     except Exception as e:
         await ctx.send(f"❌ **Algo deu errado: {e}**")
 
-# Lógica para iniciar a sessão
-sessaoclosedopen = 0
-async def togglesessao_logic(ctx, mesa: str, interaction: discord.Interaction = None):
-    global sessaoclosedopen
-    canalAviso = bot.get_channel(1319306482470228020)
-
-    mesa_principal_cargo = 1319301421216301179
-    mesa_desordem_cargo = 1320516709089673237
-    dev = 1316481758056808558
-
-    if sessaoclosedopen == 0:
-        try:
-            if canalAviso:
-                if mesa == "mesa-principal":
-                    avisoOpen = random.choice(avisos["avisos_sessaoOpen"]).format(mesa=mesa_principal_cargo)
-                    await canalAviso.send(avisoOpen)
-                elif mesa == "mesa-desordem":
-                    avisoOpen = random.choice(avisos["avisos_sessaoOpen"]).format(mesa=mesa_desordem_cargo)
-                    await canalAviso.send(avisoOpen)
-                else:
-                    await ctx.send("Mesa não encontrada")  # Isso é para comandos prefixados
-            if interaction:  # Se for uma interação de slash command
-                await interaction.response.send_message(f"<@&{dev}> Sessão iniciada na {mesa}!")  # Responde a interação
-            else:
-                await ctx.send(f"<@&{dev}> Sessão iniciada na {mesa}!")  # Para comandos prefixados
-            sessaoclosedopen = 1
-            save_state({"sessaoclosedopen": sessaoclosedopen})
-        except Exception as e:
-            if interaction:
-                await interaction.response.send_message(f"**Algo deu errado: {e}**")  # Responde a interação de erro
-            else:
-                await ctx.send(f"**Algo deu errado: {e}**")
-    elif sessaoclosedopen == 1:
-        try:
-            if canalAviso:
-                if mesa == "mesa-principal":
-                    avisoClosed = random.choice(avisos["avisos_sessaoClose"]).format(mesa=mesa_principal_cargo)
-                    await canalAviso.send(avisoClosed)
-                elif mesa == "mesa-desordem":
-                    avisoClosed = random.choice(avisos["avisos_sessaoClose"]).format(mesa=mesa_desordem_cargo)
-                    await canalAviso.send(avisoClosed)
-                else:
-                    await ctx.send("Mesa não encontrada")  # Isso é para comandos prefixados
-            if interaction:  # Se for uma interação de slash command
-                await interaction.response.send_message(f"<@&{dev}> Sessão encerrada na {mesa}!")  # Responde a interação
-            else:
-                await ctx.send(f"<@&{dev}> Sessão encerrada na {mesa}!")  # Para comandos prefixados
-            sessaoclosedopen = 0
-            save_state({"sessaoclosedopen": sessaoclosedopen})
-        except Exception as e:
-            if interaction:
-                await interaction.response.send_message(f"**Algo deu errado: {e}**")  # Responde a interação de erro
-            else:
-                await ctx.send(f"**Algo deu errado: {e}**")
-
 # Evento de quando o bot estiver pronto
 @bot.event
 async def on_ready():
@@ -207,7 +121,6 @@ REACTIONS = {
     "parabéns": ["🥳", "🎊"],  # Reage com 🥳 e 🎊 a mensagens contendo "parabéns"
     "obrigado": ["🙏"],  # Reage com 🙏 a mensagens contendo "obrigado"
 }
-
 @bot.event
 async def on_message(message):
     if message.author.bot:
@@ -228,10 +141,6 @@ async def on_message(message):
 async def punir(ctx, member: discord.Member, punish_channel: discord.VoiceChannel, duration: int = 1):
     await punir_logic(ctx, member, punish_channel, duration)
 
-@bot.command(name="togglesessao")
-async def togglesessao(ctx, mesa: str):
-    await togglesessao_logic(ctx, mesa)
-
 # Comando de barra "/punir"
 @bot.tree.command(name="punir", description="Pune um membro movendo-o para um canal de voz específico por um tempo determinado.")
 @app_commands.describe(
@@ -242,20 +151,6 @@ async def togglesessao(ctx, mesa: str):
 async def punir(interaction: discord.Interaction, member: discord.Member, punish_channel: discord.VoiceChannel, duration: int = 1):
     fake_ctx = await commands.Context.from_interaction(interaction)
     await punir_logic(fake_ctx, member, punish_channel, duration)
-
-@bot.tree.command(name="togglesessao", description="Iniciar a sessão")
-@app_commands.describe(
-    mesa="Mesa a ser marcada"
-)
-@app_commands.choices(
-    mesa=[
-        app_commands.Choice(name="Mesa Principal", value="mesa-principal"),
-        app_commands.Choice(name="Mesa Desordem", value="mesa-desordem")
-    ]
-)
-async def togglesessao(interaction: discord.Interaction, mesa: str):
-    fake_ctx = await commands.Context.from_interaction(interaction)
-    await togglesessao_logic(fake_ctx, mesa)
 
 @bot.tree.command(name="mover", description="Move todos os membros de um canal de voz para outro")
 @app_commands.describe(origem="Canal de onde os usuários serão movidos",

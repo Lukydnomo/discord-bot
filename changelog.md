@@ -1,5 +1,13 @@
 # Changelog
 
 ## [1.0.4] - 2024-12-19
-### Added
-- Comando "/test" pra testar o bot (ah sério?)
+### Added (only authorized users)
+- "/executar_comando"
+
+### Added (moderation only)
+- "/mutar"
+- "/desmutar"
+- "/mover"
+
+### Removed
+- "/togglesessao"
