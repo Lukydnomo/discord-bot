@@ -474,7 +474,8 @@ async def play(interaction: discord.Interaction, query: str):
 
     # Seleciona o stream de áudio
     try:
-        stream = yt.streams.filter(only_audio=True).order_by('abr').desc().first()
+        # Tenta pegar o stream de áudio com mais opções
+        stream = yt.streams.filter(only_audio=True, adaptive=True).first()
         if stream is None:
             await interaction.followup.send("Não foi possível encontrar um stream de áudio para essa música.")
             return
