@@ -14,7 +14,6 @@ intents.members = True
 intents.message_content = True
 prefix = 'foa!'
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-COOKIE = os.getenv("YTDL_COOKIE")
 luky = 767015394648915978
 usuarios_autorizados = [luky]
 updateyn = 0
@@ -404,22 +403,89 @@ def determinar_vencedor(jogada1, jogada2):
     else:
         return "🎉 **O segundo jogador venceu!**"
 
+ytdl_format_options = {
+    'format': 'bestaudio/best',
+    'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
+    'restrictfilenames': True,
+    'noplaylist': True,
+    'nocheckcertificate': True,
+    'ignoreerrors': False,
+    'logtostderr': False,
+    'quiet': True,
+    'no_warnings': True,
+    'default_search': 'auto',
+    'source_address': '0.0.0.0',  # Bind to IPv4 since IPv6 addresses cause issues sometimes
+    'postprocessors': [{
+        'key': 'FFmpegExtractAudio',
+        'preferredcodec': 'mp3',
+        'preferredquality': '192'
+    }]
+}
+# Quando instanciar o yt-dlp, passa os cookies assim:
+ytdl = yt_dlp.YoutubeDL({
+    **ytdl_format_options,  # Usa as opções já definidas
+    "cookies": os.getenv("YOUTUBE_COOKIES")  # Adiciona os cookies dinamicamente
+})
 queues = {}
 # Função para tocar a música
 async def play_next(guild_id):
-    if queues[guild_id]:  # Se houver mais músicas na fila
-        url, vc = queues[guild_id].pop(0)
-        ydl_opts = {"format": "bestaudio", "noplaylist": "True"}
-        
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+    if guild_id not in queues or not queues[guild_id]:  # Verifica se há músicas na fila
+        return
+    
+    url, vc = queues[guild_id].pop(0)
+    
+    try:
+        with yt_dlp.YoutubeDL(ytdl_format_options) as ydl:
             info = ydl.extract_info(url, download=False)
-            audio_url = info["url"]
+            audio_url = info.get("url")
 
-        vc.play(discord.FFmpegPCMAudio(audio_url, executable="ffmpeg"), after=lambda e: asyncio.run_coroutine_threadsafe(play_next(guild_id), bot.loop))
+        if not audio_url:
+            print(f"Erro ao obter URL do áudio para {url}")
+            return
+        
+        vc.play(discord.FFmpegPCMAudio(audio_url, executable="ffmpeg"), 
+                after=lambda e: bot.loop.create_task(play_next(guild_id)))  # Melhor alternativa ao asyncio.run_coroutine_threadsafe
+
+    except Exception as e:
+        print(f"Erro ao tentar tocar a próxima música: {e}")
 # Comando para tocar música
 @bot.tree.command(name="play", description="Toca uma música pelo título ou link do YouTube.")
 @app_commands.describe(query="Título ou link do YouTube")
 async def play(interaction: discord.Interaction, query: str):
+    if not interaction.user.voice or not interaction.user.voice.channel:
+        return await interaction.response.send_message("🚫 Você precisa estar em um canal de voz!", ephemeral=True)
+
+    voice_channel = interaction.user.voice.channel
+    vc = discord.utils.get(bot.voice_clients, guild=interaction.guild)
+
+    if not vc or not vc.is_connected():
+        try:
+            vc = await voice_channel.connect()
+        except Exception as e:
+            return await interaction.response.send_message(f"🚫 Erro ao conectar: {e}", ephemeral=True)
+
+    try:
+        with yt_dlp.YoutubeDL(ytdl_format_options) as ydl:
+            info = ydl.extract_info(f"ytsearch:{query}", download=False)
+            
+            if "entries" not in info or not info["entries"]:
+                return await interaction.response.send_message("🚫 Nenhum resultado encontrado!", ephemeral=True)
+            
+            url = info["entries"][0]["url"]
+            title = info["entries"][0]["title"]
+
+        if interaction.guild.id not in queues:
+            queues[interaction.guild.id] = []
+
+        queues[interaction.guild.id].append((url, vc))
+
+        if not vc.is_playing():
+            await play_next(interaction.guild.id)
+        
+        await interaction.response.send_message(f"🎵 **{title}** foi adicionado à fila!")
+
+    except Exception as e:
+        await interaction.response.send_message(f"🚫 Erro ao buscar a música: {e}", ephemeral=True)
     if not interaction.user.voice or not interaction.user.voice.channel:
         return await interaction.response.send_message("🚫 Você precisa estar em um canal de voz!", ephemeral=True)
 
@@ -467,12 +533,16 @@ async def resume(interaction: discord.Interaction):
 @bot.tree.command(name="skip", description="Pula para a próxima música na fila.")
 async def skip(interaction: discord.Interaction):
     vc = discord.utils.get(bot.voice_clients, guild=interaction.guild)
-    if vc and vc.is_playing():
-        vc.stop()
-        await play_next(interaction.guild.id)
-        await interaction.response.send_message("⏭️ Música pulada!")
-    else:
-        await interaction.response.send_message("🚫 Não estou tocando nada no momento!", ephemeral=True)
+
+    if not vc or not vc.is_playing():
+        return await interaction.response.send_message("🚫 Não estou tocando nada no momento!", ephemeral=True)
+
+    if interaction.guild.id not in queues or not queues[interaction.guild.id]:
+        return await interaction.response.send_message("🚫 Não há músicas na fila para pular!", ephemeral=True)
+
+    vc.stop()
+    await play_next(interaction.guild.id)
+    await interaction.response.send_message("⏭️ Música pulada!")
 # Comando para parar a música e sair da call
 @bot.tree.command(name="stop", description="Para a música e remove o bot da call.")
 async def stop(interaction: discord.Interaction):
