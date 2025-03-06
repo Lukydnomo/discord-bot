@@ -17,6 +17,7 @@ TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 luky = 767015394648915978
 usuarios_autorizados = [luky]
 updateyn = 0
+print(os.getenv("YOUTUBE_COOKIES"))
 
 # Nome do arquivo Markdown
 arquivo_md = "changelog.md"
