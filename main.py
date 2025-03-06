@@ -18,6 +18,139 @@ luky = 767015394648915978
 usuarios_autorizados = [luky]
 updateyn = 0
 
+# Configurações do youtube-dl (não use yt-dlp!)
+youtube_dl.utils.bug_reports_message = lambda: ''
+ytdl_format_options = {
+    'format': 'bestaudio/best',
+    'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
+    'restrictfilenames': True,
+    'noplaylist': True,  # Pega somente a primeira música de playlists
+    'nocheckcertificate': True,
+    'ignoreerrors': False,
+    'logtostderr': False,
+    'quiet': True,
+    'no_warnings': True,
+    'default_search': 'auto',  # Se não for uma URL, faz uma busca
+    'source_address': '0.0.0.0'  # Força IPv4
+}
+ffmpeg_options = {
+    'options': '-vn'
+}
+ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
+class YTDLSource(discord.PCMVolumeTransformer):
+    def __init__(self, source, *, data, volume=0.5):
+        super().__init__(source, volume)
+        self.data = data
+        self.title = data.get('title')
+        self.url = data.get('url')
+
+    @classmethod
+    async def from_url(cls, url, *, loop=None, stream=True):
+        loop = loop or asyncio.get_event_loop()
+        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
+        # Caso seja uma playlist, pega somente o primeiro item
+        if 'entries' in data:
+            data = data['entries'][0]
+        filename = data['url'] if stream else ytdl.prepare_filename(data)
+        return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
+class Music(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+        # Um dicionário para guardar as filas por guilda (server)
+        self.queues = {}
+
+    def get_queue(self, guild):
+        if guild.id not in self.queues:
+            self.queues[guild.id] = []
+        return self.queues[guild.id]
+
+    async def ensure_voice(self, ctx):
+        """Garante que o usuário esteja em um canal de voz e conecta o bot se necessário."""
+        if ctx.author.voice is None:
+            await ctx.send("Você precisa estar em um canal de voz para usar esse comando.")
+            return None
+        voice_channel = ctx.author.voice.channel
+        if ctx.voice_client is None:
+            return await voice_channel.connect()
+        else:
+            await ctx.voice_client.move_to(voice_channel)
+            return ctx.voice_client
+
+    async def play_next(self, ctx):
+        """Toca a próxima música da fila (se houver) ou desconecta se a fila estiver vazia."""
+        queue = self.get_queue(ctx.guild)
+        if len(queue) > 0:
+            next_source = queue.pop(0)
+            ctx.voice_client.play(next_source, after=lambda e: self.bot.loop.create_task(self.play_next(ctx)))
+            await ctx.send(f"🎶 Tocando: **{next_source.title}**")
+        else:
+            await ctx.send("A fila acabou. Saindo do canal de voz...")
+            await ctx.voice_client.disconnect()
+
+    @commands.command(name="play", help="Toca uma música. Exemplo: !play <nome da música ou URL>")
+    async def play(self, ctx, *, search: str):
+        voice = await self.ensure_voice(ctx)
+        if voice is None:
+            return
+
+        # Enquanto estiver processando, mostra "digitando..."
+        async with ctx.typing():
+            try:
+                player = await YTDLSource.from_url(search, loop=self.bot.loop, stream=True)
+            except Exception as e:
+                return await ctx.send(f"Erro ao buscar a música: {e}")
+
+        queue = self.get_queue(ctx.guild)
+        if ctx.voice_client.is_playing():
+            queue.append(player)
+            await ctx.send(f"✅ Adicionado na fila: **{player.title}**")
+        else:
+            ctx.voice_client.play(player, after=lambda e: self.bot.loop.create_task(self.play_next(ctx)))
+            await ctx.send(f"🎶 Tocando: **{player.title}**")
+
+    @commands.command(name="pause", help="Pausa a música atual.")
+    async def pause(self, ctx):
+        if ctx.voice_client is not None and ctx.voice_client.is_playing():
+            ctx.voice_client.pause()
+            await ctx.send("⏸ Música pausada.")
+        else:
+            await ctx.send("Nenhuma música está tocando.")
+
+    @commands.command(name="resume", help="Retoma a música pausada.")
+    async def resume(self, ctx):
+        if ctx.voice_client is not None and ctx.voice_client.is_paused():
+            ctx.voice_client.resume()
+            await ctx.send("▶️ Música retomada.")
+        else:
+            await ctx.send("Nenhuma música está pausada.")
+
+    @commands.command(name="skip", help="Pula a música atual.")
+    async def skip(self, ctx):
+        if ctx.voice_client is not None and ctx.voice_client.is_playing():
+            ctx.voice_client.stop()
+            await ctx.send("⏭ Música pulada.")
+        else:
+            await ctx.send("Nenhuma música está tocando.")
+
+    @commands.command(name="queue", help="Exibe a fila de músicas.")
+    async def queue_command(self, ctx):
+        queue = self.get_queue(ctx.guild)
+        if len(queue) == 0:
+            await ctx.send("A fila está vazia.")
+        else:
+            message = "📜 **Fila de Músicas:**\n"
+            for idx, source in enumerate(queue, start=1):
+                message += f"{idx}. {source.title}\n"
+            await ctx.send(message)
+
+    @commands.command(name="leave", help="Faz o bot sair do canal de voz.")
+    async def leave(self, ctx):
+        if ctx.voice_client is not None:
+            await ctx.voice_client.disconnect()
+            await ctx.send("👋 Saindo do canal de voz.")
+        else:
+            await ctx.send("Não estou conectado a nenhum canal de voz.")
+
 # Nome do arquivo Markdown
 arquivo_md = "changelog.md"
 
@@ -37,6 +170,8 @@ class MyBot(commands.Bot):
         print("✅ Comandos sincronizados globalmente!")
 
 bot = MyBot()
+# Adiciona o Cog de música ao bot
+bot.add_cog(Music(bot))
 
 # Lógicas
 # Função para punir um membro
@@ -402,141 +537,6 @@ def determinar_vencedor(jogada1, jogada2):
         return "🎉 **O primeiro jogador venceu!**"
     else:
         return "🎉 **O segundo jogador venceu!**"
-
-# Configurações do youtube-dl (não use yt-dlp!)
-youtube_dl.utils.bug_reports_message = lambda: ''
-ytdl_format_options = {
-    'format': 'bestaudio/best',
-    'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
-    'restrictfilenames': True,
-    'noplaylist': True,  # Pega somente a primeira música de playlists
-    'nocheckcertificate': True,
-    'ignoreerrors': False,
-    'logtostderr': False,
-    'quiet': True,
-    'no_warnings': True,
-    'default_search': 'auto',  # Se não for uma URL, faz uma busca
-    'source_address': '0.0.0.0'  # Força IPv4
-}
-ffmpeg_options = {
-    'options': '-vn'
-}
-ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
-class YTDLSource(discord.PCMVolumeTransformer):
-    def __init__(self, source, *, data, volume=0.5):
-        super().__init__(source, volume)
-        self.data = data
-        self.title = data.get('title')
-        self.url = data.get('url')
-
-    @classmethod
-    async def from_url(cls, url, *, loop=None, stream=True):
-        loop = loop or asyncio.get_event_loop()
-        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
-        # Caso seja uma playlist, pega somente o primeiro item
-        if 'entries' in data:
-            data = data['entries'][0]
-        filename = data['url'] if stream else ytdl.prepare_filename(data)
-        return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
-class Music(commands.Cog):
-    def __init__(self, bot):
-        self.bot = bot
-        # Um dicionário para guardar as filas por guilda (server)
-        self.queues = {}
-
-    def get_queue(self, guild):
-        if guild.id not in self.queues:
-            self.queues[guild.id] = []
-        return self.queues[guild.id]
-
-    async def ensure_voice(self, ctx):
-        """Garante que o usuário esteja em um canal de voz e conecta o bot se necessário."""
-        if ctx.author.voice is None:
-            await ctx.send("Você precisa estar em um canal de voz para usar esse comando.")
-            return None
-        voice_channel = ctx.author.voice.channel
-        if ctx.voice_client is None:
-            return await voice_channel.connect()
-        else:
-            await ctx.voice_client.move_to(voice_channel)
-            return ctx.voice_client
-
-    async def play_next(self, ctx):
-        """Toca a próxima música da fila (se houver) ou desconecta se a fila estiver vazia."""
-        queue = self.get_queue(ctx.guild)
-        if len(queue) > 0:
-            next_source = queue.pop(0)
-            ctx.voice_client.play(next_source, after=lambda e: self.bot.loop.create_task(self.play_next(ctx)))
-            await ctx.send(f"🎶 Tocando: **{next_source.title}**")
-        else:
-            await ctx.send("A fila acabou. Saindo do canal de voz...")
-            await ctx.voice_client.disconnect()
-
-    @commands.command(name="play", help="Toca uma música. Exemplo: !play <nome da música ou URL>")
-    async def play(self, ctx, *, search: str):
-        voice = await self.ensure_voice(ctx)
-        if voice is None:
-            return
-
-        # Enquanto estiver processando, mostra "digitando..."
-        async with ctx.typing():
-            try:
-                player = await YTDLSource.from_url(search, loop=self.bot.loop, stream=True)
-            except Exception as e:
-                return await ctx.send(f"Erro ao buscar a música: {e}")
-
-        queue = self.get_queue(ctx.guild)
-        if ctx.voice_client.is_playing():
-            queue.append(player)
-            await ctx.send(f"✅ Adicionado na fila: **{player.title}**")
-        else:
-            ctx.voice_client.play(player, after=lambda e: self.bot.loop.create_task(self.play_next(ctx)))
-            await ctx.send(f"🎶 Tocando: **{player.title}**")
-
-    @commands.command(name="pause", help="Pausa a música atual.")
-    async def pause(self, ctx):
-        if ctx.voice_client is not None and ctx.voice_client.is_playing():
-            ctx.voice_client.pause()
-            await ctx.send("⏸ Música pausada.")
-        else:
-            await ctx.send("Nenhuma música está tocando.")
-
-    @commands.command(name="resume", help="Retoma a música pausada.")
-    async def resume(self, ctx):
-        if ctx.voice_client is not None and ctx.voice_client.is_paused():
-            ctx.voice_client.resume()
-            await ctx.send("▶️ Música retomada.")
-        else:
-            await ctx.send("Nenhuma música está pausada.")
-
-    @commands.command(name="skip", help="Pula a música atual.")
-    async def skip(self, ctx):
-        if ctx.voice_client is not None and ctx.voice_client.is_playing():
-            ctx.voice_client.stop()
-            await ctx.send("⏭ Música pulada.")
-        else:
-            await ctx.send("Nenhuma música está tocando.")
-
-    @commands.command(name="queue", help="Exibe a fila de músicas.")
-    async def queue_command(self, ctx):
-        queue = self.get_queue(ctx.guild)
-        if len(queue) == 0:
-            await ctx.send("A fila está vazia.")
-        else:
-            message = "📜 **Fila de Músicas:**\n"
-            for idx, source in enumerate(queue, start=1):
-                message += f"{idx}. {source.title}\n"
-            await ctx.send(message)
-
-    @commands.command(name="leave", help="Faz o bot sair do canal de voz.")
-    async def leave(self, ctx):
-        if ctx.voice_client is not None:
-            await ctx.voice_client.disconnect()
-            await ctx.send("👋 Saindo do canal de voz.")
-        else:
-            await ctx.send("Não estou conectado a nenhum canal de voz.")
-# Adiciona o Cog de música ao bot
-bot.add_cog(Music(bot))
 
 # Inicia o bot
 bot.run(TOKEN)
