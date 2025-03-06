@@ -435,7 +435,7 @@ async def play_next(guild_id):
     url, vc = queues[guild_id].pop(0)
     
     try:
-        with yt_dlp.YoutubeDL(ytdl_format_options) as ydl:
+        with ytdl as ydl:
             info = ydl.extract_info(url, download=False)
             audio_url = info.get("url")
 
@@ -465,7 +465,8 @@ async def play(interaction: discord.Interaction, query: str):
             return await interaction.response.send_message(f"🚫 Erro ao conectar: {e}", ephemeral=True)
 
     try:
-        with yt_dlp.YoutubeDL(ytdl_format_options) as ydl:
+        # Busca a música do YouTube
+        with ytdl as ydl:
             info = ydl.extract_info(f"ytsearch:{query}", download=False)
             
             if "entries" not in info or not info["entries"]:
@@ -486,31 +487,6 @@ async def play(interaction: discord.Interaction, query: str):
 
     except Exception as e:
         await interaction.response.send_message(f"🚫 Erro ao buscar a música: {e}", ephemeral=True)
-    if not interaction.user.voice or not interaction.user.voice.channel:
-        return await interaction.response.send_message("🚫 Você precisa estar em um canal de voz!", ephemeral=True)
-
-    voice_channel = interaction.user.voice.channel
-    vc = discord.utils.get(bot.voice_clients, guild=interaction.guild)
-
-    if not vc or not vc.is_connected():
-        vc = await voice_channel.connect()
-
-    ydl_opts = {"format": "bestaudio", "noplaylist": "True"}
-    
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(f"ytsearch:{query}", download=False)
-        url = info["entries"][0]["url"]
-        title = info["entries"][0]["title"]
-
-    if interaction.guild.id not in queues:
-        queues[interaction.guild.id] = []
-
-    queues[interaction.guild.id].append((url, vc))
-
-    if not vc.is_playing():
-        await play_next(interaction.guild.id)
-    
-    await interaction.response.send_message(f"🎵 **{title}** foi adicionado à fila!")
 # Comando para pausar a música
 @bot.tree.command(name="pause", description="Pausa a música atual.")
 async def pause(interaction: discord.Interaction):
