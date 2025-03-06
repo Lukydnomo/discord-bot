@@ -463,16 +463,6 @@ JOKENPO_OPCOES = {
     "📜": "Papel",
     "✂️": "Tesoura"
 }
-# Função para determinar o vencedor
-def determinar_vencedor(escolha1, escolha2):
-    if escolha1 == escolha2:
-        return "⚖️ **Empate!**"
-    elif (escolha1 == "Pedra" and escolha2 == "Tesoura") or \
-         (escolha1 == "Tesoura" and escolha2 == "Papel") or \
-         (escolha1 == "Papel" and escolha2 == "Pedra"):
-        return "🎉 **O Jogador 1 venceu!**"
-    else:
-        return "🎉 **O Jogador 2 venceu!**"
 @bot.tree.command(name="jokenpo", description="Desafie alguém para uma partida de Jokenpô!")
 async def jokenpo(interaction: discord.Interaction):
     await interaction.response.send_message("🎮 **Jokenpô Iniciado!** Aguardando outro jogador... Reaja com 🎮 para entrar!", ephemeral=False)
@@ -486,8 +476,8 @@ async def jokenpo(interaction: discord.Interaction):
     try:
         reaction, jogador2 = await bot.wait_for("reaction_add", timeout=30.0, check=check_jogador2)
     except asyncio.TimeoutError:
-        # Verifica se a mensagem ainda existe antes de editá-la
         try:
+            await msg.clear_reaction("🎮")  # Remove a reação para evitar confusão
             await msg.edit(content="⏳ **Tempo esgotado!** Nenhum jogador entrou.")
         except discord.errors.NotFound:
             print("⚠️ Mensagem não encontrada. Provavelmente foi deletada ou expirou.")
@@ -509,16 +499,17 @@ async def jokenpo(interaction: discord.Interaction):
             reaction, user = await bot.wait_for("reaction_add", timeout=30.0, check=check_escolha)
             escolhas[user] = JOKENPO_OPCOES[str(reaction.emoji)]
         except asyncio.TimeoutError:
-            # Mesmo tratamento para evitar erro
             try:
+                await msg.clear_reactions()
                 await msg.edit(content="⏳ **Tempo esgotado!** Um dos jogadores não escolheu a tempo.")
             except discord.errors.NotFound:
                 print("⚠️ Mensagem não encontrada. Provavelmente foi deletada ou expirou.")
             return
 
-    # Exibir o resultado
+    # Determinar vencedor
     resultado = determinar_vencedor(escolhas[interaction.user], escolhas[jogador2])
     try:
+        await msg.clear_reactions()
         await msg.edit(content=f"🆚 {interaction.user.mention} **vs** {jogador2.mention}!\n\n"
                                f"🎭 **Escolhas:**\n"
                                f"🔹 {interaction.user.mention} escolheu **{escolhas[interaction.user]}**\n"
@@ -526,6 +517,15 @@ async def jokenpo(interaction: discord.Interaction):
                                f"{resultado}")
     except discord.errors.NotFound:
         print("⚠️ Mensagem não encontrada. Provavelmente foi deletada ou expirou.")
+def determinar_vencedor(jogada1, jogada2):
+    if jogada1 == jogada2:
+        return "🤝 **Empate!**"
+    elif (jogada1 == "Pedra" and jogada2 == "Tesoura") or \
+         (jogada1 == "Papel" and jogada2 == "Pedra") or \
+         (jogada1 == "Tesoura" and jogada2 == "Papel"):
+        return "🎉 **O primeiro jogador venceu!**"
+    else:
+        return "🎉 **O segundo jogador venceu!**"
 
 # Inicia o bot
 bot.run(TOKEN)
