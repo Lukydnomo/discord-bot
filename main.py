@@ -290,8 +290,6 @@ async def mutar(
             await interaction.response.send_message(f"🚨 Não tenho permissão para mutar {membro.mention}!", ephemeral=True)
 
     await interaction.response.send_message(f"🔇 **{membros_mutados}** membros foram mutados em {canal.mention}!")
-
-# 🔊 Comando para desmutar membros
 @bot.tree.command(name="desmutar", description="Desmuta todos em um canal de voz ou apenas um membro específico")
 @app_commands.describe(
     canal="Canal de voz onde os membros serão desmutados",
@@ -460,5 +458,60 @@ async def sair(interaction: discord.Interaction):
     else:
         await interaction.response.send_message("🚫 Não estou em um canal de voz!", ephemeral=True)
 
+JOKENPO_OPCOES = {
+    "🪨": "Pedra",
+    "📜": "Papel",
+    "✂️": "Tesoura"
+}
+# Função para determinar o vencedor
+def determinar_vencedor(escolha1, escolha2):
+    if escolha1 == escolha2:
+        return "⚖️ **Empate!**"
+    elif (escolha1 == "Pedra" and escolha2 == "Tesoura") or \
+         (escolha1 == "Tesoura" and escolha2 == "Papel") or \
+         (escolha1 == "Papel" and escolha2 == "Pedra"):
+        return "🎉 **O Jogador 1 venceu!**"
+    else:
+        return "🎉 **O Jogador 2 venceu!**"
+@bot.tree.command(name="jokenpo", description="Desafie alguém para uma partida de Jokenpô!")
+async def jokenpo(interaction: discord.Interaction):
+    await interaction.response.send_message("🎮 **Jokenpô Iniciado!** Aguardando outro jogador... Reaja com 🎮 para entrar!", ephemeral=False)
+
+    msg = await interaction.original_response()
+    await msg.add_reaction("🎮")
+
+    def check_jogador2(reaction, user):
+        return reaction.message.id == msg.id and str(reaction.emoji) == "🎮" and user != interaction.user and not user.bot
+
+    try:
+        reaction, jogador2 = await bot.wait_for("reaction_add", timeout=30.0, check=check_jogador2)
+    except asyncio.TimeoutError:
+        return await msg.edit(content="⏳ **Tempo esgotado!** Nenhum jogador entrou.")
+
+    await msg.clear_reactions()
+    await msg.edit(content=f"🆚 {interaction.user.mention} **vs** {jogador2.mention}!\n\nEscolham Pedra (🪨), Papel (📜) ou Tesoura (✂️) reagindo abaixo!")
+
+    for emoji in JOKENPO_OPCOES.keys():
+        await msg.add_reaction(emoji)
+
+    escolhas = {interaction.user: None, jogador2: None}
+
+    def check_escolha(reaction, user):
+        return reaction.message.id == msg.id and user in escolhas and str(reaction.emoji) in JOKENPO_OPCOES and escolhas[user] is None
+
+    while None in escolhas.values():
+        try:
+            reaction, user = await bot.wait_for("reaction_add", timeout=30.0, check=check_escolha)
+            escolhas[user] = JOKENPO_OPCOES[str(reaction.emoji)]
+        except asyncio.TimeoutError:
+            return await msg.edit(content="⏳ **Tempo esgotado!** Um dos jogadores não escolheu a tempo.")
+
+    # Exibir o resultado
+    resultado = determinar_vencedor(escolhas[interaction.user], escolhas[jogador2])
+    await msg.edit(content=f"🆚 {interaction.user.mention} **vs** {jogador2.mention}!\n\n"
+                           f"🎭 **Escolhas:**\n"
+                           f"🔹 {interaction.user.mention} escolheu **{escolhas[interaction.user]}**\n"
+                           f"🔹 {jogador2.mention} escolheu **{escolhas[jogador2]}**\n\n"
+                           f"{resultado}")
 # Inicia o bot
 bot.run(TOKEN)
