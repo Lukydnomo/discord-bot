@@ -1,4 +1,4 @@
 discord.py
 pynacl
 requests
-pytube
+youtube_dl
