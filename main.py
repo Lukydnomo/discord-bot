@@ -5,7 +5,8 @@ import asyncio
 import os
 import random
 import json
-import yt_dlp
+from pytube import YouTube, Search
+import tempfile
 
 # Configuração do bot
 intents = discord.Intents.default()
@@ -17,7 +18,6 @@ TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 luky = 767015394648915978
 usuarios_autorizados = [luky]
 updateyn = 0
-print(os.getenv("YOUTUBE_COOKIES"))
 
 # Nome do arquivo Markdown
 arquivo_md = "changelog.md"
@@ -404,141 +404,157 @@ def determinar_vencedor(jogada1, jogada2):
     else:
         return "🎉 **O segundo jogador venceu!**"
 
-ytdl_format_options = {
-    'format': 'bestaudio/best',
-    'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
-    'restrictfilenames': True,
-    'noplaylist': True,
-    'nocheckcertificate': True,
-    'ignoreerrors': False,
-    'logtostderr': False,
-    'quiet': True,
-    'no_warnings': True,
-    'default_search': 'auto',
-    'source_address': '0.0.0.0',  # Bind to IPv4 since IPv6 addresses cause issues sometimes
-    'postprocessors': [{
-        'key': 'FFmpegExtractAudio',
-        'preferredcodec': 'mp3',
-        'preferredquality': '192'
-    }]
-}
-# Quando instanciar o yt-dlp, passa os cookies assim:
-ytdl = yt_dlp.YoutubeDL({
-    **ytdl_format_options,  # Usa as opções já definidas
-    "cookies": os.getenv("YOUTUBE_COOKIES")  # Adiciona os cookies dinamicamente
-})
-queues = {}
-# Função para tocar a música
-async def play_next(guild_id):
-    if guild_id not in queues or not queues[guild_id]:  # Verifica se há músicas na fila
-        return
-    
-    url, vc = queues[guild_id].pop(0)
-    
-    try:
-        with ytdl as ydl:
-            info = ydl.extract_info(url, download=False)
-            audio_url = info.get("url")
-
-        if not audio_url:
-            print(f"Erro ao obter URL do áudio para {url}")
-            return
-        
-        vc.play(discord.FFmpegPCMAudio(audio_url, executable="ffmpeg"), 
-                after=lambda e: bot.loop.create_task(play_next(guild_id)))  # Melhor alternativa ao asyncio.run_coroutine_threadsafe
-
-    except Exception as e:
-        print(f"Erro ao tentar tocar a próxima música: {e}")
-# Comando para tocar música
-@bot.tree.command(name="play", description="Toca uma música pelo título ou link do YouTube.")
-@app_commands.describe(query="Título ou link do YouTube")
+music_queues = {}       # guild.id -> list[Song]
+current_players = {}    # guild.id -> voice_client
+# Classe para representar uma música
+class Song:
+    def __init__(self, title, url, stream_url):
+        self.title = title          # Título da música
+        self.url = url              # URL do YouTube
+        self.stream_url = stream_url  # URL do stream (obtida via pytube)
+# Função auxiliar para tocar a próxima música da fila
+async def play_next(interaction: discord.Interaction, guild_id: int):
+    if music_queues.get(guild_id) and len(music_queues[guild_id]) > 0:
+        next_song = music_queues[guild_id].pop(0)
+        voice_client = current_players[guild_id]
+        source = discord.FFmpegPCMAudio(next_song.stream_url)
+        def after_playing(error):
+            # Usa run_coroutine_threadsafe para chamar a função async após a música terminar
+            fut = asyncio.run_coroutine_threadsafe(play_next(interaction, guild_id), bot.loop)
+            try:
+                fut.result()
+            except Exception as e:
+                print(f"Erro ao tocar a próxima música: {e}")
+        voice_client.play(source, after=after_playing)
+        # Se quiser, pode enviar uma mensagem informando qual música está tocando agora
+        await interaction.followup.send(f"Tocando agora: **{next_song.title}**", ephemeral=False)
+    else:
+        # Se não houver mais músicas, desconecta
+        voice_client = current_players.get(guild_id)
+        if voice_client:
+            await voice_client.disconnect()
+            current_players.pop(guild_id, None)
+            await interaction.followup.send("Fila finalizada. Desconectando do canal de voz.")
+# Comando para tocar música (busca por nome ou usa URL)
+@bot.tree.command(name="play", description="Busca e toca uma música no canal de voz")
+@app_commands.describe(query="Nome ou URL da música")
 async def play(interaction: discord.Interaction, query: str):
+    await interaction.response.defer()  # Pode demorar um pouco para buscar/baixar a música
+
+    # Verifica se o usuário está em um canal de voz
     if not interaction.user.voice or not interaction.user.voice.channel:
-        return await interaction.response.send_message("🚫 Você precisa estar em um canal de voz!", ephemeral=True)
+        await interaction.followup.send("Você precisa estar em um canal de voz para usar este comando.", ephemeral=True)
+        return
 
     voice_channel = interaction.user.voice.channel
-    vc = discord.utils.get(bot.voice_clients, guild=interaction.guild)
+    guild_id = interaction.guild.id
 
-    if not vc or not vc.is_connected():
-        try:
-            vc = await voice_channel.connect()
-        except Exception as e:
-            return await interaction.response.send_message(f"🚫 Erro ao conectar: {e}", ephemeral=True)
+    # Conecta ao canal se o bot não estiver conectado ainda
+    voice_client = interaction.guild.voice_client
+    if voice_client is None:
+        voice_client = await voice_channel.connect()
+        current_players[guild_id] = voice_client
+    elif voice_client.channel != voice_channel:
+        await voice_client.move_to(voice_channel)
 
+    # Se o query for uma URL do YouTube, tenta usar diretamente; senão, busca a música
     try:
-        # Busca a música do YouTube
-        with ytdl as ydl:
-            info = ydl.extract_info(f"ytsearch:{query}", download=False)
-            
-            if "entries" not in info or not info["entries"]:
-                return await interaction.response.send_message("🚫 Nenhum resultado encontrado!", ephemeral=True)
-            
-            url = info["entries"][0]["url"]
-            title = info["entries"][0]["title"]
-
-        if interaction.guild.id not in queues:
-            queues[interaction.guild.id] = []
-
-        queues[interaction.guild.id].append((url, vc))
-
-        if not vc.is_playing():
-            await play_next(interaction.guild.id)
-        
-        await interaction.response.send_message(f"🎵 **{title}** foi adicionado à fila!")
-
+        if "youtube.com" in query or "youtu.be" in query:
+            yt = YouTube(query)
+        else:
+            search = Search(query)
+            if len(search.results) == 0:
+                await interaction.followup.send("Nenhum resultado encontrado.")
+                return
+            # Seleciona o primeiro resultado e reconstrói o objeto YouTube para garantir todos os métodos
+            yt = YouTube(search.results[0].watch_url)
     except Exception as e:
-        await interaction.response.send_message(f"🚫 Erro ao buscar a música: {e}", ephemeral=True)
-# Comando para pausar a música
-@bot.tree.command(name="pause", description="Pausa a música atual.")
+        await interaction.followup.send(f"Erro ao processar a consulta: {e}")
+        return
+
+    # Seleciona o stream de áudio
+    try:
+        stream = yt.streams.filter(only_audio=True).order_by('abr').desc().first()
+        if stream is None:
+            await interaction.followup.send("Não foi possível encontrar um stream de áudio para essa música.")
+            return
+        stream_url = stream.url
+    except Exception as e:
+        await interaction.followup.send(f"Erro ao obter o stream de áudio: {e}")
+        return
+
+    song = Song(title=yt.title, url=yt.watch_url, stream_url=stream_url)
+
+    # Adiciona a música à fila
+    if guild_id in music_queues:
+        music_queues[guild_id].append(song)
+    else:
+        music_queues[guild_id] = [song]
+
+    # Se nada estiver tocando, inicia a reprodução; caso contrário, apenas adiciona à fila
+    if not voice_client.is_playing():
+        next_song = music_queues[guild_id].pop(0)
+        source = discord.FFmpegPCMAudio(next_song.stream_url)
+        def after_playing(error):
+            fut = asyncio.run_coroutine_threadsafe(play_next(interaction, guild_id), bot.loop)
+            try:
+                fut.result()
+            except Exception as e:
+                print(f"Erro ao tocar a próxima música: {e}")
+        voice_client.play(source, after=after_playing)
+        await interaction.followup.send(f"Tocando: **{next_song.title}**")
+    else:
+        await interaction.followup.send(f"Adicionado à fila: **{song.title}**")
+# Comando para pausar a música atual
+@bot.tree.command(name="pause", description="Pausa a música atual")
 async def pause(interaction: discord.Interaction):
-    vc = discord.utils.get(bot.voice_clients, guild=interaction.guild)
-    if vc and vc.is_playing():
-        vc.pause()
-        await interaction.response.send_message("⏸️ Música pausada!")
+    voice_client = interaction.guild.voice_client
+    if voice_client and voice_client.is_playing():
+        voice_client.pause()
+        await interaction.response.send_message("⏸️ Música pausada.")
     else:
-        await interaction.response.send_message("🚫 Não estou tocando nada no momento!", ephemeral=True)
-# Comando para retomar a música
-@bot.tree.command(name="resume", description="Retoma a música pausada.")
+        await interaction.response.send_message("Não há música tocando.", ephemeral=True)
+# Comando para retomar a música pausada
+@bot.tree.command(name="resume", description="Retoma a música pausada")
 async def resume(interaction: discord.Interaction):
-    vc = discord.utils.get(bot.voice_clients, guild=interaction.guild)
-    if vc and vc.is_paused():
-        vc.resume()
-        await interaction.response.send_message("▶️ Música retomada!")
+    voice_client = interaction.guild.voice_client
+    if voice_client and voice_client.is_paused():
+        voice_client.resume()
+        await interaction.response.send_message("▶️ Música retomada.")
     else:
-        await interaction.response.send_message("🚫 Não há música pausada!", ephemeral=True)
-# Comando para pular a música
-@bot.tree.command(name="skip", description="Pula para a próxima música na fila.")
+        await interaction.response.send_message("Não há música pausada.", ephemeral=True)
+# Comando para pular a música atual
+@bot.tree.command(name="skip", description="Pula a música atual")
 async def skip(interaction: discord.Interaction):
-    vc = discord.utils.get(bot.voice_clients, guild=interaction.guild)
-
-    if not vc or not vc.is_playing():
-        return await interaction.response.send_message("🚫 Não estou tocando nada no momento!", ephemeral=True)
-
-    if interaction.guild.id not in queues or not queues[interaction.guild.id]:
-        return await interaction.response.send_message("🚫 Não há músicas na fila para pular!", ephemeral=True)
-
-    vc.stop()
-    await play_next(interaction.guild.id)
-    await interaction.response.send_message("⏭️ Música pulada!")
-# Comando para parar a música e sair da call
-@bot.tree.command(name="stop", description="Para a música e remove o bot da call.")
-async def stop(interaction: discord.Interaction):
-    vc = discord.utils.get(bot.voice_clients, guild=interaction.guild)
-    if vc and vc.is_connected():
-        await vc.disconnect()
-        queues[interaction.guild.id] = []
-        await interaction.response.send_message("⏹️ Música parada e bot desconectado!")
+    voice_client = interaction.guild.voice_client
+    if voice_client and voice_client.is_playing():
+        voice_client.stop()  # Isso dispara o callback para tocar a próxima música
+        await interaction.response.send_message("⏭️ Música pulada.")
     else:
-        await interaction.response.send_message("🚫 Não estou em um canal de voz!", ephemeral=True)
-# Comando para ver a fila
-@bot.tree.command(name="queue", description="Mostra as músicas na fila.")
+        await interaction.response.send_message("Não há música tocando.", ephemeral=True)
+# Comando para exibir a fila de músicas
+@bot.tree.command(name="queue", description="Mostra a fila de músicas")
 async def queue(interaction: discord.Interaction):
     guild_id = interaction.guild.id
-    if guild_id in queues and queues[guild_id]:
-        queue_list = [f"{i+1}. {url}" for i, (url, _) in enumerate(queues[guild_id])]
-        await interaction.response.send_message("📜 **Fila de músicas:**\n" + "\n".join(queue_list))
+    if guild_id not in music_queues or len(music_queues[guild_id]) == 0:
+        await interaction.response.send_message("A fila está vazia.")
     else:
-        await interaction.response.send_message("🚫 A fila está vazia!", ephemeral=True)
+        message = "🎶 **Fila de Músicas:**\n"
+        for index, song in enumerate(music_queues[guild_id], start=1):
+            message += f"{index}. {song.title}\n"
+        await interaction.response.send_message(message)
+# Comando para o bot sair do canal de voz
+@bot.tree.command(name="leave", description="Desconecta o bot do canal de voz")
+async def leave(interaction: discord.Interaction):
+    voice_client = interaction.guild.voice_client
+    if voice_client:
+        await voice_client.disconnect()
+        guild_id = interaction.guild.id
+        music_queues.pop(guild_id, None)
+        current_players.pop(guild_id, None)
+        await interaction.response.send_message("👋 Desconectado do canal de voz.")
+    else:
+        await interaction.response.send_message("Não estou conectado a nenhum canal de voz.", ephemeral=True)
 
 # Inicia o bot
 bot.run(TOKEN)

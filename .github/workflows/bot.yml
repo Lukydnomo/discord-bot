@@ -39,4 +39,3 @@ jobs:
           python main.py
         env:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-          YOUTUBE_COOKIE: ${{ secrets.YOUTUBE_COOKIE }}
