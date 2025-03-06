@@ -39,5 +39,4 @@ jobs:
           python main.py
         env:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-          YTDL_COOKIE: ${{ secrets.YTDL_COOKIE }}
-          RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY}}
+          YOUTUBE_COOKIE: ${{ secrets.YOUTUBE_COOKIE }}
