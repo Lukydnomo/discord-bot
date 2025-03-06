@@ -1,5 +1,8 @@
 # Changelog
 
-## [1.1.1] - 2025-03-05
+## [1.1.2] - 2025-03-06
 ### Added
-- Tocador de Músicas
+- Jokenpô (kkkkkkkk)
+
+### Removed
+- Tocador de músicas (tava foda pra fazer funcionar)
