@@ -486,7 +486,12 @@ async def jokenpo(interaction: discord.Interaction):
     try:
         reaction, jogador2 = await bot.wait_for("reaction_add", timeout=30.0, check=check_jogador2)
     except asyncio.TimeoutError:
-        return await msg.edit(content="⏳ **Tempo esgotado!** Nenhum jogador entrou.")
+        # Verifica se a mensagem ainda existe antes de editá-la
+        try:
+            await msg.edit(content="⏳ **Tempo esgotado!** Nenhum jogador entrou.")
+        except discord.errors.NotFound:
+            print("⚠️ Mensagem não encontrada. Provavelmente foi deletada ou expirou.")
+        return
 
     await msg.clear_reactions()
     await msg.edit(content=f"🆚 {interaction.user.mention} **vs** {jogador2.mention}!\n\nEscolham Pedra (🪨), Papel (📜) ou Tesoura (✂️) reagindo abaixo!")
@@ -504,14 +509,23 @@ async def jokenpo(interaction: discord.Interaction):
             reaction, user = await bot.wait_for("reaction_add", timeout=30.0, check=check_escolha)
             escolhas[user] = JOKENPO_OPCOES[str(reaction.emoji)]
         except asyncio.TimeoutError:
-            return await msg.edit(content="⏳ **Tempo esgotado!** Um dos jogadores não escolheu a tempo.")
+            # Mesmo tratamento para evitar erro
+            try:
+                await msg.edit(content="⏳ **Tempo esgotado!** Um dos jogadores não escolheu a tempo.")
+            except discord.errors.NotFound:
+                print("⚠️ Mensagem não encontrada. Provavelmente foi deletada ou expirou.")
+            return
 
     # Exibir o resultado
     resultado = determinar_vencedor(escolhas[interaction.user], escolhas[jogador2])
-    await msg.edit(content=f"🆚 {interaction.user.mention} **vs** {jogador2.mention}!\n\n"
-                           f"🎭 **Escolhas:**\n"
-                           f"🔹 {interaction.user.mention} escolheu **{escolhas[interaction.user]}**\n"
-                           f"🔹 {jogador2.mention} escolheu **{escolhas[jogador2]}**\n\n"
-                           f"{resultado}")
+    try:
+        await msg.edit(content=f"🆚 {interaction.user.mention} **vs** {jogador2.mention}!\n\n"
+                               f"🎭 **Escolhas:**\n"
+                               f"🔹 {interaction.user.mention} escolheu **{escolhas[interaction.user]}**\n"
+                               f"🔹 {jogador2.mention} escolheu **{escolhas[jogador2]}**\n\n"
+                               f"{resultado}")
+    except discord.errors.NotFound:
+        print("⚠️ Mensagem não encontrada. Provavelmente foi deletada ou expirou.")
+
 # Inicia o bot
 bot.run(TOKEN)
