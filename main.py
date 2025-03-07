@@ -16,7 +16,7 @@ prefix = 'foa!'
 TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 luky = 767015394648915978
 usuarios_autorizados = [luky]
-updateyn = 1
+updateyn = 0
 
 # Nome do arquivo Markdown
 arquivo_md = "changelog.md"
