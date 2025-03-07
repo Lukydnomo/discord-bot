@@ -143,7 +143,7 @@ async def rolar(interaction: discord.Interaction, expressao: str):
         qtd, dado = expressao.split("#")
         qtd = int(qtd)
         resultados = [rolar_dado(dado) for _ in range(qtd)]
-        return await interaction.response.send_message("\n".join(f"``{r}`` ⟵ [**{resultados[i+1]}**] {expressao}" for i, r in enumerate(resultados)))
+        return await interaction.response.send_message("\n".join(f"``{r}`` ⟵ [**{resultados[i-1]}**] {expressao} {i-1}" for i, r in enumerate(resultados)))
 
     resultado = rolar_dado(expressao)
     if resultado is None:
