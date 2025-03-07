@@ -139,18 +139,17 @@ def rolar_dado(expressao):
 @bot.tree.command(name="rolar", description="Rola dados no formato XdY com operações matemáticas")
 @app_commands.describe(expressao="Exemplo: 2d6+3, 4d10/2, 3#d8")
 async def rolar(interaction: discord.Interaction, expressao: str):
-    global qtd
     if "#" in expressao:
         qtd, dado = expressao.split("#")
         qtd = int(qtd)
         resultados = [rolar_dado(dado) for _ in range(qtd)]
-        return await interaction.response.send_message("\n".join(f"{expressao} [**{qtd}**] → ``{r}``" for i, r in enumerate(resultados)))
+        return await interaction.response.send_message("\n".join(f"{expressao} [**{dado}**] → ``{r}``" for i, r in enumerate(resultados)))
 
     resultado = rolar_dado(expressao)
     if resultado is None:
         return await interaction.response.send_message("❌ Expressão inválida!", ephemeral=True)
     
-    await interaction.response.send_message(f"{expressao} [**{qtd}**] → ``{resultado}``")
+    await interaction.response.send_message(f"{expressao} → ``{resultado}``")
 
 REACTIONS = {
     "bem-vindo": ["👋", "🎉"],  # Reage com 👋 e 🎉 a mensagens contendo "bem-vindo"
