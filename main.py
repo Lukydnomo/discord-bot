@@ -4,6 +4,8 @@ from discord import app_commands
 import asyncio
 import os
 import json
+import random
+import re
 
 # Configuração do bot
 intents = discord.Intents.default()
@@ -115,6 +117,40 @@ async def on_ready():
     else:
         print("❌ Atualização não habilitada.")
 
+# Função para processar a rolagem de dados
+def rolar_dado(expressao):
+    def substituir(match):
+        qtd, faces = match.groups()
+        qtd = int(qtd) if qtd else 1  # Se não especificar a quantidade, assume 1
+        faces = int(faces)
+        return str(sum(random.randint(1, faces) for _ in range(qtd)))
+
+    # Primeiro, resolver todas as rolagens de dados no formato XdY
+    expressao = re.sub(r'(\d*)d(\d+)', substituir, expressao)
+
+    # Resolver a expressão matemática
+    try:
+        resultado = eval(expressao)
+    except:
+        return None
+    return resultado
+
+# Comando de rolagem de dado
+@bot.tree.command(name="rolar", description="Rola dados no formato XdY com operações matemáticas")
+@app_commands.describe(expressao="Exemplo: 2d6+3, 4d10/2, 3#d8")
+async def rolar(interaction: discord.Interaction, expressao: str):
+    if "#" in expressao:
+        qtd, dado = expressao.split("#")
+        qtd = int(qtd)
+        resultados = [rolar_dado(dado) for _ in range(qtd)]
+        return await interaction.response.send_message("\n".join(f"🎲 Resultado {i+1}: {r}" for i, r in enumerate(resultados)))
+
+    resultado = rolar_dado(expressao)
+    if resultado is None:
+        return await interaction.response.send_message("❌ Expressão inválida!", ephemeral=True)
+    
+    await interaction.response.send_message(f"🎲 **{expressao}** → **{resultado}**")
+
 REACTIONS = {
     "bem-vindo": ["👋", "🎉"],  # Reage com 👋 e 🎉 a mensagens contendo "bem-vindo"
     "importante": ["⚠️", "📢"],  # Reage com ⚠️ e 📢 a mensagens contendo "importante"
@@ -135,6 +171,14 @@ async def on_message(message):
                     print(f"❌ Não tenho permissão para reagir a mensagens em {message.channel}")
 
     await bot.process_commands(message)  # Permite que outros comandos ainda funcionem
+
+
+    matches = re.findall(r'\$(\d*d\d+[\+\-\*/\(\)\d]*)', message.content)
+    if matches:
+        resultados = [f"🎲 **{m}** → **{rolar_dado(m)}**" for m in matches]
+        await message.channel.send("\n".join(resultados))
+
+    await bot.process_commands(message)
 
 # Comando prefixado "punir"
 @bot.command(name="punir")

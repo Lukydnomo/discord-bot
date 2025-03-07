@@ -1,8 +1,7 @@
 # Changelog
 
-## [1.1.2] - 2025-03-06
-### Added
-- Jokenpô (kkkkkkkk)
+## [1.2.0] - 2025-03-07
 
-### Removed
-- Tocador de músicas (tava foda pra fazer funcionar)
+### Added
+
+- Função para rodar dados
