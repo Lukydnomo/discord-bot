@@ -143,13 +143,13 @@ async def rolar(interaction: discord.Interaction, expressao: str):
         qtd, dado = expressao.split("#")
         qtd = int(qtd)
         resultados = [rolar_dado(dado) for _ in range(qtd)]
-        return await interaction.response.send_message("\n".join(f"🎲 {expressao}: {r}" for i, r in enumerate(resultados)))
+        return await interaction.response.send_message("\n".join(f"{expressao} [**{dado}**] → ``{r}``" for i, r in enumerate(resultados)))
 
     resultado = rolar_dado(expressao)
     if resultado is None:
         return await interaction.response.send_message("❌ Expressão inválida!", ephemeral=True)
     
-    await interaction.response.send_message(f"🎲 **{expressao}** → **{resultado}**")
+    await interaction.response.send_message(f"{expressao} [**{dado}**] → ``{resultado}``")
 
 REACTIONS = {
     "bem-vindo": ["👋", "🎉"],  # Reage com 👋 e 🎉 a mensagens contendo "bem-vindo"
