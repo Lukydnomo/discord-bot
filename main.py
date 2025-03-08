@@ -173,13 +173,26 @@ async def on_message(message):
 
     # Rolar dado
     matches = re.findall(r'\$(\d*#?\d*d\d+[\+\-\*/\(\)\d]*)', message.content)
+    resultados = []
     if matches:
-        resultados = []
         for m in matches:
-            res = rolar_dado(m)  # Armazena o dicionário retornado
-            # Usa as duas chaves do dicionário: 'resultado' e 'resultadoWOutEval'
-            resultados.append(f"``{res['resultado']}`` ⟵ [{res['resultadoWOutEval']}] {m}")
-    await message.channel.send("\n".join(resultados))
+            if '#' in m:
+                # Se houver "#", divide em quantidade e expressão do dado
+                partes = m.split('#', 1)
+                try:
+                    quantidade = int(partes[0])
+                except ValueError:
+                    quantidade = 1
+                dado_expr = partes[1]
+                for _ in range(quantidade):
+                    res = rolar_dado(dado_expr)
+                    resultados.append(f"``{res['resultado']}`` ⟵ [{res['resultadoWOutEval']}] {m}")
+            else:
+                res = rolar_dado(m)
+                resultados.append(f"``{res['resultado']}`` ⟵ [{res['resultadoWOutEval']}] {m}")
+        await message.channel.send("\n".join(resultados))
+        
+    await bot.process_commands(message)
 
 # Comando prefixado "punir"
 @bot.command(name="punir")
