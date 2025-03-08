@@ -118,51 +118,92 @@ async def on_ready():
         print("❌ Atualização não habilitada.")
 
 # Função para processar a rolagem de dados
-def rolar_dado(expressao):
-    def substituir(match):
-        qtd, faces = match.groups()
-        qtd = int(qtd) if qtd else 1  # Se não especificar a quantidade, assume 1
-        faces = int(faces)
-        return str(sum(random.randint(1, faces) for _ in range(qtd)))
+def rolar_dado(expressao, detalhado=True):
+    if not detalhado:
+        # Comportamento antigo: apenas substitui e avalia a expressão
+        def substituir(match):
+            qtd, faces = match.groups()
+            qtd = int(qtd) if qtd else 1
+            faces = int(faces)
+            return str(sum(random.randint(1, faces) for _ in range(qtd)))
+        expr_mod = re.sub(r'(\d*)d(\d+)', substituir, expressao)
+        try:
+            resultado = eval(expr_mod)
+        except:
+            return None
+        return {"resultado": resultado, "resultadoWOutEval": expr_mod, "detalhado": False}
+    else:
+        # Novo comportamento: captura os resultados individuais de cada grupo de dados
+        detalhes = []  # Armazena os resultados individuais de cada grupo
+        def substituir(match):
+            qtd_str, faces_str = match.groups()
+            qtd = int(qtd_str) if qtd_str else 1
+            faces = int(faces_str)
+            # Rola cada dado individualmente
+            rolagens = [random.randint(1, faces) for _ in range(qtd)]
+            # Armazena a lista ordenada do maior para o menor
+            detalhes.append(sorted(rolagens, reverse=True))
+            # Retorna a soma para a avaliação matemática
+            return str(sum(rolagens))
+        expr_mod = re.sub(r'(\d*)d(\d+)', substituir, expressao)
+        try:
+            resultado = eval(expr_mod)
+        except:
+            return None
+        # Se houver apenas um grupo de dados, usamos o resultado dele; caso contrário, juntamos os resultados
+        if len(detalhes) == 1:
+            breakdown = str(detalhes[0])
+            # Extrai o grupo de dados original (por exemplo, "5d5")
+            m = re.search(r'(\d*d\d+)', expressao)
+            dice_group = m.group(1) if m else expressao
+        else:
+            breakdown = " + ".join(str(lst) for lst in detalhes)
+            dice_group = expressao
+        return {
+            "resultado": resultado,
+            "resultadoWOutEval": breakdown,
+            "dice_group": dice_group,
+            "detalhado": True
+        }
 
-    # Primeiro, resolver todas as rolagens de dados no formato XdY
-    expressao = re.sub(r'(\d*)d(\d+)', substituir, expressao)
-
-    # Resolver a expressão matemática
-    try:
-        resultado = eval(expressao)
-    except:
-        return None
-    return {"resultado": resultado, "resultadoWOutEval": expressao}
-
-# Comando de rolagem de dado
+# Comando de rolagem de dado (/rolar)
 @bot.tree.command(name="rolar", description="Rola dados no formato XdY com operações matemáticas")
-@app_commands.describe(expressao="Exemplo: 2d6+3, 4d10/2, 3#d8")
+@app_commands.describe(expressao="Exemplo: 2d6+2, 4d10/2, 5#d5+5")
 async def rolar(interaction: discord.Interaction, expressao: str):
     if "#" in expressao:
-        qtd, dado = expressao.split("#")
+        # Se for múltiplo (5#d5+5): usa o comportamento não detalhado
+        qtd, dado = expressao.split("#", 1)
         qtd = int(qtd)
-        resultados = [rolar_dado(dado) for _ in range(qtd)]
-        return await interaction.response.send_message("\n".join(f"``{r['resultado']}`` ⟵ [{r}] {expressao}" for i, r in enumerate(resultados)))
+        resultados = [rolar_dado(dado, detalhado=False) for _ in range(qtd)]
+        msg = "\n".join(
+            f"``{r['resultado']}`` ⟵ [{r['resultadoWOutEval']}] {expressao}"
+            for r in resultados
+        )
+        return await interaction.response.send_message(msg)
+    else:
+        # Para rolagens simples, usa o comportamento detalhado
+        res = rolar_dado(expressao, detalhado=True)
+        if res is None:
+            return await interaction.response.send_message("❌ Expressão inválida!", ephemeral=True)
+        # Aqui não encapsulamos em colchetes, pois o breakdown já vem formatado (ex.: "[5, 4, 3, 2, 1]")
+        msg = f"``{res['resultado']}`` ⟵ {res['resultadoWOutEval']} {res.get('dice_group', expressao)}"
+        return await interaction.response.send_message(msg)
 
-    resultado = rolar_dado(expressao)
-    if resultado is None:
-        return await interaction.response.send_message("❌ Expressão inválida!", ephemeral=True)
-    
-    await interaction.response.send_message(f"``{resultado['resultado']}`` ⟵ {expressao}")
-
+# Reações automáticas pré-definidas
 REACTIONS = {
-    "bem-vindo": ["👋", "🎉"],  # Reage com 👋 e 🎉 a mensagens contendo "bem-vindo"
-    "importante": ["⚠️", "📢"],  # Reage com ⚠️ e 📢 a mensagens contendo "importante"
-    "parabéns": ["🥳", "🎊"],  # Reage com 🥳 e 🎊 a mensagens contendo "parabéns"
-    "obrigado": ["🙏"],  # Reage com 🙏 a mensagens contendo "obrigado"
+    "bem-vindo": ["👋", "🎉"],    # Reage com 👋 e 🎉 a mensagens contendo "bem-vindo"
+    "importante": ["⚠️", "📢"],   # Reage com ⚠️ e 📢 a mensagens contendo "importante"
+    "parabéns": ["🥳", "🎊"],      # Reage com 🥳 e 🎊 a mensagens contendo "parabéns"
+    "obrigado": ["🙏"],           # Reage com 🙏 a mensagens contendo "obrigado"
 }
+
+# Evento on_message com suporte para rolagem via "$"
 @bot.event
 async def on_message(message):
     if message.author.bot:
         return  # Ignora mensagens de bots
 
-    # Reagir mensagens predefinidas
+    # Adiciona reações pré-definidas
     for keyword, emojis in REACTIONS.items():
         if keyword in message.content.lower():
             for emoji in emojis:
@@ -171,28 +212,22 @@ async def on_message(message):
                 except discord.Forbidden:
                     print(f"❌ Não tenho permissão para reagir a mensagens em {message.channel}")
 
-    # Rolar dado
+    # Detecta expressões de rolagem no formato "$..."
     matches = re.findall(r'\$(\d*#?\d*d\d+[\+\-\*/\(\)\d]*)', message.content)
     resultados = []
     if matches:
         for m in matches:
             if '#' in m:
-                # Se houver "#", divide em quantidade e expressão do dado
-                partes = m.split('#', 1)
-                try:
-                    quantidade = int(partes[0])
-                except ValueError:
-                    quantidade = 1
-                dado_expr = partes[1]
-                for _ in range(quantidade):
-                    res = rolar_dado(dado_expr)
-                    resultados.append(f"``{res['resultado']}`` ⟵ [{res['resultadoWOutEval']}] {m}")
-            else:
-                res = rolar_dado(m)
+                # Se houver "#", usa comportamento não detalhado
+                res = rolar_dado(m, detalhado=False)
                 resultados.append(f"``{res['resultado']}`` ⟵ [{res['resultadoWOutEval']}] {m}")
+            else:
+                res = rolar_dado(m, detalhado=True)
+                resultados.append(f"``{res['resultado']}`` ⟵ {res['resultadoWOutEval']} {res.get('dice_group', m)}")
         await message.channel.send("\n".join(resultados))
         
     await bot.process_commands(message)
+
 
 # Comando prefixado "punir"
 @bot.command(name="punir")
