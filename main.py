@@ -149,7 +149,7 @@ async def rolar(interaction: discord.Interaction, expressao: str):
     if resultado is None:
         return await interaction.response.send_message("❌ Expressão inválida!", ephemeral=True)
     
-    await interaction.response.send_message(f"``{resultado}`` ⟵ {expressao}")
+    await interaction.response.send_message(f"``{resultado['resultado']}`` ⟵ {expressao}")
 
 REACTIONS = {
     "bem-vindo": ["👋", "🎉"],  # Reage com 👋 e 🎉 a mensagens contendo "bem-vindo"
@@ -162,6 +162,7 @@ async def on_message(message):
     if message.author.bot:
         return  # Ignora mensagens de bots
 
+    # Reagir mensagens predefinidas
     for keyword, emojis in REACTIONS.items():
         if keyword in message.content.lower():
             for emoji in emojis:
@@ -170,15 +171,15 @@ async def on_message(message):
                 except discord.Forbidden:
                     print(f"❌ Não tenho permissão para reagir a mensagens em {message.channel}")
 
-    await bot.process_commands(message)  # Permite que outros comandos ainda funcionem
-
-
+    # Rolar dado
     matches = re.findall(r'\$(\d*d\d+[\+\-\*/\(\)\d]*)', message.content)
     if matches:
-        resultados = [f"🎲 **{m}** → **{rolar_dado(m)}**" for m in matches]
-        await message.channel.send("\n".join(resultados))
-
-    await bot.process_commands(message)
+        resultados = []
+        for m in matches:
+            res = rolar_dado(m)  # Armazena o dicionário retornado
+            # Usa as duas chaves do dicionário: 'resultado' e 'resultadoWOutEval'
+            resultados.append(f"``{res['resultado']}`` ⟵ [{res['resultadoWOutEval']}] {m}")
+    await message.channel.send("\n".join(resultados))
 
 # Comando prefixado "punir"
 @bot.command(name="punir")
