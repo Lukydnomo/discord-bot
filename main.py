@@ -218,12 +218,23 @@ async def on_message(message):
     if matches:
         for m in matches:
             if '#' in m:
-                # Se houver "#", usa comportamento não detalhado
-                res = rolar_dado(m, detalhado=False)
-                resultados.append(f"``{res['resultado']}`` ⟵ [{res['resultadoWOutEval']}] {m}")
+                # Se houver "#" na expressão, dividimos em quantidade e o dado base
+                qtd_str, dado = m.split("#", 1)
+                try:
+                    qtd = int(qtd_str)
+                except ValueError:
+                    qtd = 1  # Caso não consiga converter, assume 1
+                # Rola a expressão "dado" a quantidade especificada
+                for _ in range(qtd):
+                    res = rolar_dado(dado, detalhado=False)
+                    resultados.append(
+                        f"``{res['resultado']}`` ⟵ [{res['resultadoWOutEval']}] {m}"
+                    )
             else:
                 res = rolar_dado(m, detalhado=True)
-                resultados.append(f"``{res['resultado']}`` ⟵ {res['resultadoWOutEval']} {res.get('dice_group', m)}")
+                resultados.append(
+                    f"``{res['resultado']}`` ⟵ {res['resultadoWOutEval']} {res.get('dice_group', m)}"
+                )
         await message.channel.send("\n".join(resultados))
         
     await bot.process_commands(message)
