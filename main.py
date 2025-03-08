@@ -172,7 +172,7 @@ async def on_message(message):
                     print(f"❌ Não tenho permissão para reagir a mensagens em {message.channel}")
 
     # Rolar dado
-    matches = re.findall(r'\$(\d*d\d+[\+\-\*/\(\)\d]*)', message.content)
+    matches = re.findall(r'\$(\d*#?\d*d\d+[\+\-\*/\(\)\d]*)', message.content)
     if matches:
         resultados = []
         for m in matches:
