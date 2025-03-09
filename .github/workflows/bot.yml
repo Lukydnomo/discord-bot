@@ -6,12 +6,12 @@ on:
       - main
   workflow_dispatch:
   schedule:
-    - cron: '0 */5 * * *'
+    - cron: "0 */5 * * *"
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
-    timeout-minutes: 350  # Tempo máximo do job
+    timeout-minutes: 350 # Tempo máximo do job
 
     steps:
       - name: Checkout Code
@@ -20,10 +20,12 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v3
         with:
-          python-version: '3.x'
+          python-version: "3.x"
 
       - name: Install Dependencies
         run: |
+          sudo apt-get update
+          sudo apt-get install ffmpeg
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
