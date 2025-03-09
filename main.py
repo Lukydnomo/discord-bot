@@ -38,7 +38,6 @@ class MyBot(commands.Bot):
 
 bot = MyBot()
 
-# Lógicas
 # Função para punir um membro
 async def punir_logic(ctx, member: discord.Member, punish_channel: discord.VoiceChannel, duration: int = 1):
     try:
@@ -165,7 +164,6 @@ def rolar_dado(expressao, detalhado=True):
             "dice_group": dice_group,
             "detalhado": True
         }
-
 # Comando de rolagem de dado (/rolar)
 @bot.tree.command(name="rolar", description="Rola dados no formato XdY com operações matemáticas")
 @app_commands.describe(expressao="Exemplo: 2d6+2, 4d10/2, 5#d5+5")
@@ -238,7 +236,6 @@ async def on_message(message):
         await message.channel.send("\n".join(resultados))
         
     await bot.process_commands(message)
-
 
 # Comando prefixado "punir"
 @bot.command(name="punir")
@@ -504,6 +501,32 @@ def determinar_vencedor(jogada1, jogada2):
         return "🎉 **O primeiro jogador venceu!**"
     else:
         return "🎉 **O segundo jogador venceu!**"
+
+@bot.tree.command(name="tocar", description="Entra no canal, toca um áudio e sai")
+@app_commands.describe(
+    canal="Canal de voz onde o áudio será tocado",
+    arquivo="Nome do arquivo de áudio (deve estar no repositório do bot)"
+)
+async def tocar(interaction: discord.Interaction, canal: discord.VoiceChannel, arquivo: str):
+    if not interaction.user.guild_permissions.connect:
+        return await interaction.response.send_message("🚫 Você não tem permissão para usar este comando!", ephemeral=True)
+
+    audio_file = f"audios/{arquivo}"  # Ajuste para o caminho correto
+    if not os.path.exists(audio_file):
+        return await interaction.response.send_message("❌ Arquivo de áudio não encontrado!", ephemeral=True)
+
+    # Conectar ao canal
+    vc = await canal.connect()
+
+    # Tocar o áudio
+    vc.play(discord.FFmpegPCMAudio(audio_file), after=lambda e: print("Áudio finalizado."))
+
+    # Aguardar o áudio terminar e sair
+    while vc.is_playing():
+        await asyncio.sleep(1)
+
+    await vc.disconnect()
+    await interaction.response.send_message(f"🔊 Tocando `{arquivo}` em {canal.mention}!")
 
 # Inicia o bot
 bot.run(TOKEN)
