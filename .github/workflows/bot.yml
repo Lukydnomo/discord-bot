@@ -11,7 +11,7 @@ on:
 jobs:
   run-bot:
     runs-on: ubuntu-latest
-    timeout-minutes: 350 # Tempo máximo do job
+    timeout-minutes: 301 # Tempo máximo do job
 
     steps:
       - name: Checkout Code
