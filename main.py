@@ -536,16 +536,19 @@ async def listar(interaction: discord.Interaction):
 
     lista_arquivos = f"📂 {os.path.basename(diretorio)}/\n"  # Nome da pasta principal
 
+    # Agora vamos listar também os arquivos da pasta principal e depois as subpastas
     for raiz, pastas, arquivos in os.walk(diretorio):
-        nivel = raiz.replace(diretorio, "").count(os.sep)
-        if nivel == 0:
-            continue  # Evita repetir a pasta principal
+        # Impede de listar a pasta principal novamente
+        if raiz == diretorio:
+            for arquivo in arquivos:
+                lista_arquivos += f"📄 {arquivo}\n"
+        else:
+            nivel = raiz.replace(diretorio, "").count(os.sep)
+            indentacao = " " * (nivel * 4)  # Adiciona espaçamento para indicar a hierarquia
+            lista_arquivos += f"\n{indentacao}📁 {os.path.basename(raiz)}/"  # Adiciona subpastas
 
-        indentacao = " " * (nivel * 4)  # Adiciona espaçamento para indicar a hierarquia
-        lista_arquivos += f"\n{indentacao}📁 {os.path.basename(raiz)}/"  # Adiciona subpastas
-
-        for arquivo in arquivos:
-            lista_arquivos += f"\n{indentacao}📄 {arquivo}"  # Lista arquivos dentro da pasta
+            for arquivo in arquivos:
+                lista_arquivos += f"\n{indentacao}📄 {arquivo}"  # Lista arquivos dentro da pasta
 
     if not lista_arquivos.strip():
         lista_arquivos = "📂 Diretório vazio."
