@@ -528,5 +528,29 @@ async def tocar(interaction: discord.Interaction, canal: discord.VoiceChannel, a
     await vc.disconnect()
     await interaction.response.send_message(f"🔊 Tocando `{arquivo}` em {canal.mention}!")
 
+@bot.tree.command(name="listar", description="Lista todos os arquivos e pastas dentro de um diretório")
+async def listar(interaction: discord.Interaction):
+    diretorio = "audios"
+    if not os.path.exists(diretorio):
+        return await interaction.response.send_message("❌ Diretório não encontrado!", ephemeral=True)
+
+    lista_arquivos = ""
+
+    for raiz, pastas, arquivos in os.walk(diretorio):
+        nivel = raiz.replace(diretorio, "").count(os.sep)
+        indentacao = " " * (nivel * 4)  # Adiciona espaçamento para indicar a hierarquia
+        lista_arquivos += f"\n📂 **{os.path.basename(raiz)}/**"
+
+        for pasta in pastas:
+            lista_arquivos += f"\n{indentacao}📁 {pasta}/"
+
+        for arquivo in arquivos:
+            lista_arquivos += f"\n{indentacao}📄 {arquivo}"
+
+    if not lista_arquivos:
+        lista_arquivos = "📂 Diretório vazio."
+
+    await interaction.response.send_message(f"**Arquivos e pastas em `{diretorio}`:**\n```{lista_arquivos}```")
+
 # Inicia o bot
 bot.run(TOKEN)
