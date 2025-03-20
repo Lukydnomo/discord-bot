@@ -539,17 +539,15 @@ async def listar(interaction: discord.Interaction):
     # Vamos organizar a lista para mostrar as subpastas antes dos arquivos
     for raiz, pastas, arquivos in os.walk(diretorio):
         nivel = raiz.replace(diretorio, "").count(os.sep)
-        indentacao = " " * (nivel * 4)  # Adiciona espaçamento para indicar a hierarquia
+        indentacao = "│   " * nivel  # Usando '│' para a hierarquia, como no Windows Explorer
 
         # Exibe subpastas primeiro
-        if pastas:
-            for pasta in pastas:
-                lista_arquivos += f"\n{indentacao}📁 {pasta}/"
+        for pasta in pastas:
+            lista_arquivos += f"{indentacao}├── 📁 {pasta}/"
 
         # Depois exibe os arquivos dentro da pasta
-        if arquivos:
-            for arquivo in arquivos:
-                lista_arquivos += f"\n{indentacao}📄 {arquivo}"
+        for arquivo in arquivos:
+            lista_arquivos += f"{indentacao}├── 📄 {arquivo}"
 
     if not lista_arquivos.strip():
         lista_arquivos = "📂 Diretório vazio."
