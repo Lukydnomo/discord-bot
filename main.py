@@ -528,7 +528,7 @@ async def tocar(interaction: discord.Interaction, canal: discord.VoiceChannel, a
     await vc.disconnect()
     await interaction.response.send_message(f"🔊 Tocando `{arquivo}` em {canal.mention}!")
 
-@bot.tree.command(name="listar", description="Lista todos os arquivos e pastas dentro de um diretório")
+@bot.tree.command(name="listar", description="Lista todos os áudios")
 async def listar(interaction: discord.Interaction):
     diretorio = "audios"
     if not os.path.exists(diretorio):
