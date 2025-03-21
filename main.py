@@ -534,20 +534,29 @@ async def listar(interaction: discord.Interaction):
     if not os.path.exists(diretorio):
         return await interaction.response.send_message("❌ Diretório não encontrado!", ephemeral=True)
 
-    lista_arquivos = f"📂 {os.path.basename(diretorio)}/\n"
-
-    for raiz, pastas, arquivos in os.walk(diretorio):
-        nivel = raiz.replace(diretorio, "").count(os.sep)
-        indentacao = "│   " * nivel
-
-        for pasta in sorted(pastas):
-            lista_arquivos += f"{indentacao}├── 📁 {pasta}/\n"
-
-        for i, arquivo in enumerate(sorted(arquivos)):
-            prefixo = "└──" if i == len(arquivos) - 1 and not pastas else "├──"
-            lista_arquivos += f"{indentacao}{prefixo} 📄 {arquivo}\n"
+    lista_arquivos = f"📂 **{os.path.basename(diretorio)}/**\n"
+    estrutura = []
     
-    if not lista_arquivos.strip():
+    def listar_pasta(pasta, nivel=0):
+        itens = sorted(os.listdir(pasta))
+        arquivos = [item for item in itens if os.path.isfile(os.path.join(pasta, item))]
+        pastas = [item for item in itens if os.path.isdir(os.path.join(pasta, item))]
+        indentacao_pasta = "│   " * nivel
+        indentacao_arquivo = "│   " * (nivel + 1)
+
+        for i, subpasta in enumerate(pastas):
+            prefixo = "└──" if i == len(pastas) - 1 and not arquivos else "├──"
+            estrutura.append(f"{indentacao_pasta}{prefixo} 📁 {subpasta}/")
+            listar_pasta(os.path.join(pasta, subpasta), nivel + 1)
+
+        for j, arquivo in enumerate(arquivos):
+            prefixo = "└──" if j == len(arquivos) - 1 else "├──"
+            estrutura.append(f"{indentacao_arquivo}{prefixo} 📄 {arquivo}")
+    
+    listar_pasta(diretorio)
+    lista_arquivos += "\n".join(estrutura)
+    
+    if not estrutura:
         lista_arquivos = "📂 Diretório vazio."
     
     await interaction.response.send_message(f"**Arquivos e pastas em `{diretorio}`:**\n```{lista_arquivos}```")
