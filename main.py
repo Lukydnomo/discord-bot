@@ -534,7 +534,7 @@ async def listar(interaction: discord.Interaction):
     if not os.path.exists(diretorio):
         return await interaction.response.send_message("❌ Diretório não encontrado!", ephemeral=True)
 
-    lista_arquivos = f"📂 **{os.path.basename(diretorio)}/**\n"
+    lista_arquivos = f"📂 {os.path.basename(diretorio)}/\n"
 
     for raiz, pastas, arquivos in os.walk(diretorio):
         nivel = raiz.replace(diretorio, "").count(os.sep)
