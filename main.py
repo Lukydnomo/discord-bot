@@ -534,32 +534,35 @@ async def listar(interaction: discord.Interaction):
     if not os.path.exists(diretorio):
         return await interaction.response.send_message("❌ Diretório não encontrado!", ephemeral=True)
 
-    lista_arquivos = f"📂 **{os.path.basename(diretorio)}/**\n"
-    estrutura = []
-    
-    def listar_pasta(pasta, nivel=0):
-        itens = sorted(os.listdir(pasta))
-        arquivos = [item for item in itens if os.path.isfile(os.path.join(pasta, item))]
-        pastas = [item for item in itens if os.path.isdir(os.path.join(pasta, item))]
-        indentacao_pasta = "│   " * nivel
-        indentacao_arquivo = "│   " * (nivel + 1)
+    def build_tree(path, prefix):
+        # Lista os itens na ordem original, separando diretórios e arquivos
+        itens = os.listdir(path)
+        dirs = [item for item in itens if os.path.isdir(os.path.join(path, item))]
+        files = [item for item in itens if os.path.isfile(os.path.join(path, item))]
+        combinados = dirs + files  # diretórios primeiro
 
-        for i, subpasta in enumerate(pastas):
-            prefixo = "└──" if i == len(pastas) - 1 and not arquivos else "├──"
-            estrutura.append(f"{indentacao_pasta}{prefixo} 📁 {subpasta}/")
-            listar_pasta(os.path.join(pasta, subpasta), nivel + 1)
+        linhas = []
+        for idx, item in enumerate(combinados):
+            is_last = (idx == len(combinados) - 1)
+            branch = "└──" if is_last else "├──"
+            item_path = os.path.join(path, item)
+            if os.path.isdir(item_path):
+                linhas.append(f"{prefix}{branch} 📁 {item}/")
+                # Novo prefixo: se o item for o último, não adiciona a barra vertical; caso contrário, adiciona
+                novo_prefix = prefix + ("    " if is_last else "│   ")
+                linhas.extend(build_tree(item_path, novo_prefix))
+            else:
+                linhas.append(f"{prefix}{branch} 📄 {item}")
+        return linhas
 
-        for j, arquivo in enumerate(arquivos):
-            prefixo = "└──" if j == len(arquivos) - 1 else "├──"
-            estrutura.append(f"{indentacao_arquivo}{prefixo} 📄 {arquivo}")
+    tree_lines = build_tree(diretorio, "│   ")
     
-    listar_pasta(diretorio)
-    lista_arquivos += "\n".join(estrutura)
-    
-    if not estrutura:
+    if not tree_lines:
         lista_arquivos = "📂 Diretório vazio."
+    else:
+        lista_arquivos = f"📂 **{os.path.basename(diretorio)}/**\\n" + "\\n".join(tree_lines)
     
-    await interaction.response.send_message(f"**Arquivos e pastas em `{diretorio}`:**\n```{lista_arquivos}```")
+    await interaction.response.send_message(f"**Arquivos e pastas em `{diretorio}`:**\\n```{lista_arquivos}```")
 
 # Inicia o bot
 bot.run(TOKEN)
