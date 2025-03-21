@@ -548,7 +548,7 @@ async def listar(interaction: discord.Interaction):
             item_path = os.path.join(path, item)
             if os.path.isdir(item_path):
                 linhas.append(f"{prefix}{branch} 📁 {item}/")
-                # Novo prefixo: se o item for o último, não adiciona a barra vertical; caso contrário, adiciona
+                # Ajusta prefixo para a próxima 'camada'
                 novo_prefix = prefix + ("    " if is_last else "│   ")
                 linhas.extend(build_tree(item_path, novo_prefix))
             else:
@@ -556,13 +556,22 @@ async def listar(interaction: discord.Interaction):
         return linhas
 
     tree_lines = build_tree(diretorio, "│   ")
-    
+
     if not tree_lines:
         lista_arquivos = "📂 Diretório vazio."
     else:
-        lista_arquivos = f"📂 **{os.path.basename(diretorio)}/**\\n" + "\\n".join(tree_lines)
-    
-    await interaction.response.send_message(f"**Arquivos e pastas em `{diretorio}`:**\\n```{lista_arquivos}```")
+        # Juntamos as linhas com quebras de linha reais
+        lista_arquivos = (
+            f"📂 **{os.path.basename(diretorio)}/**\n" + "\n".join(tree_lines)
+        )
+
+    # Note o uso de ``` e quebras de linha reais no f-string
+    mensagem = (
+        f"**Arquivos e pastas em `{diretorio}`:**\n"
+        f"```\n{lista_arquivos}\n```"
+    )
+
+    await interaction.response.send_message(mensagem)
 
 # Inicia o bot
 bot.run(TOKEN)
