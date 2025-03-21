@@ -534,24 +534,22 @@ async def listar(interaction: discord.Interaction):
     if not os.path.exists(diretorio):
         return await interaction.response.send_message("❌ Diretório não encontrado!", ephemeral=True)
 
-    lista_arquivos = f"📂 {os.path.basename(diretorio)}/\n"  # Nome da pasta principal
+    lista_arquivos = f"📂 **{os.path.basename(diretorio)}/**\n"
 
-    # Vamos organizar a lista para mostrar as subpastas antes dos arquivos
     for raiz, pastas, arquivos in os.walk(diretorio):
         nivel = raiz.replace(diretorio, "").count(os.sep)
-        indentacao = "│   " * nivel  # Usando '│' para a hierarquia, como no Windows Explorer
+        indentacao = "│   " * nivel
 
-        # Exibe subpastas primeiro
-        for pasta in pastas:
-            lista_arquivos += f"{indentacao}├── 📁 {pasta}/"
+        for pasta in sorted(pastas):
+            lista_arquivos += f"{indentacao}├── 📁 {pasta}/\n"
 
-        # Depois exibe os arquivos dentro da pasta
-        for arquivo in arquivos:
-            lista_arquivos += f"{indentacao}├── 📄 {arquivo}"
-
+        for i, arquivo in enumerate(sorted(arquivos)):
+            prefixo = "└──" if i == len(arquivos) - 1 and not pastas else "├──"
+            lista_arquivos += f"{indentacao}{prefixo} 📄 {arquivo}\n"
+    
     if not lista_arquivos.strip():
         lista_arquivos = "📂 Diretório vazio."
-
+    
     await interaction.response.send_message(f"**Arquivos e pastas em `{diretorio}`:**\n```{lista_arquivos}```")
 
 # Inicia o bot
