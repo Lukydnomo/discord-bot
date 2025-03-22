@@ -6,6 +6,8 @@ import os
 import json
 import random
 import re
+import requests
+from base64 import b64decode, b64encode
 
 # Configuração do bot
 intents = discord.Intents.default()
@@ -13,10 +15,13 @@ intents.voice_states = True
 intents.members = True
 intents.message_content = True
 prefix = 'foa!'
-TOKEN = os.getenv("DISCORD_BOT_TOKEN")
+DISCORDTOKEN = os.getenv("DISCORD_BOT_TOKEN")
+GITHUBTOKEN = os.getenv("DATABASE_TOKEN")
 luky = 767015394648915978
 usuarios_autorizados = [luky]
 updateyn = 0
+github_repo = "Lukydnomo/discord-bot"
+json_file_path = "database.json"
 
 # Nome do arquivo Markdown
 arquivo_md = "changelog.md"
@@ -26,6 +31,36 @@ with open(arquivo_md, "r", encoding="utf-8") as arquivo:
     conteudo = arquivo.read()  # Lê todo o conteúdo do arquivo e coloca na variável
 with open('data/avisos_sessao.json', 'r', encoding='utf-8') as file:
     avisos = json.load(file)
+
+def get_file_content():
+    url = f"https://api.github.com/repos/{github_repo}/contents/{json_file_path}"
+    headers = {"Authorization": f"token {GITHUBTOKEN}"}
+    response = requests.get(url, headers=headers).json()
+    if "content" in response:
+        return json.loads(b64decode(response["content"]).decode())
+    return {}
+def update_file_content(data):
+    url = f"https://api.github.com/repos/{github_repo}/contents/{json_file_path}"
+    headers = {"Authorization": f"token {GITHUBTOKEN}"}
+    current_data = requests.get(url, headers=headers).json()
+    sha = current_data.get("sha", "")
+    new_content = b64encode(json.dumps(data, indent=4).encode()).decode()
+    commit_message = "Atualizando banco de dados"
+    payload = json.dumps({"message": commit_message, "content": new_content, "sha": sha})
+    requests.put(url, headers=headers, data=payload)
+def save(name, value):
+    data = get_file_content()
+    if name in data:
+        if isinstance(data[name], list):
+            data[name].append(value)
+        else:
+            data[name] = [data[name], value]
+    else:
+        data[name] = value
+    update_file_content(data)
+def load(name):
+    data = get_file_content()
+    return data.get(name, None)
 
 class MyBot(commands.Bot):
     def __init__(self):
@@ -562,7 +597,7 @@ async def listar(interaction: discord.Interaction):
     else:
         # Juntamos as linhas com quebras de linha reais
         lista_arquivos = (
-            f"📂 **{os.path.basename(diretorio)}/**\n" + "\n".join(tree_lines)
+            f"📂 {os.path.basename(diretorio)}/\n" + "\n".join(tree_lines)
         )
 
     # Note o uso de ``` e quebras de linha reais no f-string
@@ -573,5 +608,23 @@ async def listar(interaction: discord.Interaction):
 
     await interaction.response.send_message(mensagem)
 
+@bot.tree.command(name="db_test", description="Testa o banco de dados")
+@app_commands.describe(action="Escolha entre save ou load", name="Nome da chave", value="Valor a ser salvo (apenas para save)")
+async def db_test(interaction: discord.Interaction, action: str, name: str, value: str = None):
+    if action == "save":
+        if value is None:
+            await interaction.response.send_message("Você precisa fornecer um valor para salvar!", ephemeral=True)
+            return
+        save(name, value)
+        await interaction.response.send_message(f"Salvo: `{name}` = `{value}`")
+    elif action == "load":
+        result = load(name)
+        if result is None:
+            await interaction.response.send_message(f"Nenhum dado encontrado para `{name}`.", ephemeral=True)
+        else:
+            await interaction.response.send_message(f"Valor de `{name}`: `{result}`")
+    else:
+        await interaction.response.send_message("Ação inválida! Use 'save' ou 'load'.", ephemeral=True)
+
 # Inicia o bot
-bot.run(TOKEN)
+bot.run(DISCORDTOKEN)
