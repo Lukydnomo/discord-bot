@@ -34,20 +34,34 @@ with open('data/avisos_sessao.json', 'r', encoding='utf-8') as file:
 
 def get_file_content():
     url = f"https://api.github.com/repos/{github_repo}/contents/{json_file_path}"
-    headers = {"Authorization": f"token {GITHUBTOKEN}"}
+    headers = {"Authorization": f"token {github_token}"}
     response = requests.get(url, headers=headers).json()
+
     if "content" in response:
-        return json.loads(b64decode(response["content"]).decode())
-    return {}
+        try:
+            return json.loads(b64decode(response["content"]).decode())
+        except json.JSONDecodeError:
+            return {}  # Retorna um dicionário vazio se houver erro na decodificação
+    elif response.get("message") == "Not Found":
+        return {}  # Retorna um dicionário vazio se o arquivo não existir ainda
+    else:
+        print(f"Erro ao buscar o arquivo: {response}")  # Para depuração
+        return {}
 def update_file_content(data):
     url = f"https://api.github.com/repos/{github_repo}/contents/{json_file_path}"
-    headers = {"Authorization": f"token {GITHUBTOKEN}"}
+    headers = {"Authorization": f"token {github_token}"}
     current_data = requests.get(url, headers=headers).json()
-    sha = current_data.get("sha", "")
+    
+    sha = current_data.get("sha", "") if "sha" in current_data else None
     new_content = b64encode(json.dumps(data, indent=4).encode()).decode()
     commit_message = "Atualizando banco de dados"
-    payload = json.dumps({"message": commit_message, "content": new_content, "sha": sha})
-    requests.put(url, headers=headers, data=payload)
+
+    payload = {"message": commit_message, "content": new_content}
+    if sha:
+        payload["sha"] = sha  # Apenas se o arquivo já existir
+
+    requests.put(url, headers=headers, json=payload)
+
 def save(name, value):
     data = get_file_content()
     if name in data:
