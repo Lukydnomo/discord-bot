@@ -717,14 +717,14 @@ async def enviar_mensagem(interaction: discord.Interaction, canal: discord.TextC
     if usuario_id:
         try:
             usuario = await bot.fetch_user(usuario_id)  # Tenta obter o usuário pelo ID
-            avatar = usuario.avatar_url  # Obtém a foto do usuário
+            avatar = usuario.avatar.url  # Obtém a foto do usuário
             nome_usuario = usuario.name  # Obtém o nome do usuário
         except discord.NotFound:
             return await interaction.response.send_message("❌ Não foi possível encontrar o usuário com esse ID.", ephemeral=True)
     else:
         # Se não passar o ID do usuário, usa o próprio bot
         usuario = bot.user
-        avatar = bot.user.avatar_url
+        avatar = bot.user.avatar.url
         nome_usuario = bot.user.name
 
     # Envia a mensagem personalizada no canal escolhido
