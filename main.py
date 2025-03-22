@@ -710,7 +710,7 @@ async def db_test(interaction: discord.Interaction, action: str, name: str, valu
     else:
         await interaction.followup.send("Ação inválida! Use 'save' ou 'load'.", ephemeral=True)
 
-@bot.tree.command(name="enviar_mensagem", description="Envie uma mensagem personalizada no canal escolhido")
+bot.tree.command(name="enviar_mensagem", description="Envie uma mensagem personalizada no canal escolhido")
 @app_commands.describe(canal="O canal de texto onde enviar a mensagem", usuario_id="ID do usuário (opcional)", mensagem="A mensagem a ser enviada")
 async def enviar_mensagem(interaction: discord.Interaction, canal: discord.TextChannel, mensagem: str, usuario_id: str = None):
     # Verifica se foi passado o ID do usuário
@@ -727,8 +727,20 @@ async def enviar_mensagem(interaction: discord.Interaction, canal: discord.TextC
         avatar = bot.user.avatar.url  # Foto do bot
         nome_usuario = bot.user.name
 
-    # Altera temporariamente o nome e a foto do bot
-    await bot.user.edit(username=nome_usuario, avatar=await usuario.avatar.read())
+    # Altera temporariamente o nome e a foto do bot **no servidor**
+    guild = interaction.guild
+    member = guild.get_member(bot.user.id)
+    
+    # Salva o nome e a foto do bot antes de alterar (nomes fixos)
+    nome_original = "FranBOT"
+    
+    # Caminho para a foto que está no repositório
+    caminho_avatar = "F.png"
+    with open(caminho_avatar, "rb") as f:
+        avatar_original = f.read()
+
+    # Edita nome e foto do bot no servidor
+    await member.edit(nick=nome_usuario, avatar=avatar)
 
     # Envia a mensagem personalizada no canal escolhido
     await canal.send(f"{mensagem}")
@@ -736,9 +748,11 @@ async def enviar_mensagem(interaction: discord.Interaction, canal: discord.TextC
     # Responde à interação informando que a mensagem foi enviada
     await interaction.response.send_message(f"✅ Mensagem enviada no canal {canal.mention}!", ephemeral=True)
 
-    # Após 10 segundos, volta o nome e a foto do bot ao normal
+    # Após 10 segundos, volta o nome e a foto do bot no servidor ao normal
     await asyncio.sleep(10)
-    await bot.user.edit(username="Nome do Bot Original", avatar=None)
+
+    # Restaura o nome e a foto originais
+    await member.edit(nick=nome_original, avatar=avatar_original)
 
 # Inicia o bot
 bot.run(DISCORDTOKEN)
