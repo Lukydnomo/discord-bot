@@ -328,6 +328,8 @@ async def on_message(message):
         
     # Respostas sarcasticas
     if len(message.content) > 150 and not is_spam(message.content):
+        await message.channel.trigger_typing()
+        await asyncio.sleep(3)
         await message.channel.send(random.choice(SARCASM_RESPONSES))
 
     await bot.process_commands(message)
