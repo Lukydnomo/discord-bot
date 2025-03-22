@@ -8,6 +8,7 @@ import random
 import re
 import requests
 from base64 import b64decode, b64encode
+import time
 
 # Configuração do bot
 intents = discord.Intents.default()
@@ -33,6 +34,22 @@ with open('data/avisos_sessao.json', 'r', encoding='utf-8') as file:
     avisos = json.load(file)
 
 # Database System
+def stop_github_actions():
+    # Captura o run_id da variável de ambiente
+    run_id = os.getenv('RUN_ID')
+    
+    if not run_id:
+        print("Erro: run_id não encontrado.")
+        return
+    
+    url = "https://api.github.com/repos/{github_repo}/actions/runs/{run_id}/cancel"
+    headers = {"Authorization": f"token {GITHUBTOKEN}"}
+    response = requests.post(url, headers=headers)
+    
+    if response.status_code == 202:
+        print("Instância do GitHub Actions finalizada com sucesso.")
+    else:
+        print(f"Falha ao finalizar instância: {response.status_code}, {response.text}")
 def get_file_content():
     url = f"https://api.github.com/repos/{github_repo}/contents/{json_file_path}"
     headers = {"Authorization": f"token {GITHUBTOKEN}"}
@@ -72,6 +89,12 @@ def save(name, value):
     else:
         data[name] = value
     update_file_content(data)
+
+    # Aguardar 30 segundos antes de parar o bot
+    time.sleep(30)
+    
+    # Finalizar a instância do bot no GitHub Actions
+    stop_github_actions()
 def load(name):
     data = get_file_content()
     return data.get(name, None)

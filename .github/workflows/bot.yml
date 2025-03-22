@@ -28,6 +28,9 @@ jobs:
           sudo apt-get install ffmpeg
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+      
+      - name: Setar variável de ambiente para o run_id
+        run: echo "RUN_ID=${{ github.run_id }}" >> $GITHUB_ENV
 
       - name: Run Bot
         id: run_bot
