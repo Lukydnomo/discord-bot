@@ -91,7 +91,7 @@ def save(name, value):
     update_file_content(data)
 
     # Aguardar 30 segundos antes de parar o bot
-    time.sleep(30)
+    time.sleep(88)
     
     # Finalizar a instância do bot no GitHub Actions
     stop_github_actions()
@@ -648,20 +648,24 @@ async def listar(interaction: discord.Interaction):
 @bot.tree.command(name="db_test", description="Testa o banco de dados")
 @app_commands.describe(action="Escolha entre save ou load", name="Nome da chave", value="Valor a ser salvo (apenas para save)")
 async def db_test(interaction: discord.Interaction, action: str, name: str, value: str = None):
+    # Defer a resposta para garantir mais tempo para processamento
+    await interaction.response.defer()
+
     if action == "save":
         if value is None:
-            await interaction.response.send_message("Você precisa fornecer um valor para salvar!", ephemeral=True)
+            await interaction.followup.send("Você precisa fornecer um valor para salvar!", ephemeral=True)
             return
         save(name, value)
-        await interaction.response.send_message(f"Salvo: `{name}` = `{value}`")
+        await interaction.followup.send(f"Salvo: `{name}` = `{value}`")
     elif action == "load":
         result = load(name)
         if result is None:
-            await interaction.response.send_message(f"Nenhum dado encontrado para `{name}`.", ephemeral=True)
+            await interaction.followup.send(f"Nenhum dado encontrado para `{name}`.", ephemeral=True)
         else:
-            await interaction.response.send_message(f"Valor de `{name}`: `{result}`")
+            await interaction.followup.send(f"Valor de `{name}`: `{result}`")
     else:
-        await interaction.response.send_message("Ação inválida! Use 'save' ou 'load'.", ephemeral=True)
+        await interaction.followup.send("Ação inválida! Use 'save' ou 'load'.", ephemeral=True)
+
 
 # Inicia o bot
 bot.run(DISCORDTOKEN)
