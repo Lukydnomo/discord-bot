@@ -716,12 +716,7 @@ async def db_test(interaction: discord.Interaction, action: str, name: str, valu
     name="enviar_mensagem", 
     description="Envia mensagem e opcionalmente altera o perfil do bot"
 )
-@app_commands.describe(
-    canal="Canal de texto onde a mensagem será enviada",
-    usuario_id="ID do usuário (opcional) para usar nome e foto dele",
-    mensagem="Mensagem a ser enviada"
-)
-async def enviar_mensagem(interaction: discord.Interaction, canal: discord.TextChannel, mensagem: str, usuario_id: str = None):
+async def enviar_mensagem(interaction: discord.Interaction):
     # Se for informado um ID de usuário, altera o perfil do bot temporariamente
     with open(CAMINHO_AVATAR_ORIGINAL, "rb") as f:
         avatar_original = f.read()
