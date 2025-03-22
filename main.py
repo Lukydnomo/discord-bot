@@ -269,8 +269,28 @@ REACTIONS = {
 }
 
 SARCASM_RESPONSES = [
-    "Escreveu a bíblia carai", "Ningúem perguntou", "E o fodasse?", "Meu tico que eu vou ler isso", "Minhas bola", "Seloko tá escrevendo mais que o Ozamu Tezuka", f"Redação do enem nota {random.randrange(0,300)}", "Esse aí passa em medicina", "Redação do crlh tmnc"
+    "Escreveu a bíblia carai",
+    "Ningúem perguntou",
+    "E o fodasse?",
+    "Meu tico que eu vou ler isso",
+    "Minhas bola",
+    "Seloko tá escrevendo mais que o Ozamu Tezuka",
+    f"Redação do enem nota {random.randrange(0,300)}",
+    "Esse aí passa em medicina",
+    "Redação do krl tmnc",
+    "Bora escrever um livro cria?",
+    "Esse texto aí vai virar curso de faculdade",
+    "Parece que você leu o manual do lil penis",
+    "Escreveu mais que a lista de clientes de um editor de vídeo",
+    "Meu Deus, não sabia que você era escritor (naipe ichiro oda)",
+    "Vai lançar uma série de 20 temporadas com esse texto? Pq se for a netflix enfia no cu",
+    "Parece um episódio de anime cheio de filler, não, pior, PARECE UM AD DA TWITCH ESSA PORRA",
+    "Texto mais longo que meu pau",
+    "Você não cansa de se ouvir?",
+    "Parece que escreveu a versão expandida do Senhor dos Anais",
+    "Vai lançar um audiobook?"
 ]
+
 def is_spam(text):
     # Remove espaços e ignora letras maiúsculas/minúsculas
     normalized = text.replace(" ", "").lower()
