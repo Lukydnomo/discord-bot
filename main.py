@@ -42,10 +42,14 @@ def stop_github_actions():
         print("Erro: run_id não encontrado.")
         return
     
-    url = "https://api.github.com/repos/{github_repo}/actions/runs/{run_id}/cancel"
+    # URL para cancelar a execução
+    url = f"https://api.github.com/repos/{github_repo}/actions/runs/{run_id}/cancel"
     headers = {"Authorization": f"token {GITHUBTOKEN}"}
+    
+    # Realiza a requisição para cancelar o run
     response = requests.post(url, headers=headers)
     
+    # Debug: Imprimir a resposta para ajudar na depuração
     if response.status_code == 202:
         print("Instância do GitHub Actions finalizada com sucesso.")
     else:
@@ -94,7 +98,7 @@ async def save(name, value):
     await asyncio.sleep(35)
     
     # Finalizar a instância do bot no GitHub Actions
-    stop_github_actions()
+    await stop_github_actions()
 def load(name):
     data = get_file_content()
     return data.get(name, None)
