@@ -34,7 +34,7 @@ with open('data/avisos_sessao.json', 'r', encoding='utf-8') as file:
 
 def get_file_content():
     url = f"https://api.github.com/repos/{github_repo}/contents/{json_file_path}"
-    headers = {"Authorization": f"token {github_token}"}
+    headers = {"Authorization": f"token {GITHUBTOKEN}"}
     response = requests.get(url, headers=headers).json()
 
     if "content" in response:
@@ -49,7 +49,7 @@ def get_file_content():
         return {}
 def update_file_content(data):
     url = f"https://api.github.com/repos/{github_repo}/contents/{json_file_path}"
-    headers = {"Authorization": f"token {github_token}"}
+    headers = {"Authorization": f"token {GITHUBTOKEN}"}
     current_data = requests.get(url, headers=headers).json()
     
     sha = current_data.get("sha", "") if "sha" in current_data else None
