@@ -714,7 +714,7 @@ async def db_test(interaction: discord.Interaction, action: str, name: str, valu
 
 @bot.tree.command(
     name="enviar_mensagem", 
-    description="Envia uma mensagem no canal escolhido e, opcionalmente, altera temporariamente o perfil do bot para o de um usuário específico."
+    description="Envia mensagem e opcionalmente altera o perfil do bot"
 )
 @app_commands.describe(
     canal="Canal de texto onde a mensagem será enviada",
