@@ -710,5 +710,32 @@ async def db_test(interaction: discord.Interaction, action: str, name: str, valu
     else:
         await interaction.followup.send("Ação inválida! Use 'save' ou 'load'.", ephemeral=True)
 
+@bot.tree.command(name="enviar_mensagem", description="Envie uma mensagem personalizada no canal escolhido")
+@app_commands.describe(canal="O canal de texto onde enviar a mensagem", usuario_id="ID do usuário (opcional)", mensagem="A mensagem a ser enviada")
+async def enviar_mensagem(interaction: discord.Interaction, canal: discord.TextChannel, mensagem: str, usuario_id: str = None):
+    # Verifica se foi passado o ID do usuário
+    if usuario_id:
+        try:
+            usuario = await bot.fetch_user(usuario_id)  # Tenta obter o usuário pelo ID
+            avatar = usuario.avatar_url  # Obtém a foto do usuário
+            nome_usuario = usuario.name  # Obtém o nome do usuário
+        except discord.NotFound:
+            return await interaction.response.send_message("❌ Não foi possível encontrar o usuário com esse ID.", ephemeral=True)
+    else:
+        # Se não passar o ID do usuário, usa o próprio bot
+        usuario = bot.user
+        avatar = bot.user.avatar_url
+        nome_usuario = bot.user.name
+
+    # Envia a mensagem personalizada no canal escolhido
+    embed = discord.Embed(description=mensagem, color=discord.Color.blue())
+    embed.set_author(name=nome_usuario, icon_url=avatar)
+    
+    # Envia a mensagem
+    await canal.send(embed=embed)
+    
+    # Responde à interação informando que a mensagem foi enviada
+    await interaction.response.send_message(f"✅ Mensagem enviada no canal {canal.mention}!", ephemeral=True)
+
 # Inicia o bot
 bot.run(DISCORDTOKEN)
