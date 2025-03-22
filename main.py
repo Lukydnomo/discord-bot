@@ -655,7 +655,7 @@ async def db_test(interaction: discord.Interaction, action: str, name: str, valu
         if value is None:
             await interaction.followup.send("Você precisa fornecer um valor para salvar!", ephemeral=True)
             return
-        save(name, value)
+        await save(name, value)
         await interaction.followup.send(f"Salvo: `{name}` = `{value}`")
     elif action == "load":
         result = load(name)
