@@ -79,7 +79,7 @@ def update_file_content(data):
         payload["sha"] = sha  # Apenas se o arquivo já existir
 
     requests.put(url, headers=headers, json=payload)
-def save(name, value):
+async def save(name, value):
     data = get_file_content()
     if name in data:
         if isinstance(data[name], list):
@@ -91,7 +91,7 @@ def save(name, value):
     update_file_content(data)
 
     # Aguardar 35 segundos antes de parar o bot
-    time.sleep(35)
+    await asyncio.sleep(35)
     
     # Finalizar a instância do bot no GitHub Actions
     stop_github_actions()
