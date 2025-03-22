@@ -724,18 +724,21 @@ async def enviar_mensagem(interaction: discord.Interaction, canal: discord.TextC
     else:
         # Se não passar o ID do usuário, usa o próprio bot
         usuario = bot.user
-        avatar = bot.user.avatar.url
+        avatar = bot.user.avatar.url  # Foto do bot
         nome_usuario = bot.user.name
 
+    # Altera temporariamente o nome e a foto do bot
+    await bot.user.edit(username=nome_usuario, avatar=await usuario.avatar.read())
+
     # Envia a mensagem personalizada no canal escolhido
-    embed = discord.Embed(description=mensagem, color=discord.Color.blue())
-    embed.set_author(name=nome_usuario, icon_url=avatar)
-    
-    # Envia a mensagem
-    await canal.send(embed=embed)
+    await canal.send(f"{mensagem}")
     
     # Responde à interação informando que a mensagem foi enviada
     await interaction.response.send_message(f"✅ Mensagem enviada no canal {canal.mention}!", ephemeral=True)
+
+    # Após 10 segundos, volta o nome e a foto do bot ao normal
+    await asyncio.sleep(10)
+    await bot.user.edit(username="Nome do Bot Original", avatar=None)
 
 # Inicia o bot
 bot.run(DISCORDTOKEN)
