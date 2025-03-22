@@ -723,41 +723,11 @@ async def db_test(interaction: discord.Interaction, action: str, name: str, valu
 )
 async def enviar_mensagem(interaction: discord.Interaction, canal: discord.TextChannel, mensagem: str, usuario_id: str = None):
     # Se for informado um ID de usuário, altera o perfil do bot temporariamente
-    if usuario_id:
-        try:
-            usuario = await bot.fetch_user(usuario_id)
-            novo_nome = usuario.name
-            novo_avatar_url = usuario.avatar.url  # Essa é a URL do avatar do usuário
-        except discord.NotFound:
-            return await interaction.response.send_message("❌ Não foi possível encontrar o usuário com esse ID.", ephemeral=True)
+    with open(CAMINHO_AVATAR_ORIGINAL, "rb") as f:
+        avatar_original = f.read()
 
-        # Baixa os dados da imagem do avatar do usuário usando aiohttp
-        async with aiohttp.ClientSession() as session:
-            async with session.get(novo_avatar_url) as resp:
-                if resp.status != 200:
-                    return await interaction.response.send_message("❌ Não foi possível baixar o avatar.", ephemeral=True)
-                novo_avatar = await resp.read()
-
-        # Altera o perfil do bot para o do usuário informado
-        await bot.user.edit(username=novo_nome, avatar=novo_avatar)
-
-        # Envia a mensagem no canal especificado
-        await canal.send(mensagem)
-        await interaction.response.send_message(f"✅ Mensagem enviada no canal {canal.mention} com perfil alterado!", ephemeral=True)
-
-        # Aguarda 10 segundos para depois reverter
-        await asyncio.sleep(10)
-
-        # Lê o avatar original do arquivo (salvo no repositório)
-        with open(CAMINHO_AVATAR_ORIGINAL, "rb") as f:
-            avatar_original = f.read()
-
-        # Restaura o perfil original do bot
-        await bot.user.edit(username=NOME_ORIGINAL, avatar=avatar_original)
-    else:
-        # Se não for informado um ID de usuário, envia a mensagem normalmente, sem alterar o perfil.
-        await canal.send(mensagem)
-        await interaction.response.send_message(f"✅ Mensagem enviada no canal {canal.mention}!", ephemeral=True)
+    # Restaura o perfil original do bot
+    await bot.user.edit(username=NOME_ORIGINAL, avatar=avatar_original)
 
 # Inicia o bot
 bot.run(DISCORDTOKEN)
