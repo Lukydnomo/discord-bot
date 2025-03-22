@@ -23,6 +23,8 @@ usuarios_autorizados = [luky]
 updateyn = 0
 github_repo = "Lukydnomo/discord-bot"
 json_file_path = "database.json"
+NOME_ORIGINAL = "FranBOT"
+CAMINHO_AVATAR_ORIGINAL = "F.png"
 
 # Nome do arquivo Markdown
 arquivo_md = "changelog.md"
@@ -710,49 +712,52 @@ async def db_test(interaction: discord.Interaction, action: str, name: str, valu
     else:
         await interaction.followup.send("Ação inválida! Use 'save' ou 'load'.", ephemeral=True)
 
-@bot.tree.command(name="enviar_mensagem", description="Envia uma mensagem no canal escolhido e muda temporariamente o perfil do bot")
+@bot.tree.command(
+    name="enviar_mensagem", 
+    description="Envia uma mensagem no canal escolhido e, opcionalmente, altera temporariamente o perfil do bot para o de um usuário específico."
+)
 @app_commands.describe(
     canal="Canal de texto onde a mensagem será enviada",
     usuario_id="ID do usuário (opcional) para usar nome e foto dele",
     mensagem="Mensagem a ser enviada"
 )
 async def enviar_mensagem(interaction: discord.Interaction, canal: discord.TextChannel, mensagem: str, usuario_id: str = None):
-    # Determina o nome e o avatar a serem usados temporariamente
+    # Se for informado um ID de usuário, altera o perfil do bot temporariamente
     if usuario_id:
         try:
             usuario = await bot.fetch_user(usuario_id)
-            nome_usuario = usuario.name
-            avatar_url = usuario.avatar.url  # Isso é uma URL, não os dados!
+            novo_nome = usuario.name
+            novo_avatar_url = usuario.avatar.url  # Essa é a URL do avatar do usuário
         except discord.NotFound:
             return await interaction.response.send_message("❌ Não foi possível encontrar o usuário com esse ID.", ephemeral=True)
+
+        # Baixa os dados da imagem do avatar do usuário usando aiohttp
+        async with aiohttp.ClientSession() as session:
+            async with session.get(novo_avatar_url) as resp:
+                if resp.status != 200:
+                    return await interaction.response.send_message("❌ Não foi possível baixar o avatar.", ephemeral=True)
+                novo_avatar = await resp.read()
+
+        # Altera o perfil do bot para o do usuário informado
+        await bot.user.edit(username=novo_nome, avatar=novo_avatar)
+
+        # Envia a mensagem no canal especificado
+        await canal.send(mensagem)
+        await interaction.response.send_message(f"✅ Mensagem enviada no canal {canal.mention} com perfil alterado!", ephemeral=True)
+
+        # Aguarda 10 segundos para depois reverter
+        await asyncio.sleep(10)
+
+        # Lê o avatar original do arquivo (salvo no repositório)
+        with open(CAMINHO_AVATAR_ORIGINAL, "rb") as f:
+            avatar_original = f.read()
+
+        # Restaura o perfil original do bot
+        await bot.user.edit(username=NOME_ORIGINAL, avatar=avatar_original)
     else:
-        usuario = bot.user
-        nome_usuario = bot.user.name
-        avatar_url = bot.user.avatar.url
-
-    # Baixa os dados da imagem (avatar) usando aiohttp
-    async with aiohttp.ClientSession() as session:
-        async with session.get(avatar_url) as resp:
-            if resp.status != 200:
-                return await interaction.response.send_message("❌ Não foi possível baixar o avatar.", ephemeral=True)
-            avatar_novo = await resp.read()
-
-    # Valores fixos originais para restaurar depois
-    nome_original = "FranBOT"
-    caminho_avatar = "F.png"  # Ajuste esse caminho conforme necessário
-    with open(caminho_avatar, "rb") as f:
-        avatar_original = f.read()
-
-    # Muda o perfil global do bot para o nome e foto do usuário (ou do bot, se não fornecido)
-    await bot.user.edit(username=nome_usuario, avatar=avatar_novo)
-
-    # Envia a mensagem no canal especificado
-    await canal.send(mensagem)
-    await interaction.response.send_message(f"✅ Mensagem enviada no canal {canal.mention}!", ephemeral=True)
-
-    # Espera 10 segundos e restaura o perfil original
-    await asyncio.sleep(10)
-    await bot.user.edit(username=nome_original, avatar=avatar_original)
+        # Se não for informado um ID de usuário, envia a mensagem normalmente, sem alterar o perfil.
+        await canal.send(mensagem)
+        await interaction.response.send_message(f"✅ Mensagem enviada no canal {canal.mention}!", ephemeral=True)
 
 # Inicia o bot
 bot.run(DISCORDTOKEN)
