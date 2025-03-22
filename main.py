@@ -32,6 +32,7 @@ with open(arquivo_md, "r", encoding="utf-8") as arquivo:
 with open('data/avisos_sessao.json', 'r', encoding='utf-8') as file:
     avisos = json.load(file)
 
+# Database System
 def get_file_content():
     url = f"https://api.github.com/repos/{github_repo}/contents/{json_file_path}"
     headers = {"Authorization": f"token {GITHUBTOKEN}"}
@@ -61,7 +62,6 @@ def update_file_content(data):
         payload["sha"] = sha  # Apenas se o arquivo já existir
 
     requests.put(url, headers=headers, json=payload)
-
 def save(name, value):
     data = get_file_content()
     if name in data:
