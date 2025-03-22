@@ -327,7 +327,8 @@ async def on_message(message):
         await message.channel.send("\n".join(resultados))
         
     # Respostas sarcasticas
-    if len(message.content) > 150 and not is_spam(message.content):
+    if len(message.content) > 300 and not is_spam(message.content):
+        await asyncio.sleep(2)
         async with message.channel.typing():  # Usa o contexto assíncrono para simular digitação
             await asyncio.sleep(3)  # Aguarda 3 segundos (opcional)
             await message.channel.send(random.choice(SARCASM_RESPONSES))  # Envia a resposta
