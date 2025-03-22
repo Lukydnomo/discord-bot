@@ -8,7 +8,7 @@ import random
 import re
 import requests
 from base64 import b64decode, b64encode
-import time
+import aiohttp
 
 # Configuração do bot
 intents = discord.Intents.default()
@@ -34,26 +34,23 @@ with open('data/avisos_sessao.json', 'r', encoding='utf-8') as file:
     avisos = json.load(file)
 
 # Database System
-def stop_github_actions():
-    # Captura o run_id da variável de ambiente
+async def stop_github_actions():
     run_id = os.getenv('RUN_ID')
     
     if not run_id:
         print("Erro: run_id não encontrado.")
         return
     
-    # URL para cancelar a execução
     url = f"https://api.github.com/repos/{github_repo}/actions/runs/{run_id}/cancel"
     headers = {"Authorization": f"token {GITHUBTOKEN}"}
     
-    # Realiza a requisição para cancelar o run
-    response = requests.post(url, headers=headers)
-    
-    # Debug: Imprimir a resposta para ajudar na depuração
-    if response.status_code == 202:
-        print("Instância do GitHub Actions finalizada com sucesso.")
-    else:
-        print(f"Falha ao finalizar instância: {response.status_code}, {response.text}")
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, headers=headers) as response:
+            if response.status == 202:
+                print("Instância do GitHub Actions finalizada com sucesso.")
+            else:
+                print(f"Falha ao finalizar instância: {response.status}, {await response.text()}")
+
 def get_file_content():
     url = f"https://api.github.com/repos/{github_repo}/contents/{json_file_path}"
     headers = {"Authorization": f"token {GITHUBTOKEN}"}
