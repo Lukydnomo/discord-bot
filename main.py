@@ -727,11 +727,13 @@ async def enviar_mensagem(interaction: discord.Interaction, canal: discord.TextC
         avatar = bot.user.avatar.url  # Foto do bot
         nome_usuario = bot.user.name
 
-    # Altera temporariamente o nome e a foto do bot
+    # Salvar o nome original e foto original do bot
     nome_original = "FranBOT"
     
     # Caminho para a foto que está no repositório
-    caminho_avatar = "F.png"
+    caminho_avatar = "./images/franbot_avatar.png"
+
+    # Lê a imagem do arquivo como bytes
     with open(caminho_avatar, "rb") as f:
         avatar_original = f.read()
 
