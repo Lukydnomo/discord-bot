@@ -50,7 +50,6 @@ async def stop_github_actions():
                 print("Instância do GitHub Actions finalizada com sucesso.")
             else:
                 print(f"Falha ao finalizar instância: {response.status}, {await response.text()}")
-
 def get_file_content():
     url = f"https://api.github.com/repos/{github_repo}/contents/{json_file_path}"
     headers = {"Authorization": f"token {GITHUBTOKEN}"}
@@ -290,7 +289,6 @@ SARCASM_RESPONSES = [
     "Parece que escreveu a versão expandida do Senhor dos Anais",
     "Vai lançar um audiobook?"
 ]
-
 def is_spam(text):
     # Remove espaços e ignora letras maiúsculas/minúsculas
     normalized = text.replace(" ", "").lower()
@@ -711,7 +709,6 @@ async def db_test(interaction: discord.Interaction, action: str, name: str, valu
             await interaction.followup.send(f"Valor de `{name}`: `{result}`")
     else:
         await interaction.followup.send("Ação inválida! Use 'save' ou 'load'.", ephemeral=True)
-
 
 # Inicia o bot
 bot.run(DISCORDTOKEN)
