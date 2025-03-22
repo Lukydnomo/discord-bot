@@ -710,46 +710,48 @@ async def db_test(interaction: discord.Interaction, action: str, name: str, valu
     else:
         await interaction.followup.send("Ação inválida! Use 'save' ou 'load'.", ephemeral=True)
 
-@bot.tree.command(name="enviar_mensagem", description="Envie uma mensagem personalizada no canal escolhido")
-@app_commands.describe(canal="O canal de texto onde enviar a mensagem", usuario_id="ID do usuário (opcional)", mensagem="A mensagem a ser enviada")
+@bot.tree.command(name="enviar_mensagem", description="Envia uma mensagem no canal escolhido e muda temporariamente o perfil do bot")
+@app_commands.describe(
+    canal="Canal de texto onde a mensagem será enviada",
+    usuario_id="ID do usuário (opcional) para usar nome e foto dele",
+    mensagem="Mensagem a ser enviada"
+)
 async def enviar_mensagem(interaction: discord.Interaction, canal: discord.TextChannel, mensagem: str, usuario_id: str = None):
-    # Verifica se foi passado o ID do usuário
+    # Determina o nome e o avatar a serem usados temporariamente
     if usuario_id:
         try:
-            usuario = await bot.fetch_user(usuario_id)  # Tenta obter o usuário pelo ID
-            avatar = usuario.avatar.url  # Obtém a foto do usuário
-            nome_usuario = usuario.name  # Obtém o nome do usuário
+            usuario = await bot.fetch_user(usuario_id)
+            nome_usuario = usuario.name
+            avatar_url = usuario.avatar.url  # Isso é uma URL, não os dados!
         except discord.NotFound:
             return await interaction.response.send_message("❌ Não foi possível encontrar o usuário com esse ID.", ephemeral=True)
     else:
-        # Se não passar o ID do usuário, usa o próprio bot
         usuario = bot.user
-        avatar = bot.user.avatar.url  # Foto do bot
         nome_usuario = bot.user.name
+        avatar_url = bot.user.avatar.url
 
-    # Salvar o nome original e foto original do bot
+    # Baixa os dados da imagem (avatar) usando aiohttp
+    async with aiohttp.ClientSession() as session:
+        async with session.get(avatar_url) as resp:
+            if resp.status != 200:
+                return await interaction.response.send_message("❌ Não foi possível baixar o avatar.", ephemeral=True)
+            avatar_novo = await resp.read()
+
+    # Valores fixos originais para restaurar depois
     nome_original = "FranBOT"
-    
-    # Caminho para a foto que está no repositório
-    caminho_avatar = "F.png"
-
-    # Lê a imagem do arquivo como bytes
+    caminho_avatar = "F.png"  # Ajuste esse caminho conforme necessário
     with open(caminho_avatar, "rb") as f:
         avatar_original = f.read()
 
-    # Edita nome e foto do bot globalmente
-    await bot.user.edit(username=nome_usuario, avatar=avatar)
+    # Muda o perfil global do bot para o nome e foto do usuário (ou do bot, se não fornecido)
+    await bot.user.edit(username=nome_usuario, avatar=avatar_novo)
 
-    # Envia a mensagem personalizada no canal escolhido
-    await canal.send(f"{mensagem}")
-    
-    # Responde à interação informando que a mensagem foi enviada
+    # Envia a mensagem no canal especificado
+    await canal.send(mensagem)
     await interaction.response.send_message(f"✅ Mensagem enviada no canal {canal.mention}!", ephemeral=True)
 
-    # Após 10 segundos, volta o nome e a foto do bot ao normal
+    # Espera 10 segundos e restaura o perfil original
     await asyncio.sleep(10)
-
-    # Restaura o nome e a foto originais
     await bot.user.edit(username=nome_original, avatar=avatar_original)
 
 # Inicia o bot
