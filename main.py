@@ -727,20 +727,16 @@ async def enviar_mensagem(interaction: discord.Interaction, canal: discord.TextC
         avatar = bot.user.avatar.url  # Foto do bot
         nome_usuario = bot.user.name
 
-    # Altera temporariamente o nome e a foto do bot **no servidor**
-    guild = interaction.guild
-    member = guild.get_member(bot.user.id)
-    
-    # Salva o nome e a foto do bot antes de alterar (nomes fixos)
+    # Altera temporariamente o nome e a foto do bot
     nome_original = "FranBOT"
     
     # Caminho para a foto que está no repositório
-    caminho_avatar = "F.png"
+    caminho_avatar = "./images/franbot_avatar.png"
     with open(caminho_avatar, "rb") as f:
         avatar_original = f.read()
 
-    # Edita nome e foto do bot no servidor
-    await member.edit(nick=nome_usuario, avatar=avatar)
+    # Edita nome e foto do bot globalmente
+    await bot.user.edit(username=nome_usuario, avatar=avatar)
 
     # Envia a mensagem personalizada no canal escolhido
     await canal.send(f"{mensagem}")
@@ -748,11 +744,11 @@ async def enviar_mensagem(interaction: discord.Interaction, canal: discord.TextC
     # Responde à interação informando que a mensagem foi enviada
     await interaction.response.send_message(f"✅ Mensagem enviada no canal {canal.mention}!", ephemeral=True)
 
-    # Após 10 segundos, volta o nome e a foto do bot no servidor ao normal
+    # Após 10 segundos, volta o nome e a foto do bot ao normal
     await asyncio.sleep(10)
 
     # Restaura o nome e a foto originais
-    await member.edit(nick=nome_original, avatar=avatar_original)
+    await bot.user.edit(username=nome_original, avatar=avatar_original)
 
 # Inicia o bot
 bot.run(DISCORDTOKEN)
