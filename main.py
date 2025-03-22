@@ -90,8 +90,8 @@ def save(name, value):
         data[name] = value
     update_file_content(data)
 
-    # Aguardar 30 segundos antes de parar o bot
-    time.sleep(88)
+    # Aguardar 35 segundos antes de parar o bot
+    time.sleep(35)
     
     # Finalizar a instância do bot no GitHub Actions
     stop_github_actions()
