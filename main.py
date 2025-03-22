@@ -731,7 +731,7 @@ async def enviar_mensagem(interaction: discord.Interaction, canal: discord.TextC
     nome_original = "FranBOT"
     
     # Caminho para a foto que está no repositório
-    caminho_avatar = "./images/franbot_avatar.png"
+    caminho_avatar = "F.png"
 
     # Lê a imagem do arquivo como bytes
     with open(caminho_avatar, "rb") as f:
