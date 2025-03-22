@@ -260,13 +260,31 @@ async def rolar(interaction: discord.Interaction, expressao: str):
         msg = f"``{res['resultado']}`` ⟵ {res['resultadoWOutEval']} {res.get('dice_group', expressao)}"
         return await interaction.response.send_message(msg)
 
-# Reações automáticas pré-definidas
+# Respostas de on_message
 REACTIONS = {
     "bem-vindo": ["👋", "🎉"],    # Reage com 👋 e 🎉 a mensagens contendo "bem-vindo"
     "importante": ["⚠️", "📢"],   # Reage com ⚠️ e 📢 a mensagens contendo "importante"
     "parabéns": ["🥳", "🎊"],      # Reage com 🥳 e 🎊 a mensagens contendo "parabéns"
     "obrigado": ["🙏"],           # Reage com 🙏 a mensagens contendo "obrigado"
 }
+
+SARCASM_RESPONSES = [
+    "Escreveu a bíblia carai", "Ningúem perguntou", "E o fodasse?", "Meu tico que eu vou ler isso", "Minhas bola", "Seloko tá escrevendo mais que o Ozamu Tezuka", f"Redação do enem nota {random.randrange(0,300)}", "Esse aí passa em medicina", "Redação do crlh tmnc"
+]
+def is_spam(text):
+    # Remove espaços e ignora letras maiúsculas/minúsculas
+    normalized = text.replace(" ", "").lower()
+
+    # Se for só um caractere repetido várias vezes, é spam
+    if len(set(normalized)) == 1:
+        return True
+
+    # Se for só um pequeno grupo de caracteres repetindo várias vezes (ex: "lolololol", "haha haha")
+    match = re.fullmatch(r"(.+?)\1+", normalized)
+    if match:
+        return True
+
+    return False
 
 # Evento on_message com suporte para rolagem via "$"
 @bot.event
@@ -308,6 +326,10 @@ async def on_message(message):
                 )
         await message.channel.send("\n".join(resultados))
         
+    # Respostas sarcasticas
+    if len(message.content) > 150 and not is_spam(message.content):
+        await message.channel.send(random.choice(SARCASM_RESPONSES))
+
     await bot.process_commands(message)
 
 # Comando prefixado "punir"
