@@ -710,7 +710,7 @@ async def db_test(interaction: discord.Interaction, action: str, name: str, valu
     else:
         await interaction.followup.send("Ação inválida! Use 'save' ou 'load'.", ephemeral=True)
 
-bot.tree.command(name="enviar_mensagem", description="Envie uma mensagem personalizada no canal escolhido")
+@bot.tree.command(name="enviar_mensagem", description="Envie uma mensagem personalizada no canal escolhido")
 @app_commands.describe(canal="O canal de texto onde enviar a mensagem", usuario_id="ID do usuário (opcional)", mensagem="A mensagem a ser enviada")
 async def enviar_mensagem(interaction: discord.Interaction, canal: discord.TextChannel, mensagem: str, usuario_id: str = None):
     # Verifica se foi passado o ID do usuário
