@@ -26,6 +26,17 @@ json_file_path = "database.json"
 NOME_ORIGINAL = "FranBOT"
 CAMINHO_AVATAR_ORIGINAL = "F.png"
 
+class MyBot(commands.Bot):
+    def __init__(self):
+        super().__init__(command_prefix=prefix, intents=intents)
+
+    # Sincroniza comandos quando o bot inicia
+    async def setup_hook(self):
+        await self.tree.sync()  # Sincroniza comandos globalmente
+        print("✅ Comandos sincronizados globalmente!")
+
+bot = MyBot()
+
 # Nome do arquivo Markdown
 arquivo_md = "changelog.md"
 
@@ -100,17 +111,6 @@ async def save(name, value):
 def load(name):
     data = get_file_content()
     return data.get(name, None)
-
-class MyBot(commands.Bot):
-    def __init__(self):
-        super().__init__(command_prefix=prefix, intents=intents)
-
-    # Sincroniza comandos quando o bot inicia
-    async def setup_hook(self):
-        await self.tree.sync()  # Sincroniza comandos globalmente
-        print("✅ Comandos sincronizados globalmente!")
-
-bot = MyBot()
 
 # Função para punir um membro
 async def punir_logic(ctx, member: discord.Member, punish_channel: discord.VoiceChannel, duration: int = 1):
@@ -620,77 +620,6 @@ def determinar_vencedor(jogada1, jogada2):
     else:
         return "🎉 **O segundo jogador venceu!**"
 
-@bot.tree.command(name="tocar", description="Entra no canal, toca um áudio e sai")
-@app_commands.describe(
-    canal="Canal de voz onde o áudio será tocado",
-    arquivo="Nome do arquivo de áudio (deve estar no repositório do bot)"
-)
-async def tocar(interaction: discord.Interaction, canal: discord.VoiceChannel, arquivo: str):
-    if not interaction.user.guild_permissions.connect:
-        return await interaction.response.send_message("🚫 Você não tem permissão para usar este comando!", ephemeral=True)
-
-    audio_file = f"audios/{arquivo}"  # Ajuste para o caminho correto
-    if not os.path.exists(audio_file):
-        return await interaction.response.send_message("❌ Arquivo de áudio não encontrado!", ephemeral=True)
-
-    # Conectar ao canal
-    vc = await canal.connect()
-
-    # Tocar o áudio
-    vc.play(discord.FFmpegPCMAudio(audio_file), after=lambda e: print("Áudio finalizado."))
-
-    # Aguardar o áudio terminar e sair
-    while vc.is_playing():
-        await asyncio.sleep(1)
-
-    await vc.disconnect()
-    await interaction.response.send_message(f"🔊 Tocando `{arquivo}` em {canal.mention}!")
-
-@bot.tree.command(name="listar", description="Lista todos os áudios")
-async def listar(interaction: discord.Interaction):
-    diretorio = "audios"
-    if not os.path.exists(diretorio):
-        return await interaction.response.send_message("❌ Diretório não encontrado!", ephemeral=True)
-
-    def build_tree(path, prefix):
-        # Lista os itens na ordem original, separando diretórios e arquivos
-        itens = os.listdir(path)
-        dirs = [item for item in itens if os.path.isdir(os.path.join(path, item))]
-        files = [item for item in itens if os.path.isfile(os.path.join(path, item))]
-        combinados = dirs + files  # diretórios primeiro
-
-        linhas = []
-        for idx, item in enumerate(combinados):
-            is_last = (idx == len(combinados) - 1)
-            branch = "└──" if is_last else "├──"
-            item_path = os.path.join(path, item)
-            if os.path.isdir(item_path):
-                linhas.append(f"{prefix}{branch} 📁 {item}/")
-                # Ajusta prefixo para a próxima 'camada'
-                novo_prefix = prefix + ("    " if is_last else "│   ")
-                linhas.extend(build_tree(item_path, novo_prefix))
-            else:
-                linhas.append(f"{prefix}{branch} 📄 {item}")
-        return linhas
-
-    tree_lines = build_tree(diretorio, "│   ")
-
-    if not tree_lines:
-        lista_arquivos = "📂 Diretório vazio."
-    else:
-        # Juntamos as linhas com quebras de linha reais
-        lista_arquivos = (
-            f"📂 {os.path.basename(diretorio)}/\n" + "\n".join(tree_lines)
-        )
-
-    # Note o uso de ``` e quebras de linha reais no f-string
-    mensagem = (
-        f"**Arquivos e pastas em `{diretorio}`:**\n"
-        f"```\n{lista_arquivos}\n```"
-    )
-
-    await interaction.response.send_message(mensagem)
-
 @bot.tree.command(name="db_test", description="Testa o banco de dados")
 @app_commands.describe(action="Escolha entre save ou load", name="Nome da chave", value="Valor a ser salvo (apenas para save)")
 async def db_test(interaction: discord.Interaction, action: str, name: str, value: str = None):
@@ -712,17 +641,104 @@ async def db_test(interaction: discord.Interaction, action: str, name: str, valu
     else:
         await interaction.followup.send("Ação inválida! Use 'save' ou 'load'.", ephemeral=True)
 
-@bot.tree.command(
-    name="enviar_mensagem", 
-    description="Envia mensagem e opcionalmente altera o perfil do bot"
-)
-async def enviar_mensagem(interaction: discord.Interaction):
-    # Se for informado um ID de usuário, altera o perfil do bot temporariamente
-    with open(CAMINHO_AVATAR_ORIGINAL, "rb") as f:
-        avatar_original = f.read()
+voice_clients = {}
+def check_auto_disconnect(guild_id):
+    async def task():
+        await asyncio.sleep(60)  # Aguarda 1 minuto
+        vc = voice_clients.get(guild_id)
+        if vc and not vc.is_playing():
+            await vc.disconnect()
+            del voice_clients[guild_id]
+    asyncio.create_task(task())
+@bot.tree.command(name="entrar", description="Faz o bot entrar no canal de voz e permanecer lá")
+@app_commands.describe(canal="Canal de voz onde o bot entrará")
+async def entrar(interaction: discord.Interaction, canal: discord.VoiceChannel):
+    if not interaction.user.guild_permissions.connect:
+        return await interaction.response.send_message("🚫 Você não tem permissão para usar este comando!", ephemeral=True)
+    
+    if interaction.guild.id in voice_clients:
+        return await interaction.response.send_message("⚠️ Já estou em um canal de voz!", ephemeral=True)
+    
+    vc = await canal.connect()
+    voice_clients[interaction.guild.id] = vc
+    await interaction.response.send_message(f"🔊 Entrei no canal {canal.mention}!")
+@bot.tree.command(name="tocar", description="Toca um áudio no canal de voz sem sair")
+@app_commands.describe(arquivo="Nome do arquivo de áudio (deve estar no repositório do bot)")
+async def tocar(interaction: discord.Interaction, arquivo: str):
+    vc = voice_clients.get(interaction.guild.id)
+    
+    # Se não estiver conectado, tenta entrar no canal do usuário
+    if not vc:
+        canal = interaction.user.voice.channel if interaction.user.voice else None
+        if not canal:
+            return await interaction.response.send_message("❌ Você não está em um canal de voz e o bot também não está!", ephemeral=True)
+        vc = await canal.connect()
+        voice_clients[interaction.guild.id] = vc
+    
+    audio_file = f"audios/{arquivo}"
+    if not os.path.exists(audio_file):
+        return await interaction.response.send_message("❌ Arquivo de áudio não encontrado!", ephemeral=True)
 
-    # Restaura o perfil original do bot
-    await bot.user.edit(username=NOME_ORIGINAL, avatar=avatar_original)
+    vc.stop()
+
+    def after_playback(error):
+        if error:
+            print(f"Erro ao tocar áudio: {error}")
+        asyncio.run_coroutine_threadsafe(check_auto_disconnect(interaction.guild.id), bot.loop)
+
+    vc.play(discord.FFmpegPCMAudio(audio_file), after=after_playback)
+    await interaction.response.send_message(f"🎵 Tocando `{arquivo}`!")
+@bot.tree.command(name="listar", description="Lista todos os áudios")
+async def listar(interaction: discord.Interaction):
+    diretorio = "audios"
+    if not os.path.exists(diretorio):
+        return await interaction.response.send_message("❌ Diretório não encontrado!", ephemeral=True)
+
+    def build_tree(path, prefix):
+        itens = os.listdir(path)
+        dirs = [item for item in itens if os.path.isdir(os.path.join(path, item))]
+        files = [item for item in itens if os.path.isfile(os.path.join(path, item))]
+        combinados = dirs + files
+
+        linhas = []
+        for idx, item in enumerate(combinados):
+            is_last = (idx == len(combinados) - 1)
+            branch = "└──" if is_last else "├──"
+            item_path = os.path.join(path, item)
+            if os.path.isdir(item_path):
+                linhas.append(f"{prefix}{branch} 📁 {item}/")
+                novo_prefix = prefix + ("    " if is_last else "│   ")
+                linhas.extend(build_tree(item_path, novo_prefix))
+            else:
+                linhas.append(f"{prefix}{branch} 📄 {item}")
+        return linhas
+
+    tree_lines = build_tree(diretorio, "│   ")
+    lista_arquivos = f"📂 {os.path.basename(diretorio)}/\n" + "\n".join(tree_lines) if tree_lines else "📂 Diretório vazio."
+
+    if len(lista_arquivos) > 2000:
+        with open("lista_arquivos.txt", "w", encoding="utf-8") as f:
+            f.write(lista_arquivos)
+        await interaction.response.send_message("📜 Lista de arquivos:", file=discord.File("lista_arquivos.txt"))
+        os.remove("lista_arquivos.txt")
+    else:
+        await interaction.response.send_message(f"**Arquivos e pastas em `{diretorio}`:**\n```\n{lista_arquivos}\n```")
+@bot.tree.command(name="parar", description="Para o áudio que está sendo tocado")
+async def parar(interaction: discord.Interaction):
+    vc = voice_clients.get(interaction.guild.id)
+    if not vc or not vc.is_playing():
+        return await interaction.response.send_message("❌ Não há áudio tocando!", ephemeral=True)
+    
+    vc.stop()
+    await interaction.response.send_message("⏹️ Reprodução interrompida!")
+@bot.tree.command(name="sair", description="Faz o bot sair do canal de voz")
+async def sair(interaction: discord.Interaction):
+    vc = voice_clients.pop(interaction.guild.id, None)
+    if not vc:
+        return await interaction.response.send_message("❌ Não estou em um canal de voz!", ephemeral=True)
+    
+    await vc.disconnect()
+    await interaction.response.send_message("👋 Saí do canal de voz!")
 
 # Inicia o bot
 bot.run(DISCORDTOKEN)
