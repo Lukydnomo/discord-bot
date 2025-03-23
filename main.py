@@ -9,6 +9,7 @@ import re
 import requests
 from base64 import b64decode, b64encode
 import aiohttp
+import unidecode
 
 # Configuração do bot
 intents = discord.Intents.default()
@@ -663,6 +664,13 @@ def play_next(guild_id):
             play_next(guild_id)  # Toca o próximo áudio da fila
 
         vc.play(discord.FFmpegPCMAudio(audio_file), after=lambda e: after_playback(e))
+def buscar_arquivo(nome):
+    nome_normalizado = unidecode.unidecode(nome).lower()
+    for root, _, files in os.walk("audios"):
+        for file in files:
+            if unidecode.unidecode(file).lower().startswith(nome_normalizado):
+                return os.path.join(root, file)
+    return None
 @bot.tree.command(name="entrar", description="Faz o bot entrar no canal de voz e permanecer lá")
 @app_commands.describe(canal="Canal de voz onde o bot entrará")
 async def entrar(interaction: discord.Interaction, canal: discord.VoiceChannel):
@@ -688,8 +696,8 @@ async def tocar(interaction: discord.Interaction, arquivo: str):
         vc = await canal.connect()
         voice_clients[guild_id] = vc
 
-    audio_file = f"audios/{arquivo}"
-    if not os.path.exists(audio_file):
+    audio_file = buscar_arquivo(arquivo)
+    if not audio_file:
         return await interaction.response.send_message("❌ Arquivo de áudio não encontrado!", ephemeral=True)
 
     if guild_id not in queues:
