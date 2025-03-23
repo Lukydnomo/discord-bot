@@ -641,15 +641,28 @@ async def db_test(interaction: discord.Interaction, action: str, name: str, valu
     else:
         await interaction.followup.send("Ação inválida! Use 'save' ou 'load'.", ephemeral=True)
 
+# Tocador
 voice_clients = {}
+queues = {}
 def check_auto_disconnect(guild_id):
     async def task():
         await asyncio.sleep(60)  # Aguarda 1 minuto
         vc = voice_clients.get(guild_id)
-        if vc and not vc.is_playing():
+        if vc and not vc.is_playing() and not queues.get(guild_id):
             await vc.disconnect()
             del voice_clients[guild_id]
     asyncio.create_task(task())
+def play_next(guild_id):
+    if queues[guild_id]:
+        audio_file = queues[guild_id].pop(0)
+        vc = voice_clients[guild_id]
+        
+        def after_playback(error):
+            if error:
+                print(f"Erro ao tocar áudio: {error}")
+            play_next(guild_id)  # Toca o próximo áudio da fila
+
+        vc.play(discord.FFmpegPCMAudio(audio_file), after=lambda e: after_playback(e))
 @bot.tree.command(name="entrar", description="Faz o bot entrar no canal de voz e permanecer lá")
 @app_commands.describe(canal="Canal de voz onde o bot entrará")
 async def entrar(interaction: discord.Interaction, canal: discord.VoiceChannel):
@@ -665,29 +678,30 @@ async def entrar(interaction: discord.Interaction, canal: discord.VoiceChannel):
 @bot.tree.command(name="tocar", description="Toca um áudio no canal de voz sem sair")
 @app_commands.describe(arquivo="Nome do arquivo de áudio (deve estar no repositório do bot)")
 async def tocar(interaction: discord.Interaction, arquivo: str):
-    vc = voice_clients.get(interaction.guild.id)
+    guild_id = interaction.guild.id
+    vc = voice_clients.get(guild_id)
     
-    # Se não estiver conectado, tenta entrar no canal do usuário
     if not vc:
         canal = interaction.user.voice.channel if interaction.user.voice else None
         if not canal:
             return await interaction.response.send_message("❌ Você não está em um canal de voz e o bot também não está!", ephemeral=True)
         vc = await canal.connect()
-        voice_clients[interaction.guild.id] = vc
-    
+        voice_clients[guild_id] = vc
+
     audio_file = f"audios/{arquivo}"
     if not os.path.exists(audio_file):
         return await interaction.response.send_message("❌ Arquivo de áudio não encontrado!", ephemeral=True)
 
-    vc.stop()
-
-    def after_playback(error):
-        if error:
-            print(f"Erro ao tocar áudio: {error}")
-        asyncio.run_coroutine_threadsafe(check_auto_disconnect(interaction.guild.id), bot.loop)
-
-    vc.play(discord.FFmpegPCMAudio(audio_file), after=after_playback)
-    await interaction.response.send_message(f"🎵 Tocando `{arquivo}`!")
+    if guild_id not in queues:
+        queues[guild_id] = []
+    
+    queues[guild_id].append(audio_file)
+    
+    if not vc.is_playing():
+        play_next(guild_id)
+        await interaction.response.send_message(f"🎵 Tocando `{arquivo}`!")
+    else:
+        await interaction.response.send_message(f"🎶 `{arquivo}` adicionado à fila!")
 @bot.tree.command(name="listar", description="Lista todos os áudios")
 async def listar(interaction: discord.Interaction):
     diretorio = "audios"
@@ -723,22 +737,48 @@ async def listar(interaction: discord.Interaction):
         os.remove("lista_arquivos.txt")
     else:
         await interaction.response.send_message(f"**Arquivos e pastas em `{diretorio}`:**\n```\n{lista_arquivos}\n```")
-@bot.tree.command(name="parar", description="Para o áudio que está sendo tocado")
+@bot.tree.command(name="parar", description="Para a reprodução e limpa a fila")
 async def parar(interaction: discord.Interaction):
-    vc = voice_clients.get(interaction.guild.id)
+    guild_id = interaction.guild.id
+    vc = voice_clients.get(guild_id)
+    
     if not vc or not vc.is_playing():
         return await interaction.response.send_message("❌ Não há áudio tocando!", ephemeral=True)
     
+    queues[guild_id] = []  # Limpa a fila
     vc.stop()
-    await interaction.response.send_message("⏹️ Reprodução interrompida!")
-@bot.tree.command(name="sair", description="Faz o bot sair do canal de voz")
+    await interaction.response.send_message("⏹️ Reprodução interrompida e fila limpa!")
+@bot.tree.command(name="sair", description="Faz o bot sair do canal de voz e limpa a fila de reprodução")
 async def sair(interaction: discord.Interaction):
     vc = voice_clients.pop(interaction.guild.id, None)
     if not vc:
         return await interaction.response.send_message("❌ Não estou em um canal de voz!", ephemeral=True)
     
+    queues.pop(interaction.guild.id, None)  # Limpa a fila de reprodução
     await vc.disconnect()
-    await interaction.response.send_message("👋 Saí do canal de voz!")
+    await interaction.response.send_message("👋 Saí do canal de voz e limpei a fila de reprodução!")
+@bot.tree.command(name="pular", description="Pula para o próximo áudio na fila")
+async def pular(interaction: discord.Interaction):
+    guild_id = interaction.guild.id
+    vc = voice_clients.get(guild_id)
+    
+    if not vc or not vc.is_playing():
+        return await interaction.response.send_message("❌ Nenhum áudio está tocando!", ephemeral=True)
+    
+    vc.stop()
+    await interaction.response.send_message("⏭️ Pulando para o próximo áudio...")
+    
+    play_next(guild_id)
+@bot.tree.command(name="fila", description="Mostra a fila de áudios")
+async def fila(interaction: discord.Interaction):
+    guild_id = interaction.guild.id
+    queue = queues.get(guild_id, [])
+    
+    if not queue:
+        return await interaction.response.send_message("🎶 A fila está vazia!", ephemeral=True)
+    
+    lista = "\n".join([f"{idx+1}. {os.path.basename(track)}" for idx, track in enumerate(queue)])
+    await interaction.response.send_message(f"📜 **Fila de reprodução:**\n```\n{lista}\n```")
 
 # Inicia o bot
 bot.run(DISCORDTOKEN)
