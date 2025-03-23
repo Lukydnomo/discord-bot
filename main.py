@@ -787,8 +787,6 @@ async def fila(interaction: discord.Interaction):
     
     lista = "\n".join([f"{idx+1}. {os.path.basename(track)}" for idx, track in enumerate(queue)])
     await interaction.response.send_message(f"📜 **Fila de reprodução:**\n```\n{lista}\n```")
-async def start_checking():
-    await check_auto_disconnect()
 
 # Inicia o bot
 bot.run(DISCORDTOKEN)
