@@ -654,7 +654,7 @@ def check_auto_disconnect(guild_id):
             del voice_clients[guild_id]
     asyncio.create_task(task())
 def play_next(guild_id):
-    if queues[guild_id]:
+    if guild_id in queues and queues[guild_id]:  # Verifica se a chave existe antes de acessar
         audio_file = queues[guild_id].pop(0)
         vc = voice_clients[guild_id]
         
