@@ -645,30 +645,23 @@ async def db_test(interaction: discord.Interaction, action: str, name: str, valu
 # Tocador
 voice_clients = {}
 queues = {}
-async def check_auto_disconnect():
-    while True:
-        await asyncio.sleep(60)  # A cada 60 segundos, verifica se deve desconectar
-        for guild_id in list(queues.keys()):
-            vc = voice_clients.get(guild_id)
-            if vc and not vc.is_playing() and not queues.get(guild_id):
-                await vc.disconnect()
-                del voice_clients[guild_id]
-                queues.pop(guild_id, None)
-                print(f"Desconectando do guild {guild_id} por inatividade.")
-async def play_next(guild_id):
-    if guild_id not in queues or not queues[guild_id]:
-        return  # Se não houver mais músicas na fila, nada a fazer
-
-    audio_file = queues[guild_id].pop(0)
-    vc = voice_clients[guild_id]
-
-    def after_playback(error):
-        if error:
-            print(f"Erro ao tocar áudio: {error}")
-        if not queues[guild_id]:  # Verifica se a fila está vazia
-            asyncio.create_task(check_auto_disconnect())  # Inicia a verificação de desconexão
-        else:
-            asyncio.create_task(play_next(guild_id))  # Se ainda houver músicas na fila, toca a próxima
+def check_auto_disconnect(guild_id):
+    async def task():
+        await asyncio.sleep(60)  # Aguarda 1 minuto
+        vc = voice_clients.get(guild_id)
+        if vc and not vc.is_playing() and not queues.get(guild_id):
+            await vc.disconnect()
+            del voice_clients[guild_id]
+    asyncio.create_task(task())
+def play_next(guild_id):
+    if guild_id in queues and queues[guild_id]:  # Verifica se a chave existe antes de acessar
+        audio_file = queues[guild_id].pop(0)
+        vc = voice_clients[guild_id]
+        
+        def after_playback(error):
+            if error:
+                print(f"Erro ao tocar áudio: {error}")
+            play_next(guild_id)  # Toca o próximo áudio da fila
 
     vc.play(discord.FFmpegPCMAudio(audio_file), after=after_playback)
 def buscar_arquivo(nome):
