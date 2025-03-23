@@ -655,7 +655,7 @@ def check_auto_disconnect(guild_id):
             del queues[guild_id]  # Limpa também a fila
 
     # Certifica-se de que o loop de eventos correto está sendo utilizado
-    loop = discord.client.get_event_loop()  # Obtém o loop de eventos do discord client
+    loop = bot.loop # Obtém o loop de eventos do discord client
     asyncio.run_coroutine_threadsafe(task(), loop)  # Executa a tarefa de forma segura no loop principal
 def play_next(guild_id):
     if guild_id in queues and queues[guild_id]:  # Verifica se a chave existe antes de acessar
