@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
+from discord import tasks
 import asyncio
 import os
 import json
@@ -645,14 +646,17 @@ async def db_test(interaction: discord.Interaction, action: str, name: str, valu
 # Tocador
 voice_clients = {}
 queues = {}
-def check_auto_disconnect(guild_id):
-    async def task():
-        await asyncio.sleep(60)  # Aguarda 1 minuto
+@tasks.loop(seconds=60)
+async def check_auto_disconnect():
+    for guild_id in list(queues.keys()):
         vc = voice_clients.get(guild_id)
         if vc and not vc.is_playing() and not queues.get(guild_id):
             await vc.disconnect()
             del voice_clients[guild_id]
-    asyncio.create_task(task())
+            queues.pop(guild_id, None)  # Limpa a fila
+            print(f"Desconectando do guild {guild_id} por inatividade.")
+# Inicia o loop
+check_auto_disconnect.start()
 def play_next(guild_id):
     if guild_id not in queues or not queues[guild_id]:
         return  # Se não houver mais músicas na fila, nada a fazer
@@ -664,7 +668,7 @@ def play_next(guild_id):
         if error:
             print(f"Erro ao tocar áudio: {error}")
         if not queues[guild_id]:  # Verifica se a fila está vazia
-            check_auto_disconnect(guild_id)  # Inicia o processo de desconexão se não houver mais músicas
+            check_auto_disconnect()  # Inicia a verificação de desconexão
         else:
             play_next(guild_id)  # Se ainda houver músicas na fila, toca a próxima
 
