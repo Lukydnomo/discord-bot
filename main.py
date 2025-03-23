@@ -1,7 +1,6 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-from discord import tasks
 import asyncio
 import os
 import json
@@ -646,33 +645,32 @@ async def db_test(interaction: discord.Interaction, action: str, name: str, valu
 # Tocador
 voice_clients = {}
 queues = {}
-@tasks.loop(seconds=60)
 async def check_auto_disconnect():
-    for guild_id in list(queues.keys()):
-        vc = voice_clients.get(guild_id)
-        if vc and not vc.is_playing() and not queues.get(guild_id):
-            await vc.disconnect()
-            del voice_clients[guild_id]
-            queues.pop(guild_id, None)  # Limpa a fila
-            print(f"Desconectando do guild {guild_id} por inatividade.")
-# Inicia o loop
-check_auto_disconnect.start()
-def play_next(guild_id):
+    while True:
+        await asyncio.sleep(60)  # A cada 60 segundos, verifica se deve desconectar
+        for guild_id in list(queues.keys()):
+            vc = voice_clients.get(guild_id)
+            if vc and not vc.is_playing() and not queues.get(guild_id):
+                await vc.disconnect()
+                del voice_clients[guild_id]
+                queues.pop(guild_id, None)
+                print(f"Desconectando do guild {guild_id} por inatividade.")
+async def play_next(guild_id):
     if guild_id not in queues or not queues[guild_id]:
         return  # Se não houver mais músicas na fila, nada a fazer
-    
+
     audio_file = queues[guild_id].pop(0)
     vc = voice_clients[guild_id]
-    
+
     def after_playback(error):
         if error:
             print(f"Erro ao tocar áudio: {error}")
         if not queues[guild_id]:  # Verifica se a fila está vazia
-            check_auto_disconnect()  # Inicia a verificação de desconexão
+            asyncio.create_task(check_auto_disconnect())  # Inicia a verificação de desconexão
         else:
-            play_next(guild_id)  # Se ainda houver músicas na fila, toca a próxima
+            asyncio.create_task(play_next(guild_id))  # Se ainda houver músicas na fila, toca a próxima
 
-    vc.play(discord.FFmpegPCMAudio(audio_file), after=lambda e: after_playback(e))
+    vc.play(discord.FFmpegPCMAudio(audio_file), after=after_playback)
 def buscar_arquivo(nome):
     nome_normalizado = unidecode.unidecode(nome).lower()
     for root, _, files in os.walk("audios"):
@@ -796,6 +794,8 @@ async def fila(interaction: discord.Interaction):
     
     lista = "\n".join([f"{idx+1}. {os.path.basename(track)}" for idx, track in enumerate(queue)])
     await interaction.response.send_message(f"📜 **Fila de reprodução:**\n```\n{lista}\n```")
+async def start_checking():
+    await check_auto_disconnect()
 
 # Inicia o bot
 bot.run(DISCORDTOKEN)
