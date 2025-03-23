@@ -654,16 +654,21 @@ def check_auto_disconnect(guild_id):
             del voice_clients[guild_id]
     asyncio.create_task(task())
 def play_next(guild_id):
-    if guild_id in queues and queues[guild_id]:  # Verifica se a chave existe antes de acessar
-        audio_file = queues[guild_id].pop(0)
-        vc = voice_clients[guild_id]
-        
-        def after_playback(error):
-            if error:
-                print(f"Erro ao tocar áudio: {error}")
-            play_next(guild_id)  # Toca o próximo áudio da fila
+    if guild_id not in queues or not queues[guild_id]:
+        return  # Se não houver mais músicas na fila, nada a fazer
+    
+    audio_file = queues[guild_id].pop(0)
+    vc = voice_clients[guild_id]
+    
+    def after_playback(error):
+        if error:
+            print(f"Erro ao tocar áudio: {error}")
+        if not queues[guild_id]:  # Verifica se a fila está vazia
+            check_auto_disconnect(guild_id)  # Inicia o processo de desconexão se não houver mais músicas
+        else:
+            play_next(guild_id)  # Se ainda houver músicas na fila, toca a próxima
 
-        vc.play(discord.FFmpegPCMAudio(audio_file), after=lambda e: after_playback(e))
+    vc.play(discord.FFmpegPCMAudio(audio_file), after=lambda e: after_playback(e))
 def buscar_arquivo(nome):
     nome_normalizado = unidecode.unidecode(nome).lower()
     for root, _, files in os.walk("audios"):
