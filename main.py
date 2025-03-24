@@ -73,7 +73,7 @@ async def save_deleted_message(message):
     data["deleted_messages"].append(deleted_message_data)
 
     # Atualizando o arquivo com a nova mensagem deletada
-    save("deleted_messages", data)
+    await save("deleted_messages", data)
 # Função para verificar se passaram 5 minutos e reenviar a mensagem
 async def check_and_resend_messages():
     # Recupera os dados do banco de dados
