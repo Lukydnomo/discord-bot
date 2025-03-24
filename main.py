@@ -295,7 +295,6 @@ REACTIONS = {
     "parabéns": ["🥳", "🎊"],      # Reage com 🥳 e 🎊 a mensagens contendo "parabéns"
     "obrigado": ["🙏"],           # Reage com 🙏 a mensagens contendo "obrigado"
 }
-
 SARCASM_RESPONSES = [
     "Escreveu a bíblia carai",
     "Ningúem perguntou",
@@ -381,6 +380,7 @@ async def on_message(message):
             await message.channel.send(random.choice(SARCASM_RESPONSES))  # Envia a resposta
 
     await bot.process_commands(message)
+@bot.event
 async def on_message_delete(message):
     print(f"Mensagem deletada: {message.content}")
     await save_deleted_message(message)
