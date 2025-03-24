@@ -56,18 +56,22 @@ def randomuser():
             return random.choice(members)  # Retorna um membro aleatório
     
     return "fudeu nego"  # Retorno caso não haja membros válidos
-# Função para salvar mensagem apagada
+# Função para salvar a mensagem deletada no arquivo JSON
 async def save_deleted_message(message):
+    data = get_file_content()
     deleted_message_data = {
+        "author": message.author.name,
         "content": message.content,
-        "author": str(message.author),
-        "channel": str(message.channel),
         "timestamp": str(message.created_at)
     }
-    
-    # Salva a mensagem apagada em um banco de dados ou arquivo
-    await save("deleted_messages", deleted_message_data)
-    print(f"Mensagem apagada salva: {message.content}")
+
+    # Adicionando a mensagem deletada ao banco de dados
+    if "deleted_messages" not in data:
+        data["deleted_messages"] = []
+    data["deleted_messages"].append(deleted_message_data)
+
+    # Atualizando o arquivo com a nova mensagem deletada
+    update_file_content(data)
 
 # Database System
 async def stop_github_actions():
@@ -378,8 +382,7 @@ async def on_message(message):
 
     await bot.process_commands(message)
 async def on_message_delete(message):
-    # Salva a mensagem antes dela ser apagada
-    print(f"on_message_delete disparado para a mensagem: {message.content}")
+    print(f"Mensagem deletada: {message.content}")
     await save_deleted_message(message)
 
 # Comando prefixado "punir"
