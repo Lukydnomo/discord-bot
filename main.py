@@ -10,7 +10,7 @@ import requests
 from base64 import b64decode, b64encode
 import aiohttp
 import unidecode
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
 
 # Configuração do bot
 intents = discord.Intents.default()
@@ -78,18 +78,39 @@ async def save_deleted_message(message):
     # Chamar a função de verificação para reenviar a mensagem
     await check_and_resend(deleted_message_data)
 # Função para verificar se passaram 5 minutos e reenviar a mensagem
-async def check_and_resend(deleted_message_data):
-    timestamp = datetime.strptime(deleted_message_data["timestamp"], "%Y-%m-%d %H:%M:%S.%f")
-    current_time = datetime.utcnow()
-    delta = current_time - timestamp
+async def check_and_resend_loop():
+    while True:  # Loop infinito para ficar verificando
+        data = get_file_content()
 
-    # Verificar se a diferença está entre 5 e 7 minutos
-    if timedelta(minutes=5) <= delta <= timedelta(minutes=7):
-        channel = bot.get_channel(int(deleted_message_data["channel_id"]))
-        
-        if channel:
-            # Enviar a mensagem no canal
-            await channel.send(f"Ah, vocês lembram quando o {deleted_message_data['author']} mandou isso?\n'{deleted_message_data['content']}'")
+        if "deleted_messages" in data:
+            now = datetime.now(timezone.utc)
+
+            for deleted_message_data in data["deleted_messages"]:
+                if isinstance(deleted_message_data, str):
+                    deleted_message_data = json.loads(deleted_message_data)
+
+                if "timestamp" not in deleted_message_data:
+                    continue
+
+                try:
+                    timestamp = datetime.strptime(deleted_message_data["timestamp"], "%Y-%m-%d %H:%M:%S.%f").replace(tzinfo=timezone.utc)
+                except ValueError:
+                    timestamp = datetime.strptime(deleted_message_data["timestamp"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+
+                time_diff = (now - timestamp).total_seconds() / 60  # Converter para minutos
+
+                if 5 <= time_diff < 7:  # Se estiver entre 5 e 7 minutos, reenvia
+                    channel_id = deleted_message_data.get("channel_id")
+                    if channel_id:
+                        channel = bot.get_channel(channel_id)
+                        if channel:
+                            await channel.send(f"Ah, vocês lembram quando {deleted_message_data['author']} mandou isso? '{deleted_message_data['content']}'")
+                    
+                    # Remover a mensagem da lista após ser reenviada
+                    data["deleted_messages"].remove(deleted_message_data)
+                    save("deleted_messages", data)
+
+        await asyncio.sleep(10)  # Espera 10 segundos antes de verificar novamente
 
 # Database System
 async def stop_github_actions():
@@ -207,12 +228,7 @@ async def punir_logic(ctx, member: discord.Member, punish_channel: discord.Voice
 async def on_ready():
     updatechannel = bot.get_channel(1319356880627171448)
     
-    # Recuperar as mensagens deletadas do banco de dados
-    data = get_file_content()
-    
-    if "deleted_messages" in data:
-        for deleted_message in data["deleted_messages"]:
-            await check_and_resend(deleted_message)  # Passando os dados corretamente
+    bot.loop.create_task(check_and_resend_loop())
 
     print(f'Bot conectado como {bot.user}')
     for guild in bot.guilds:
