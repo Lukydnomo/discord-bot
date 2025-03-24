@@ -1,12 +1,24 @@
 {
-    "deleted_messages": {
-        "deleted_messages": [
-            {
-                "author": "ratiinn09_38803",
-                "content": "teste",
-                "timestamp": "2025-03-24 18:18:01.578000+00:00",
-                "channel_id": 1318565102835859456
-            }
-        ]
-    }
+    "deleted_messages": [
+        {
+            "deleted_messages": [
+                {
+                    "author": "ratiinn09_38803",
+                    "content": "teste",
+                    "timestamp": "2025-03-24 18:18:01.578000+00:00",
+                    "channel_id": 1318565102835859456
+                }
+            ]
+        },
+        {
+            "deleted_messages": [
+                {
+                    "author": "ratiinn09_38803",
+                    "content": "teste",
+                    "timestamp": "2025-03-24 18:32:09.438000+00:00",
+                    "channel_id": 1318565102835859456
+                }
+            ]
+        }
+    ]
 }
