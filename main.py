@@ -86,13 +86,13 @@ async def check_and_resend_loop():
     while True:
         data = get_file_content()
 
-        if not data or "deleted_messages" not in data or "deleted_messages" not in data["deleted_messages"]:  # Verifica a chave correta
+        if not data or "deleted_messages" not in data or "deleted_messages" not in data["deleted_messages"]:
             if error_log_channel:
                 await error_log_channel.send("🔍 Nenhuma mensagem deletada encontrada.")
             await asyncio.sleep(10)
             continue
 
-        deleted_messages = data["deleted_messages"]["deleted_messages"]  # Acessando o array correto de mensagens deletadas
+        deleted_messages = data["deleted_messages"]["deleted_messages"]
         now = datetime.now(timezone.utc)
 
         for deleted_message_data in deleted_messages:
@@ -112,50 +112,49 @@ async def check_and_resend_loop():
                     await error_log_channel.send(f"⚠️ Mensagem deletada sem timestamp ou channel_id: {deleted_message_data}")
                 continue
 
-            # Printar timestamp para debug
+            # Debug: printar o timestamp
             print(f"⏳ Timestamp da mensagem: {deleted_message_data['timestamp']}")
 
+            # Ajustar o timestamp removendo o sufixo se presente
+            timestamp_str = deleted_message_data["timestamp"]
+            if timestamp_str.endswith("+00:00"):
+                timestamp_str = timestamp_str.replace("+00:00", "").strip()
+
             try:
-                timestamp = datetime.strptime(deleted_message_data["timestamp"], "%Y-%m-%d %H:%M:%S.%f").replace(tzinfo=timezone.utc)
+                timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S.%f").replace(tzinfo=timezone.utc)
             except ValueError:
                 try:
-                    timestamp = datetime.strptime(deleted_message_data["timestamp"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+                    timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
                 except ValueError:
                     if error_log_channel:
                         await error_log_channel.send(f"❌ Erro ao converter timestamp para a mensagem: {deleted_message_data}")
-                    continue  # Ignora se não conseguir converter
+                    continue
 
-            time_diff = (now - timestamp).total_seconds() / 60  # Converter para minutos
-
+            time_diff = (now - timestamp).total_seconds() / 60
             print(f"⏳ Tempo decorrido: {time_diff} minutos")
 
             if 5 <= time_diff < 7:
                 channel_id = deleted_message_data["channel_id"]
                 channel = bot.get_channel(channel_id)
-
                 if channel is None:
                     if error_log_channel:
                         await error_log_channel.send(f"❌ Erro: Canal {channel_id} não encontrado.")
                     continue
 
                 print(f"📩 Enviando mensagem deletada no canal {channel_id}...")
-
                 try:
                     await channel.send(f"Ah, vocês lembram quando {deleted_message_data['author']} mandou isso? '{deleted_message_data['content']}'")
                 except Exception as e:
                     if error_log_channel:
                         await error_log_channel.send(f"❌ Erro ao tentar enviar mensagem no canal {channel_id}: {e}")
-                    continue  # Pula se não conseguir enviar a mensagem
-                
-                # Removendo a mensagem do JSON
-                data["deleted_messages"]["deleted_messages"] = [msg for msg in deleted_messages if msg != deleted_message_data]
+                    continue
 
+                # Remove a mensagem do JSON
+                data["deleted_messages"]["deleted_messages"] = [msg for msg in deleted_messages if msg != deleted_message_data]
                 print(f"✅ Mensagem removida do banco de dados.")
-                
-                # Salvar as alterações
                 await save("deleted_messages", data)
 
-        await asyncio.sleep(10)  # Espera 10 segundos antes de verificar novamente
+        await asyncio.sleep(10)
 
 # Database System
 async def stop_github_actions():
