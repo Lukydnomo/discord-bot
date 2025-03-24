@@ -11,6 +11,7 @@ from base64 import b64decode, b64encode
 import aiohttp
 import unidecode
 from datetime import datetime, timezone
+import pytz
 
 # Configuração do bot
 intents = discord.Intents.default()
@@ -90,7 +91,6 @@ async def check_and_resend_loop():
             if error_log_channel:
                 await error_log_channel.send("🔍 Nenhuma mensagem deletada encontrada.")
             await asyncio.sleep(10)
-            continue
 
         deleted_messages = data["deleted_messages"]["deleted_messages"]
         now = datetime.now(timezone.utc)
@@ -273,7 +273,7 @@ async def on_ready():
     await asyncio.sleep(3)
     updatechannel = bot.get_channel(1319356880627171448)
     
-    bot.loop.create_task(check_and_resend_loop())
+    #bot.loop.create_task(check_and_resend_loop())
 
     print(f'Bot conectado como {bot.user}')
     for guild in bot.guilds:
@@ -466,8 +466,8 @@ async def on_message(message):
             await message.channel.send(random.choice(SARCASM_RESPONSES))  # Envia a resposta
 
     await bot.process_commands(message)
-@bot.event
-async def on_message_delete(message):
+#@bot.event
+#async def on_message_delete(message):
     print(f"Mensagem deletada: {message.content}")
     await save_deleted_message(message)
 
