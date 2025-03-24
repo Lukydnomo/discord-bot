@@ -60,23 +60,23 @@ def randomuser():
 # Função para salvar a mensagem deletada no arquivo JSON
 async def save_deleted_message(message):
     data = get_file_content()
+
     deleted_message_data = {
         "author": message.author.name,
         "content": message.content,
         "timestamp": str(message.created_at),
-        "channel_id": str(message.channel.id)  # Adicionando o channel_id
+        "channel_id": message.channel.id
     }
 
-    # Adicionando a mensagem deletada ao banco de dados
-    if "deleted_messages" not in data:
+    # Garante que "deleted_messages" é uma lista
+    if "deleted_messages" not in data or not isinstance(data["deleted_messages"], list):
         data["deleted_messages"] = []
+
+    # Adicionando a mensagem deletada ao banco de dados
     data["deleted_messages"].append(deleted_message_data)
 
     # Atualizando o arquivo com a nova mensagem deletada
     save("deleted_messages", data)
-
-    # Chamar a função de verificação para reenviar a mensagem
-    await check_and_resend(deleted_message_data)
 # Função para verificar se passaram 5 minutos e reenviar a mensagem
 async def check_and_resend_loop():
     while True:
