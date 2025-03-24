@@ -123,7 +123,7 @@ async def check_and_resend_loop():
                 
                 # Remove a mensagem depois de reenviar
                 data["deleted_messages"] = [msg for msg in data["deleted_messages"] if msg != deleted_message_data]
-                await save("deleted_messages", data)
+                update_file_content(data)
 
         await asyncio.sleep(10)  # Espera 10 segundos antes de verificar de novo
 
