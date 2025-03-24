@@ -206,7 +206,13 @@ async def punir_logic(ctx, member: discord.Member, punish_channel: discord.Voice
 @bot.event
 async def on_ready():
     updatechannel = bot.get_channel(1319356880627171448)
-    await check_and_resend()
+    
+    # Recuperar as mensagens deletadas do banco de dados
+    data = get_file_content()
+    
+    if "deleted_messages" in data:
+        for deleted_message in data["deleted_messages"]:
+            await check_and_resend(deleted_message)  # Passando os dados corretamente
 
     print(f'Bot conectado como {bot.user}')
     for guild in bot.guilds:
@@ -399,8 +405,8 @@ async def on_message(message):
             await message.channel.send(random.choice(SARCASM_RESPONSES))  # Envia a resposta
 
     await bot.process_commands(message)
-#@bot.event
-#async def on_message_delete(message):
+@bot.event
+async def on_message_delete(message):
     print(f"Mensagem deletada: {message.content}")
     await save_deleted_message(message)
 
