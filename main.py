@@ -79,11 +79,16 @@ async def save_deleted_message(message):
     await save("deleted_messages", data)
 # Função para verificar se passaram 5 minutos e reenviar a mensagem
 async def check_and_resend_loop():
+    # Canal de logs onde erros serão reportados
+    error_log_channel_id = 1317580138262695967  # Substitua pelo ID do canal de log de erros
+    error_log_channel = bot.get_channel(error_log_channel_id)
+
     while True:
         data = get_file_content()
 
         if not data or "deleted_messages" not in data or "deleted_messages" not in data["deleted_messages"]:  # Verifica a chave correta
-            print("🔍 Nenhuma mensagem deletada encontrada.")
+            if error_log_channel:
+                await error_log_channel.send("🔍 Nenhuma mensagem deletada encontrada.")
             await asyncio.sleep(10)
             continue
 
@@ -98,11 +103,13 @@ async def check_and_resend_loop():
                 try:
                     deleted_message_data = json.loads(deleted_message_data)
                 except json.JSONDecodeError:
-                    print("⚠️ Erro ao decodificar JSON da mensagem deletada.")
+                    if error_log_channel:
+                        await error_log_channel.send(f"⚠️ Erro ao decodificar JSON da mensagem deletada: {deleted_message_data}")
                     continue
 
             if "timestamp" not in deleted_message_data or "channel_id" not in deleted_message_data:
-                print("⚠️ Mensagem deletada sem timestamp ou channel_id.")
+                if error_log_channel:
+                    await error_log_channel.send(f"⚠️ Mensagem deletada sem timestamp ou channel_id: {deleted_message_data}")
                 continue
 
             # Printar timestamp para debug
@@ -114,7 +121,8 @@ async def check_and_resend_loop():
                 try:
                     timestamp = datetime.strptime(deleted_message_data["timestamp"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
                 except ValueError:
-                    print("❌ Erro ao converter timestamp:", deleted_message_data["timestamp"])
+                    if error_log_channel:
+                        await error_log_channel.send(f"❌ Erro ao converter timestamp para a mensagem: {deleted_message_data}")
                     continue  # Ignora se não conseguir converter
 
             time_diff = (now - timestamp).total_seconds() / 60  # Converter para minutos
@@ -126,12 +134,18 @@ async def check_and_resend_loop():
                 channel = bot.get_channel(channel_id)
 
                 if channel is None:
-                    print(f"❌ Erro: Canal {channel_id} não encontrado.")
+                    if error_log_channel:
+                        await error_log_channel.send(f"❌ Erro: Canal {channel_id} não encontrado.")
                     continue
 
                 print(f"📩 Enviando mensagem deletada no canal {channel_id}...")
 
-                await channel.send(f"Ah, vocês lembram quando {deleted_message_data['author']} mandou isso? '{deleted_message_data['content']}'")
+                try:
+                    await channel.send(f"Ah, vocês lembram quando {deleted_message_data['author']} mandou isso? '{deleted_message_data['content']}'")
+                except Exception as e:
+                    if error_log_channel:
+                        await error_log_channel.send(f"❌ Erro ao tentar enviar mensagem no canal {channel_id}: {e}")
+                    continue  # Pula se não conseguir enviar a mensagem
                 
                 # Removendo a mensagem do JSON
                 data["deleted_messages"]["deleted_messages"] = [msg for msg in deleted_messages if msg != deleted_message_data]
