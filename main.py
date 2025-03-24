@@ -114,12 +114,16 @@ async def check_and_resend_loop():
             if 5 <= time_diff < 7:
                 channel_id = deleted_message_data["channel_id"]
                 channel = bot.get_channel(channel_id)
+
+                if channel is None:
+                    print(f"❌ Erro: Canal {channel_id} não encontrado.")
+                    continue  # Pula essa iteração se o canal não for encontrado
                 if channel:
                     await channel.send(f"Ah, vocês lembram quando {deleted_message_data['author']} mandou isso? '{deleted_message_data['content']}'")
                 
                 # Remove a mensagem depois de reenviar
-                data["deleted_messages"].remove(deleted_message_data)
-                save("deleted_messages", data)
+                data["deleted_messages"] = [msg for msg in data["deleted_messages"] if msg != deleted_message_data]
+                await save("deleted_messages", data)
 
         await asyncio.sleep(10)  # Espera 10 segundos antes de verificar de novo
 
@@ -237,6 +241,7 @@ async def punir_logic(ctx, member: discord.Member, punish_channel: discord.Voice
 # Evento de quando o bot estiver pronto
 @bot.event
 async def on_ready():
+    await asyncio.sleep(3)
     updatechannel = bot.get_channel(1319356880627171448)
     
     bot.loop.create_task(check_and_resend_loop())
