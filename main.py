@@ -981,7 +981,6 @@ async def piada(interaction: discord.Interaction):
     "Teu charme é como a política: ninguém acredita."
 ]
     await interaction.response.send_message(random.choice(piadas))
-#
 
 # Inicia o bot
 bot.run(DISCORDTOKEN)
