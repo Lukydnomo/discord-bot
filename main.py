@@ -79,38 +79,49 @@ async def save_deleted_message(message):
     await check_and_resend(deleted_message_data)
 # Função para verificar se passaram 5 minutos e reenviar a mensagem
 async def check_and_resend_loop():
-    while True:  # Loop infinito para ficar verificando
+    while True:
         data = get_file_content()
 
-        if "deleted_messages" in data:
-            now = datetime.now(timezone.utc)
+        if not data or "deleted_messages" not in data:  # Se o JSON estiver vazio ou sem a chave
+            await asyncio.sleep(10)  # Espera 10 segundos e tenta de novo
+            continue
 
-            for deleted_message_data in data["deleted_messages"]:
-                if isinstance(deleted_message_data, str):
-                    deleted_message_data = json.loads(deleted_message_data)
+        now = datetime.now(timezone.utc)
 
-                if "timestamp" not in deleted_message_data:
-                    continue
-
+        for deleted_message_data in data["deleted_messages"]:
+            if not deleted_message_data:  # Se for None ou string vazia, ignora
+                continue
+            
+            if isinstance(deleted_message_data, str):
                 try:
-                    timestamp = datetime.strptime(deleted_message_data["timestamp"], "%Y-%m-%d %H:%M:%S.%f").replace(tzinfo=timezone.utc)
-                except ValueError:
+                    deleted_message_data = json.loads(deleted_message_data)
+                except json.JSONDecodeError:
+                    continue  # Pula se der erro de JSON
+
+            if "timestamp" not in deleted_message_data or "channel_id" not in deleted_message_data:
+                continue
+
+            try:
+                timestamp = datetime.strptime(deleted_message_data["timestamp"], "%Y-%m-%d %H:%M:%S.%f").replace(tzinfo=timezone.utc)
+            except ValueError:
+                try:
                     timestamp = datetime.strptime(deleted_message_data["timestamp"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+                except ValueError:
+                    continue  # Se der erro, ignora e segue
 
-                time_diff = (now - timestamp).total_seconds() / 60  # Converter para minutos
+            time_diff = (now - timestamp).total_seconds() / 60  # Converter para minutos
 
-                if 5 <= time_diff < 7:  # Se estiver entre 5 e 7 minutos, reenvia
-                    channel_id = deleted_message_data.get("channel_id")
-                    if channel_id:
-                        channel = bot.get_channel(channel_id)
-                        if channel:
-                            await channel.send(f"Ah, vocês lembram quando {deleted_message_data['author']} mandou isso? '{deleted_message_data['content']}'")
-                    
-                    # Remover a mensagem da lista após ser reenviada
-                    data["deleted_messages"].remove(deleted_message_data)
-                    save("deleted_messages", data)
+            if 5 <= time_diff < 7:
+                channel_id = deleted_message_data["channel_id"]
+                channel = bot.get_channel(channel_id)
+                if channel:
+                    await channel.send(f"Ah, vocês lembram quando {deleted_message_data['author']} mandou isso? '{deleted_message_data['content']}'")
+                
+                # Remove a mensagem depois de reenviar
+                data["deleted_messages"].remove(deleted_message_data)
+                save("deleted_messages", data)
 
-        await asyncio.sleep(10)  # Espera 10 segundos antes de verificar novamente
+        await asyncio.sleep(10)  # Espera 10 segundos antes de verificar de novo
 
 # Database System
 async def stop_github_actions():
