@@ -379,6 +379,7 @@ async def on_message(message):
     await bot.process_commands(message)
 async def on_message_delete(message):
     # Salva a mensagem antes dela ser apagada
+    print(f"on_message_delete disparado para a mensagem: {message.content}")
     await save_deleted_message(message)
 
 # Comando prefixado "punir"
