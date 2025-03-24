@@ -10,6 +10,7 @@ import requests
 from base64 import b64decode, b64encode
 import aiohttp
 import unidecode
+from datetime import datetime, timedelta
 
 # Configuração do bot
 intents = discord.Intents.default()
@@ -62,7 +63,8 @@ async def save_deleted_message(message):
     deleted_message_data = {
         "author": message.author.name,
         "content": message.content,
-        "timestamp": str(message.created_at)
+        "timestamp": str(message.created_at),
+        "channel_id": str(message.channel.id)  # Adicionando o channel_id
     }
 
     # Adicionando a mensagem deletada ao banco de dados
@@ -71,7 +73,33 @@ async def save_deleted_message(message):
     data["deleted_messages"].append(deleted_message_data)
 
     # Atualizando o arquivo com a nova mensagem deletada
-    update_file_content(data)
+    save("deleted_messages", data)
+# Função para verificar se passaram 5 minutos e reenviar a mensagem
+async def check_and_resend_messages():
+    # Recupera os dados do banco de dados
+    data = get_file_content()
+    current_time = datetime.utcnow()
+
+    for deleted_message in data.get("deleted_messages", []):
+        # Converte o timestamp da mensagem apagada para um objeto datetime
+        deleted_time = datetime.strptime(deleted_message["timestamp"], "%Y-%m-%d %H:%M:%S.%f")
+
+        # Calcula a diferença de tempo entre o momento atual e o momento da exclusão
+        time_diff = current_time - deleted_time
+
+        # Verifica se passaram entre 5 e 7 minutos (300 a 420 segundos)
+        if timedelta(minutes=5) <= time_diff <= timedelta(minutes=7):
+            # Pega o canal onde a mensagem foi apagada (usando o channel_id salvo)
+            channel = bot.get_channel(deleted_message["channel_id"])
+
+            # Verifica se o canal existe
+            if channel:
+                await channel.send(
+                    f"Ah, vocês lembram quando o {deleted_message['author']} mandou isso?\n"
+                    f"`{deleted_message['content']}`"
+                )
+            else:
+                print(f"Canal {deleted_message['channel_id']} não encontrado.")
 
 # Database System
 async def stop_github_actions():
