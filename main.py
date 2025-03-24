@@ -82,24 +82,31 @@ async def check_and_resend_loop():
     while True:
         data = get_file_content()
 
-        if not data or "deleted_messages" not in data:  # Se o JSON estiver vazio ou sem a chave
-            await asyncio.sleep(10)  # Espera 10 segundos e tenta de novo
+        if not data or "deleted_messages" not in data or "deleted_messages" not in data["deleted_messages"]:  # Verifica a chave correta
+            print("🔍 Nenhuma mensagem deletada encontrada.")
+            await asyncio.sleep(10)
             continue
 
+        deleted_messages = data["deleted_messages"]["deleted_messages"]  # Acessando o array correto de mensagens deletadas
         now = datetime.now(timezone.utc)
 
-        for deleted_message_data in data["deleted_messages"]:
-            if not deleted_message_data:  # Se for None ou string vazia, ignora
+        for deleted_message_data in deleted_messages:
+            if not deleted_message_data:
                 continue
-            
+
             if isinstance(deleted_message_data, str):
                 try:
                     deleted_message_data = json.loads(deleted_message_data)
                 except json.JSONDecodeError:
-                    continue  # Pula se der erro de JSON
+                    print("⚠️ Erro ao decodificar JSON da mensagem deletada.")
+                    continue
 
             if "timestamp" not in deleted_message_data or "channel_id" not in deleted_message_data:
+                print("⚠️ Mensagem deletada sem timestamp ou channel_id.")
                 continue
+
+            # Printar timestamp para debug
+            print(f"⏳ Timestamp da mensagem: {deleted_message_data['timestamp']}")
 
             try:
                 timestamp = datetime.strptime(deleted_message_data["timestamp"], "%Y-%m-%d %H:%M:%S.%f").replace(tzinfo=timezone.utc)
@@ -107,9 +114,12 @@ async def check_and_resend_loop():
                 try:
                     timestamp = datetime.strptime(deleted_message_data["timestamp"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
                 except ValueError:
-                    continue  # Se der erro, ignora e segue
+                    print("❌ Erro ao converter timestamp:", deleted_message_data["timestamp"])
+                    continue  # Ignora se não conseguir converter
 
             time_diff = (now - timestamp).total_seconds() / 60  # Converter para minutos
+
+            print(f"⏳ Tempo decorrido: {time_diff} minutos")
 
             if 5 <= time_diff < 7:
                 channel_id = deleted_message_data["channel_id"]
@@ -117,15 +127,21 @@ async def check_and_resend_loop():
 
                 if channel is None:
                     print(f"❌ Erro: Canal {channel_id} não encontrado.")
-                    continue  # Pula essa iteração se o canal não for encontrado
-                if channel:
-                    await channel.send(f"Ah, vocês lembram quando {deleted_message_data['author']} mandou isso? '{deleted_message_data['content']}'")
-                
-                # Remove a mensagem depois de reenviar
-                data["deleted_messages"] = [msg for msg in data["deleted_messages"] if msg != deleted_message_data]
-                update_file_content(data)
+                    continue
 
-        await asyncio.sleep(10)  # Espera 10 segundos antes de verificar de novo
+                print(f"📩 Enviando mensagem deletada no canal {channel_id}...")
+
+                await channel.send(f"Ah, vocês lembram quando {deleted_message_data['author']} mandou isso? '{deleted_message_data['content']}'")
+                
+                # Removendo a mensagem do JSON
+                data["deleted_messages"]["deleted_messages"] = [msg for msg in deleted_messages if msg != deleted_message_data]
+
+                print(f"✅ Mensagem removida do banco de dados.")
+                
+                # Salvar as alterações
+                await save("deleted_messages", data)
+
+        await asyncio.sleep(10)  # Espera 10 segundos antes de verificar novamente
 
 # Database System
 async def stop_github_actions():
