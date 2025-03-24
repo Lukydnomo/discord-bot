@@ -73,33 +73,23 @@ async def save_deleted_message(message):
     data["deleted_messages"].append(deleted_message_data)
 
     # Atualizando o arquivo com a nova mensagem deletada
-    await save("deleted_messages", data)
+    save("deleted_messages", data)
+
+    # Chamar a função de verificação para reenviar a mensagem
+    await check_and_resend(deleted_message_data)
 # Função para verificar se passaram 5 minutos e reenviar a mensagem
-async def check_and_resend_messages():
-    # Recupera os dados do banco de dados
-    data = get_file_content()
+async def check_and_resend(deleted_message_data):
+    timestamp = datetime.strptime(deleted_message_data["timestamp"], "%Y-%m-%d %H:%M:%S.%f")
     current_time = datetime.utcnow()
+    delta = current_time - timestamp
 
-    for deleted_message in data.get("deleted_messages", []):
-        # Converte o timestamp da mensagem apagada para um objeto datetime
-        deleted_time = datetime.strptime(deleted_message["timestamp"], "%Y-%m-%d %H:%M:%S.%f")
-
-        # Calcula a diferença de tempo entre o momento atual e o momento da exclusão
-        time_diff = current_time - deleted_time
-
-        # Verifica se passaram entre 5 e 7 minutos (300 a 420 segundos)
-        if timedelta(minutes=5) <= time_diff <= timedelta(minutes=7):
-            # Pega o canal onde a mensagem foi apagada (usando o channel_id salvo)
-            channel = bot.get_channel(deleted_message["channel_id"])
-
-            # Verifica se o canal existe
-            if channel:
-                await channel.send(
-                    f"Ah, vocês lembram quando o {deleted_message['author']} mandou isso?\n"
-                    f"`{deleted_message['content']}`"
-                )
-            else:
-                print(f"Canal {deleted_message['channel_id']} não encontrado.")
+    # Verificar se a diferença está entre 5 e 7 minutos
+    if timedelta(minutes=5) <= delta <= timedelta(minutes=7):
+        channel = bot.get_channel(int(deleted_message_data["channel_id"]))
+        
+        if channel:
+            # Enviar a mensagem no canal
+            await channel.send(f"Ah, vocês lembram quando o {deleted_message_data['author']} mandou isso?\n'{deleted_message_data['content']}'")
 
 # Database System
 async def stop_github_actions():
@@ -216,6 +206,7 @@ async def punir_logic(ctx, member: discord.Member, punish_channel: discord.Voice
 @bot.event
 async def on_ready():
     updatechannel = bot.get_channel(1319356880627171448)
+    await check_and_resend()
 
     print(f'Bot conectado como {bot.user}')
     for guild in bot.guilds:
