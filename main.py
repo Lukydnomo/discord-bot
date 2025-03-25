@@ -11,7 +11,6 @@ from base64 import b64decode, b64encode
 import aiohttp
 import unidecode
 from datetime import datetime, timezone
-import pytz
 
 # Configuração do bot
 intents = discord.Intents.default()
@@ -27,7 +26,7 @@ updateyn = 0
 github_repo = "Lukydnomo/discord-bot"
 json_file_path = "database.json"
 NOME_ORIGINAL = "FranBOT"
-CAMINHO_AVATAR_ORIGINAL = "F.png"
+CAMINHO_AVATAR_ORIGINAL = "assets/images/FranBOT-Logo.png"
 
 class MyBot(commands.Bot):
     def __init__(self):
@@ -599,74 +598,6 @@ async def desmutar(
     else:
         await interaction.response.send_message(f"🔊 **{membros_desmutados}** membros foram desmutados em {canal.mention}!")
 
-# Executar comandos através de DMs
-@bot.tree.command(name="executar_comando", description="Executa comandos específicos em DMs, com escolha do servidor")
-@app_commands.describe(
-    comando="Comando que deseja executar",
-    servidor="(Opcional) ID do servidor onde o comando será executado",
-    parametros="(Opcional) Parâmetros do comando, separados por vírgula (ex: mesa=Mesa Principal, user=123456789)"
-)
-async def executar_comando(
-    interaction: discord.Interaction,
-    comando: str,
-    servidor: str = None,
-    parametros: str = None  # Parâmetros opcionais
-):
-    # Verifica se a interação foi realizada via DM
-    if isinstance(interaction.channel, discord.DMChannel):
-        # Verifica se o usuário é autorizado
-        if interaction.user.id not in usuarios_autorizados:
-            return await interaction.response.send_message("🚫 Você não tem permissão para usar esse comando!", ephemeral=True)
-
-        # Se o parâmetro de servidor não for especificado, tenta obter o servidor padrão do usuário
-        if not servidor:
-            servidor = interaction.guild.id if interaction.guild else None
-        
-        if servidor:
-            guild = bot.get_guild(int(servidor))  # Obtém o servidor pelo ID
-            if not guild:
-                return await interaction.response.send_message(f"🚫 O servidor com ID {servidor} não foi encontrado.", ephemeral=True)
-
-            # Buscando o comando correspondente
-            comando_obj = bot.get_command(comando.lower())  # O nome do comando é convertido para minúsculo
-
-            if comando_obj:
-                try:
-                    # Criando o contexto para invocar o comando
-                    context = await bot.get_context(interaction)  # Criando contexto corretamente
-                    context.guild = guild  # Definindo o servidor
-
-                    # Convertendo os parâmetros para uma lista de argumentos
-                    args = []
-                    kwargs = {}
-
-                    if parametros:
-                        parametros_lista = parametros.split(",")  # Divide os parâmetros por vírgula
-                        for param in parametros_lista:
-                            chave_valor = param.strip().split("=")  # Divide chave=valor
-                            if len(chave_valor) == 2:
-                                chave, valor = chave_valor
-                                kwargs[chave.strip()] = valor.strip()
-                            else:
-                                # Adiciona o parâmetro como um argumento posicional se não for chave=valor
-                                args.append(param.strip())
-
-                    # Invoca o comando com os parâmetros passados corretamente
-                    await comando_obj(context, *args, **kwargs)
-
-                    return await interaction.response.send_message(f"✅ O comando `{comando}` foi executado no servidor {guild.name}.")
-                
-                except Exception as e:
-                    return await interaction.response.send_message(f"🚫 Ocorreu um erro ao tentar executar o comando: {e}", ephemeral=True)
-            else:
-                return await interaction.response.send_message(f"🚫 Comando `{comando}` não encontrado.", ephemeral=True)
-
-        else:
-            return await interaction.response.send_message("🚫 Nenhum servidor foi especificado para executar o comando.", ephemeral=True)
-    
-    else:
-        return await interaction.response.send_message("🚫 Este comando só pode ser executado em DMs.", ephemeral=True)
-
 JOKENPO_OPCOES = {
     "🪨": "Pedra",
     "📜": "Papel",
@@ -790,7 +721,7 @@ def play_next(guild_id):
         check_auto_disconnect(guild_id)  # Se a fila estiver vazia, desconectar
 def buscar_arquivo(nome):
     nome_normalizado = unidecode.unidecode(nome).lower()
-    for root, _, files in os.walk("audios"):
+    for root, _, files in os.walk("assets/audios"):
         for file in files:
             if unidecode.unidecode(file).lower().startswith(nome_normalizado):
                 return os.path.join(root, file)
@@ -836,7 +767,7 @@ async def tocar(interaction: discord.Interaction, arquivo: str):
         await interaction.response.send_message(f"🎶 `{arquivo}` adicionado à fila!")
 @bot.tree.command(name="listar", description="Lista todos os áudios")
 async def listar(interaction: discord.Interaction):
-    diretorio = "audios"
+    diretorio = "assets/audios"
     if not os.path.exists(diretorio):
         return await interaction.response.send_message("❌ Diretório não encontrado!", ephemeral=True)
 
