@@ -45,8 +45,6 @@ arquivo_md = "changelog.md"
 # Abrir o arquivo em modo leitura
 with open(arquivo_md, "r", encoding="utf-8") as arquivo:
     conteudo = arquivo.read()  # Lê todo o conteúdo do arquivo e coloca na variável
-with open('data/avisos_sessao.json', 'r', encoding='utf-8') as file:
-    avisos = json.load(file)
 
 # Escolhe usuário aleatório
 def randomuser():
