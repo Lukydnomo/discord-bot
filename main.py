@@ -219,6 +219,18 @@ def load(name):
     data = get_file_content()
     return data.get(name, None)
 
+# Castigo
+async def castigar_automatico(member: discord.Member, tempo: int):
+    """
+    Função para aplicar Time-Out automaticamente sem usar comandos.
+    """
+    try:
+        # A função timeout pode ser chamada passando o tempo em segundos.
+        await member.timeout(duration=discord.Duration(seconds=tempo), reason="Castigo automático")
+        print(f'{member.mention} foi colocado em Time-Out por {tempo} segundos devido a uma condição.')
+    except discord.DiscordException as e:
+        print(f'Ocorreu um erro ao tentar colocar {member.mention} em Time-Out: {e}')
+
 # Função para punir um membro
 async def punir_logic(ctx, member: discord.Member, punish_channel: discord.VoiceChannel, duration: int = 1):
     try:
@@ -461,6 +473,11 @@ async def on_message(message):
         async with message.channel.typing():  # Usa o contexto assíncrono para simular digitação
             await asyncio.sleep(3)  # Aguarda 3 segundos (opcional)
             await message.channel.send(random.choice(SARCASM_RESPONSES))  # Envia a resposta
+
+    # Palavras proíbidas (memes poggers heinn)
+    if "banana" in message.content.lower():
+        await message.channel.send(f'BANANA DETECTADA!!!! INICIANDO PROTOCOLO DE SEGURANÇA!!!!!')
+        castigar_automatico(message.author, 60)
 
     await bot.process_commands(message)
 #@bot.event
