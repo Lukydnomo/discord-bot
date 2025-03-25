@@ -1016,5 +1016,11 @@ async def piada(interaction: discord.Interaction):
 ]
     await interaction.response.send_message(random.choice(piadas))
 
+@bot.tree.command(name="roleta", description="Escolhe uma opção aleatóriamente")
+async def roleta(interaction: discord.Interaction, opcoes: str):
+    opcoesNaRoleta = {}
+    opcoesNaRoleta = opcoes.split(", ")
+    interaction.response.send_message(f"O escolhido foi: *{random.choice(opcoesNaRoleta)}*!")
+
 # Inicia o bot
 bot.run(DISCORDTOKEN)
