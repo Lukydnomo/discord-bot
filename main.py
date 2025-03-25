@@ -465,8 +465,8 @@ async def on_message(message):
     await bot.process_commands(message)
 #@bot.event
 #async def on_message_delete(message):
-    print(f"Mensagem deletada: {message.content}")
-    await save_deleted_message(message)
+    #print(f"Mensagem deletada: {message.content}")
+    #await save_deleted_message(message)
 
 # Comando prefixado "punir"
 @bot.command(name="punir")
