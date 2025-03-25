@@ -477,7 +477,7 @@ async def on_message(message):
     # Palavras proíbidas (memes poggers heinn)
     if "banana" in message.content.lower():
         await message.channel.send(f'BANANA DETECTADA!!!! INICIANDO PROTOCOLO DE SEGURANÇA!!!!!')
-        castigar_automatico(message.author, 60)
+        await castigar_automatico(message.author, 60)
 
     await bot.process_commands(message)
 #@bot.event
