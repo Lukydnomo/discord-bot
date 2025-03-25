@@ -228,7 +228,7 @@ async def castigar_automatico(member: discord.Member, tempo: int):
         until_time = datetime.now() + duration  # Calcula o tempo futuro do Time-Out
 
         # Aplica o Time-Out até o momento calculado
-        await member.timeout(until=until_time, reason="Castigo automático")
+        await member.timeout(until_time, reason="Castigo automático")
         print(f'{member.mention} foi colocado em Time-Out por {tempo} segundos devido a uma condição.')
     except discord.DiscordException as e:
         print(f'Ocorreu um erro ao tentar colocar {member.mention} em Time-Out: {e}')
