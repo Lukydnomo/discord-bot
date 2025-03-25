@@ -221,9 +221,7 @@ def load(name):
 
 # Castigo
 async def castigar_automatico(member: discord.Member, tempo: int):
-    """
-    Função para aplicar Time-Out automaticamente sem usar comandos.
-    """
+    # Função para aplicar Time-Out automaticamente sem usar comandos.
     try:
         # Usando datetime.timedelta para definir a duração do Time-Out
         duration = datetime.timedelta(seconds=tempo)
