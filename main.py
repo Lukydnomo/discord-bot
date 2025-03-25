@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
+from discord.utils import utcnow
 import asyncio
 import os
 import json
@@ -221,13 +222,12 @@ def load(name):
 
 # Castigo
 async def castigar_automatico(member: discord.Member, tempo: int):
-    # Função para aplicar Time-Out automaticamente sem usar comandos.
     try:
-        # Usando datetime.timedelta para definir a duração do Time-Out
+        # Define a duração do Time-Out
         duration = timedelta(seconds=tempo)
-        until_time = datetime.now() + duration  # Calcula o tempo futuro do Time-Out
+        until_time = utcnow() + duration  # Obtém o tempo correto com fuso horário UTC
 
-        # Aplica o Time-Out até o momento calculado
+        # Aplica o Time-Out com um datetime "aware"
         await member.timeout(until_time, reason="Castigo automático")
         print(f'{member.mention} foi colocado em Time-Out por {tempo} segundos devido a uma condição.')
     except discord.DiscordException as e:
