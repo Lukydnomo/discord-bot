@@ -224,8 +224,8 @@ async def castigar_automatico(member: discord.Member, tempo: int):
     # Função para aplicar Time-Out automaticamente sem usar comandos.
     try:
         # Usando datetime.timedelta para definir a duração do Time-Out
-        duration = datetime.timedelta(seconds=tempo)
-        until_time = datetime.datetime.now() + duration  # Calcula o tempo futuro do Time-Out
+        duration = timedelta(seconds=tempo)
+        until_time = datetime.now() + duration  # Calcula o tempo futuro do Time-Out
 
         # Aplica o Time-Out até o momento calculado
         await member.timeout(until=until_time, reason="Castigo automático")
