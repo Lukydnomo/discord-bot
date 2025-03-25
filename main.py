@@ -10,7 +10,7 @@ import requests
 from base64 import b64decode, b64encode
 import aiohttp
 import unidecode
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 # Configuração do bot
 intents = discord.Intents.default()
@@ -225,8 +225,9 @@ async def castigar_automatico(member: discord.Member, tempo: int):
     Função para aplicar Time-Out automaticamente sem usar comandos.
     """
     try:
-        # A função timeout pode ser chamada passando o tempo em segundos.
-        await member.timeout(duration=discord.Duration(seconds=tempo), reason="Castigo automático")
+        # Usando datetime.timedelta para definir a duração do Time-Out
+        duration = timedelta(seconds=tempo)
+        await member.timeout(duration=duration, reason="Castigo automático")
         print(f'{member.mention} foi colocado em Time-Out por {tempo} segundos devido a uma condição.')
     except discord.DiscordException as e:
         print(f'Ocorreu um erro ao tentar colocar {member.mention} em Time-Out: {e}')
