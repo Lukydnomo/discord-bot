@@ -1020,7 +1020,7 @@ async def piada(interaction: discord.Interaction):
 async def roleta(interaction: discord.Interaction, opcoes: str):
     opcoesNaRoleta = {}
     opcoesNaRoleta = opcoes.split(", ")
-    interaction.response.send_message(f"O escolhido foi: *{random.choice(opcoesNaRoleta)}*!")
+    await interaction.response.send_message(f"O escolhido foi: *{random.choice(opcoesNaRoleta)}*!")
 
 # Inicia o bot
 bot.run(DISCORDTOKEN)
