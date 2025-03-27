@@ -233,15 +233,11 @@ palavra_do_dia = obter_palavra_do_dia()
 # Castigo
 async def castigar_automatico(member: discord.Member, tempo: int):
     try:
-        # Define a duração do Time-Out
         duration = timedelta(seconds=tempo)
-        until_time = utcnow() + duration  # Obtém o tempo correto com fuso horário UTC
-
-        # Aplica o Time-Out com um datetime "aware"
-        await member.timeout(until_time, reason="Castigo automático")
-        print(f'{member.mention} foi colocado em Time-Out por {tempo} segundos devido a uma condição.')
+        until_time = datetime.now(timezone.utc) + duration
+        await member.timeout(until_time, reason="puta")
     except discord.DiscordException as e:
-        print(f'Ocorreu um erro ao tentar colocar {member.mention} em Time-Out: {e}')
+        print(f'Erro ao castigar {member.mention}: {e}')
 
 @tasks.loop(minutes=30)  # Verifica a cada 30 minutos
 async def check_botafogo_game():
