@@ -23,6 +23,7 @@ DISCORDTOKEN = os.getenv("DISCORD_BOT_TOKEN")
 GITHUBTOKEN = os.getenv("DATABASE_TOKEN")
 SPORTSTOKEN = os.getenv("BOTA_FOGO_HORARIOS")
 luky = 767015394648915978
+logChannel = 1317580138262695967
 usuarios_autorizados = [luky]
 updateyn = 0
 github_repo = "Lukydnomo/discord-bot"
@@ -40,7 +41,6 @@ class MyBot(commands.Bot):
         print("✅ Comandos sincronizados globalmente!")
 
 bot = MyBot()
-logChannel = bot.get_channel(1317580138262695967)
 
 # Nome do arquivo Markdown
 arquivo_md = "changelog.md"
@@ -1030,18 +1030,18 @@ async def roleta(interaction: discord.Interaction, opcoes: str):
     opcoesNaRoleta = opcoes.split(", ")
     await interaction.response.send_message(f"O escolhido foi: *{random.choice(opcoesNaRoleta)}*!")
 
-@bot.tree.command(name="anuncio", description="Envia um aviso importante para o canal definido.")
+@bot.tree.command(name="pdd", description="pdd")
 @app_commands.default_permissions(administrator=True)  # Permite apenas para admins
-async def anuncio(interaction: discord.Interaction):
+async def pdd(interaction: discord.Interaction):
     
-    if not logChannel:
+    if not bot.get_channel(logChannel):
         await interaction.response.send_message("Canal não encontrado! Verifique se o ID está correto.", ephemeral=True)
         return
     
     mensagem = palavra_do_dia
     
-    await logChannel.send(mensagem)
-    await interaction.response.send_message(f"✅ Anúncio enviado para {logChannel.mention}!", ephemeral=True)
+    await bot.get_channel(logChannel).send(mensagem)
+    await interaction.response.send_message(f"✅ Anúncio enviado para {bot.get_channel(logChannel).mention}!", ephemeral=True)
 
 # Inicia o bot
 bot.run(DISCORDTOKEN)
