@@ -40,6 +40,7 @@ class MyBot(commands.Bot):
         print("✅ Comandos sincronizados globalmente!")
 
 bot = MyBot()
+logChannel = bot.get_channel(1317580138262695967)
 
 # Nome do arquivo Markdown
 arquivo_md = "changelog.md"
@@ -398,7 +399,6 @@ async def punir_logic(ctx, member: discord.Member, punish_channel: discord.Voice
 async def on_ready():
     await asyncio.sleep(3)
     updatechannel = bot.get_channel(1319356880627171448)
-    logChannel = bot.get_channel(1317580138262695967)
     
     #bot.loop.create_task(check_and_resend_loop())
 
@@ -1141,6 +1141,19 @@ async def roleta(interaction: discord.Interaction, opcoes: str):
     opcoesNaRoleta = {}
     opcoesNaRoleta = opcoes.split(", ")
     await interaction.response.send_message(f"O escolhido foi: *{random.choice(opcoesNaRoleta)}*!")
+
+@bot.tree.command(name="anuncio", description="Envia um aviso importante para o canal definido.")
+@app_commands.default_permissions(administrator=True)  # Permite apenas para admins
+async def anuncio(interaction: discord.Interaction):
+    
+    if not logChannel:
+        await interaction.response.send_message("Canal não encontrado! Verifique se o ID está correto.", ephemeral=True)
+        return
+    
+    mensagem = palavra_do_dia
+    
+    await logChannel.send(mensagem)
+    await interaction.response.send_message(f"✅ Anúncio enviado para {logChannel.mention}!", ephemeral=True)
 
 # Inicia o bot
 bot.run(DISCORDTOKEN)
