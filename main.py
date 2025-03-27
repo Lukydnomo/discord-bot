@@ -1,5 +1,5 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from discord import app_commands
 from discord.utils import utcnow
 import asyncio
@@ -21,6 +21,7 @@ intents.message_content = True
 prefix = 'foa!'
 DISCORDTOKEN = os.getenv("DISCORD_BOT_TOKEN")
 GITHUBTOKEN = os.getenv("DATABASE_TOKEN")
+SPORTSTOKEN = os.getenv("BOTA_FOGO_HORARIOS")
 luky = 767015394648915978
 usuarios_autorizados = [luky]
 updateyn = 0
@@ -175,30 +176,22 @@ def get_file_content():
     url = f"https://api.github.com/repos/{github_repo}/contents/{json_file_path}"
     headers = {"Authorization": f"token {GITHUBTOKEN}"}
     response = requests.get(url, headers=headers).json()
-
     if "content" in response:
         try:
             return json.loads(b64decode(response["content"]).decode())
         except json.JSONDecodeError:
-            return {}  # Retorna um dicionário vazio se houver erro na decodificação
-    elif response.get("message") == "Not Found":
-        return {}  # Retorna um dicionário vazio se o arquivo não existir ainda
-    else:
-        print(f"Erro ao buscar o arquivo: {response}")  # Para depuração
-        return {}
+            return {}
+    return {}
 def update_file_content(data):
     url = f"https://api.github.com/repos/{github_repo}/contents/{json_file_path}"
     headers = {"Authorization": f"token {GITHUBTOKEN}"}
     current_data = requests.get(url, headers=headers).json()
-    
     sha = current_data.get("sha", "") if "sha" in current_data else None
     new_content = b64encode(json.dumps(data, indent=4).encode()).decode()
     commit_message = "Atualizando banco de dados"
-
     payload = {"message": commit_message, "content": new_content}
     if sha:
-        payload["sha"] = sha  # Apenas se o arquivo já existir
-
+        payload["sha"] = sha
     requests.put(url, headers=headers, json=payload)
 async def save(name, value):
     data = get_file_content()
@@ -220,6 +213,23 @@ def load(name):
     data = get_file_content()
     return data.get(name, None)
 
+# Função para carregar o dicionário de palavras
+def carregar_dicionario():
+    with open("palavras.txt", "r", encoding="utf-8") as f:
+        return [linha.strip() for linha in f.readlines()]
+dicionario = carregar_dicionario()
+def obter_palavra_do_dia():
+    data_atual = datetime.now(timezone.utc).strftime("%m/%d/%y")
+    data = get_file_content()
+    if "palavra_do_dia" in data and data["palavra_do_dia"].get("dia") == data_atual:
+        return data["palavra_do_dia"]["palavra"]
+    
+    nova_palavra = random.choice(dicionario)
+    data["palavra_do_dia"] = {"palavra": nova_palavra, "dia": data_atual}
+    update_file_content(data)
+    return nova_palavra
+palavra_do_dia = obter_palavra_do_dia()
+
 # Castigo
 async def castigar_automatico(member: discord.Member, tempo: int):
     try:
@@ -232,6 +242,115 @@ async def castigar_automatico(member: discord.Member, tempo: int):
         print(f'{member.mention} foi colocado em Time-Out por {tempo} segundos devido a uma condição.')
     except discord.DiscordException as e:
         print(f'Ocorreu um erro ao tentar colocar {member.mention} em Time-Out: {e}')
+
+@tasks.loop(minutes=30)  # Verifica a cada 30 minutos
+async def check_botafogo_game():
+    bilau = "<@599721212288958485>"
+
+    frasesBotafogo = [
+        "{bilau}! Seu futuro está em jogo, venha ver o jogo do botafogo!",
+        "{bilau}, saia da depressão e venha ver o botafogão!",
+        "{bilau}, levanta desse sofá e vem ver o Botafogo arrasar!",
+    "{bilau}, se o Botafogo fosse um remédio, você estaria curado da preguiça!",
+    "{bilau}, a única coisa mais triste que seu time é ver o Botafogo ganhar!",
+    "Ei {bilau}, vem ver o Botafogo meter gol, antes que você durma de novo!",
+    "{bilau}, o Botafogo é o remédio que você precisa pra sair dessa fase!",
+    "Vem logo, {bilau}, o Botafogo está ganhando e o teu time nem no jogo tá!",
+    "{bilau}, até a sua internet tá mais rápida que o seu ânimo pra ver o Botafogo!",
+    "Ô {bilau}, quer ver jogo bom ou vai continuar assistindo sua derrota diária?",
+    "Levanta da cama, {bilau}, o Botafogo vai te mostrar como se joga!",
+    "{bilau}, o Botafogo vai te fazer esquecer as últimas 10 derrotas do seu time!",
+    "Vem logo, {bilau}, antes que o Botafogo faça mais um gol na tua cara!",
+    "Bora, {bilau}, vem ver o time que joga bonito, não como o seu!",
+    "{bilau}, o Botafogo está ganhando enquanto você perde a vergonha!",
+    "Vem pro jogo, {bilau}, ou vai ficar só assistindo o seu time afundar?",
+    "{bilau}, até o Botafogo ganha mais que o seu time... não perde essa!",
+    "Ei {bilau}, acorda! O Botafogo não vai esperar a sua preguiça passar!",
+    "{bilau}, sai da caverna e vem ver o Botafogo jogar!",
+    "Se liga, {bilau}, até teu time se preocupa mais com o Botafogo que você!",
+    "{bilau}, o Botafogo te espera... você só precisa sair da zona de conforto!",
+    "Vem, {bilau}, o Botafogo é o jogo da sua vida, ou vai continuar vivendo na mentira?",
+    "Ai {bilau}, o Botafogo vai ganhar e você vai continuar sentado aí, triste e solitário!",
+    "{bilau}, nem a sua coragem consegue se comparar com a garra do Botafogo!",
+    "Vem assistir o Botafogo, {bilau}, pra aprender o que é jogo de verdade!",
+    "Fala, {bilau}, que tal trocar esse tédio pelo jogo épico do Botafogo?",
+    "{bilau}, o Botafogo já está em campo, vem ver a vitória no sangue!",
+    "{bilau}, enquanto você procrastina, o Botafogo brilha! Vem assistir!",
+    "Acorda, {bilau}, o Botafogo está em campo e a sua tristeza tá no banco!",
+    "Vem ver o Botafogo jogando, {bilau}, antes que seu time consiga fazer alguma coisa!",
+    "Ei {bilau}, o Botafogo vai te dar uma lição de futebol, você topa?",
+    "Vem assistir, {bilau}, o Botafogo vai te fazer sentir o que é ganhar!",
+    "{bilau}, você vai ver o Botafogo ganhar ou vai continuar aí, na sua bolha de derrota?",
+    "Vem logo, {bilau}, o Botafogo já está lá, esperando você acordar!",
+    "{bilau}, se não for o Botafogo, nem vale a pena assistir!",
+    "{bilau}, o Botafogo está a caminho da vitória e você tá aí, assistindo à sua própria derrota!",
+    "Bora, {bilau}, o Botafogo vai te mostrar o que é futebol de verdade!",
+    "Não fica aí parado, {bilau}, vem ver o Botafogo calando os haters!",
+    "{bilau}, se o Botafogo fosse sua vida, você já teria vencido!",
+    "Vem logo, {bilau}, deixa de marasmo e vem ver o Botafogo!",
+    "Ei, {bilau}, se o Botafogo fosse sua escolha, você já estaria ganhando!",
+    "Fica tranquilo, {bilau}, o Botafogo vai ensinar seu time a jogar!",
+    "Acorda, {bilau}, o Botafogo vai te dar um show de futebol!",
+    "{bilau}, o Botafogo vai te salvar dessa sua maré de azar, vem assistir!",
+    "Levanta dessa cama, {bilau}, vem ver o time que sabe o que é ganhar!",
+    "O Botafogo vai te surpreender, {bilau}, mas você precisa sair dessa bolha!",
+    "{bilau}, quem perde é quem não assiste o Botafogo jogando!",
+    "Vem, {bilau}, o Botafogo não vai esperar você sair da zona de conforto!",
+    "Bora, {bilau}, sai dessa e vem ver o time que realmente joga!",
+    "Fala sério, {bilau}, o Botafogo é o único time que ainda te dá emoção!",
+    "{bilau}, o Botafogo vai te mostrar o caminho da vitória, vem ver!",
+    "{bilau}, o Botafogo já tá no campo, vai ficar aí vendo a vida passar?",
+    "Sai dessa, {bilau}, vem ver o Botafogo dar show em campo!",
+    "Vem logo, {bilau}, o Botafogo vai mostrar como se ganha com estilo!",
+    "{bilau}, o Botafogo é o time que te tira da tristeza, vem ver!",
+    "Ei {bilau}, se o Botafogo fosse seu time, você já estaria sorrindo!",
+    "{bilau}, até o Botafogo consegue jogar mais que o seu time!",
+    "Vem ver o Botafogo, {bilau}, vai te fazer esquecer a derrota do seu time!",
+    "Ei {bilau}, vem ver o Botafogo dando aula de futebol, você precisa disso!",
+    "Levanta, {bilau}, vem ver o Botafogo jogando como um time de verdade!",
+    "O Botafogo não vai te esperar, {bilau}, vem logo assistir!",
+    "Fala, {bilau}, vem ver o Botafogo antes que você se arrependa!",
+    "{bilau}, o Botafogo vai te dar uma aula de como vencer com classe!",
+    "Vem logo, {bilau}, o Botafogo está na área e vai fazer gol!",
+    "{bilau}, o Botafogo está jogando e você só tem a perder se não assistir!",
+    "Vem assistir o Botafogo, {bilau}, e aprende o que é um time de verdade!",
+    "{bilau}, se o Botafogo fosse sua motivação, você estaria em pé!",
+    "Acorda, {bilau}, vem ver o Botafogo brilhar!",
+    "{bilau}, o Botafogo vai te dar uma injeção de ânimo, vem ver!",
+    "Vem logo, {bilau}, o Botafogo vai te ensinar a lutar até o fim!",
+    "{bilau}, o Botafogo já tá no campo e você aí, no tédio!",
+    "Vem ver o Botafogo, {bilau}, e esquece a derrota do seu time!",
+    "E aí {bilau}, pronto para ver o Botafogo calar a boca de todo mundo?",
+    "Fala {bilau}, o Botafogo vai dar um show, vem conferir!",
+    "{bilau}, se o Botafogo fosse seu time, você já teria dado a volta por cima!",
+    "Bora, {bilau}, o Botafogo vai te surpreender de novo!",
+    "Vem logo, {bilau}, não vai ficar aí parado enquanto o Botafogo brilha!",
+    "{bilau}, o Botafogo tá em campo e a tua chance de vitória também!",
+    "Ei {bilau}, vem ver o Botafogo ganhando enquanto você perde mais uma!",
+    "Vem logo, {bilau}, o Botafogo vai te dar um motivo pra sair dessa tristeza!",
+    "{bilau}, o Botafogo vai te ensinar como é que se joga!",
+    "Vem logo, {bilau}, o Botafogo vai te dar uma aula de futebol!",
+    "{bilau}, o Botafogo vai te dar o que você precisa: emoção e vitória!",
+    "Bora {bilau}, o Botafogo já tá fazendo história, vem assistir!",
+    "Vem ver o Botafogo, {bilau}, e esquece que seu time existe!",
+    "{bilau}, a única derrota hoje vai ser a sua se não assistir ao Botafogo!",
+    "Ei {bilau}, o Botafogo vai te ensinar a não desistir!",
+    "Vem, {bilau}, o Botafogo já está no campo, vai ficar aí parado?",
+    "Se o Botafogo fosse seu time, você já teria vencido o jogo da vida!",
+    "{bilau}, vem ver o Botafogo antes que você se arrependa de não ter assistido!",
+    ]
+
+    now = datetime.now()
+    url = f'https://api.football-api.com/2.0/matches?team_id=botafogo_team_id&time={now.strftime("%Y-%m-%d")}&api_key={SPORTSTOKEN}'
+    response = requests.get(url)
+    data = response.json()
+
+    # Verifique se o Botafogo está jogando
+    for match in data['matches']:
+        if match['status'] == 'LIVE':
+            channel = bot.get_channel(1353925715866947657)
+            await channel.send(random.choice(frasesBotafogo))
+            break
 
 # Função para punir um membro
 async def punir_logic(ctx, member: discord.Member, punish_channel: discord.VoiceChannel, duration: int = 1):
@@ -283,8 +402,13 @@ async def punir_logic(ctx, member: discord.Member, punish_channel: discord.Voice
 async def on_ready():
     await asyncio.sleep(3)
     updatechannel = bot.get_channel(1319356880627171448)
+    logChannel = bot.get_channel(1317580138262695967)
     
     #bot.loop.create_task(check_and_resend_loop())
+
+    await check_botafogo_game.start()  # Inicia a verificação periódica
+
+    await logChannel.send(palavra_do_dia)
 
     print(f'Bot conectado como {bot.user}')
     for guild in bot.guilds:
