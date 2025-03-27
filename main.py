@@ -601,8 +601,8 @@ async def on_message(message):
             await message.channel.send(random.choice(SARCASM_RESPONSES))  # Envia a resposta
 
     # Palavras proíbidas (memes poggers heinn)
-    if "banana" in message.content.lower():
-        await message.channel.send(f'BANANA DETECTADA!!!! INICIANDO PROTOCOLO DE SEGURANÇA!!!!!')
+    if palavra_do_dia in message.content.lower():
+        await message.channel.send(f'{palavra_do_dia.upper} DETECTAD!!!! INICIANDO PROTOCOLO DE SEGURANÇA!!!!!')
         await castigar_automatico(message.author, 60)
 
     await bot.process_commands(message)
