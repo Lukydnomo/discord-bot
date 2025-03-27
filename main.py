@@ -1033,15 +1033,7 @@ async def roleta(interaction: discord.Interaction, opcoes: str):
 @bot.tree.command(name="pdd", description="pdd")
 @app_commands.default_permissions(administrator=True)  # Permite apenas para admins
 async def pdd(interaction: discord.Interaction):
-    
-    if not bot.get_channel(logChannel):
-        await interaction.response.send_message("Canal não encontrado! Verifique se o ID está correto.", ephemeral=True)
-        return
-    
-    mensagem = palavra_do_dia
-    
-    await bot.get_channel(logChannel).send(mensagem)
-    await interaction.response.send_message(f"✅ Anúncio enviado para {bot.get_channel(logChannel).mention}!", ephemeral=True)
+    await interaction.response.send_message(f"{palavra_do_dia}", ephemeral=True)
 
 # Inicia o bot
 bot.run(DISCORDTOKEN)
