@@ -267,12 +267,15 @@ async def on_ready():
 
     updatechannel = bot.get_channel(1319356880627171448)
 
-    # Apaga todas as mensagens do canal antes de enviar nova
-    await updatechannel.purge(limit=100)  # pode ajustar o limite conforme necessidade
-    
-    # Envia a nova mensagem após limpeza
-    mensagem = await updatechannel.send(f"{conteudo}\n\n<@&1319355628195549247>")
-    print(f"✅ Mensagem enviada com sucesso. ID: {mensagem.id}")
+    # Limpa o canal antes
+    await updatechannel.purge(limit=100)
+    # Divide a mensagem em pedaços menores que 2000 caracteres
+    full_message = f"{conteudo}\n\n<@&1319355628195549247>"
+    message_chunks = [full_message[i:i+2000] for i in range(0, len(full_message), 2000)]
+    # Envia cada pedaço como uma mensagem separada
+    for chunk in message_chunks:
+        await updatechannel.send(chunk)
+    print("✅ Mensagens enviadas com sucesso.")
 
     #bot.loop.create_task(check_and_resend_loop())
 
