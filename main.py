@@ -285,8 +285,8 @@ async def on_ready():
 
     activity = discord.Activity(
         type=discord.ActivityType.playing,
-        name="Trabalhando pro Myuki",
-        details="(E pro Luky)",
+        name="Franciele tem robô agr? oloko",
+        details="Tenso",
         large_image="punish",
         large_text="Moderando",
         small_image="punish",
@@ -294,16 +294,13 @@ async def on_ready():
     )
     await bot.change_presence(activity=activity)
 
-    if updatechannel:
-        try:
-            # Busca a mensagem pelo ID fornecido
-            message = await updatechannel.fetch_message(updatemessage)
-            await message.edit(content=f"{conteudo}\n\n<@&1319355628195549247>")
-            print("✅ Mensagem editada com sucesso.")
-        except Exception as e:
-            print(f"❌ Não foi possível editar a mensagem: {e}")
-    else:
-        print("❌ Canal de atualização não encontrado.")
+    try:
+        # Busca a mensagem pelo ID fornecido
+        message = await updatechannel.fetch_message(updatemessage)
+        await message.edit(content=f"{conteudo}\n\n<@&1319355628195549247>")
+        print("✅ Mensagem editada com sucesso.")
+    except Exception as e:
+        print(f"❌ Não foi possível editar a mensagem: {e}")
 
 # Respostas de on_message
 REACTIONS = {
