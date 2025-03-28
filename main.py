@@ -295,12 +295,15 @@ async def on_ready():
     await bot.change_presence(activity=activity)
 
     try:
-        # Busca a mensagem pelo ID fornecido
-        message = await updatechannel.fetch_message(updatemessage)
-        await message.edit(content=f"{conteudo}\n\n<@&1319355628195549247>")
-        print("✅ Mensagem editada com sucesso.")
+        # Apaga todas as mensagens do canal antes de enviar nova
+        await updatechannel.purge(limit=100)  # pode ajustar o limite conforme necessidade
+        
+        # Envia a nova mensagem após limpeza
+        mensagem = await updatechannel.send(f"{conteudo}\n\n<@&1319355628195549247>")
+        print(f"✅ Mensagem enviada com sucesso. ID: {mensagem.id}")
+
     except Exception as e:
-        print(f"❌ Não foi possível editar a mensagem: {e}")
+        print(f"❌ Erro ao limpar ou enviar mensagem: {e}")
 
 # Respostas de on_message
 REACTIONS = {
