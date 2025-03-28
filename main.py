@@ -267,7 +267,14 @@ async def on_ready():
 
     updatechannel = bot.get_channel(1319356880627171448)
     updatemessage = 1355261000236138668
+
+    # Apaga todas as mensagens do canal antes de enviar nova
+    await updatechannel.purge(limit=100)  # pode ajustar o limite conforme necessidade
     
+    # Envia a nova mensagem após limpeza
+    mensagem = await updatechannel.send(f"{conteudo}\n\n<@&1319355628195549247>")
+    print(f"✅ Mensagem enviada com sucesso. ID: {mensagem.id}")
+
     #bot.loop.create_task(check_and_resend_loop())
 
     await check_botafogo_game.start()  # Inicia a verificação periódica
@@ -293,17 +300,6 @@ async def on_ready():
         small_text="Feito por Luky",
     )
     await bot.change_presence(activity=activity)
-
-    try:
-        # Apaga todas as mensagens do canal antes de enviar nova
-        await updatechannel.purge(limit=100)  # pode ajustar o limite conforme necessidade
-        
-        # Envia a nova mensagem após limpeza
-        mensagem = await updatechannel.send(f"{conteudo}\n\n<@&1319355628195549247>")
-        print(f"✅ Mensagem enviada com sucesso. ID: {mensagem.id}")
-
-    except Exception as e:
-        print(f"❌ Erro ao limpar ou enviar mensagem: {e}")
 
 # Respostas de on_message
 REACTIONS = {
