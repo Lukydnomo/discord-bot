@@ -18,14 +18,13 @@ intents = discord.Intents.default()
 intents.voice_states = True
 intents.members = True
 intents.message_content = True
-prefix = 'foa!'
+commandPrefix = 'foa!'
 DISCORDTOKEN = os.getenv("DISCORD_BOT_TOKEN")
 GITHUBTOKEN = os.getenv("DATABASE_TOKEN")
 SPORTSTOKEN = os.getenv("BOTA_FOGO_HORARIOS")
 luky = 767015394648915978
 logChannel = 1317580138262695967
 usuarios_autorizados = [luky]
-updateyn = 0
 github_repo = "Lukydnomo/discord-bot"
 json_file_path = "database.json"
 NOME_ORIGINAL = "FranBOT"
@@ -33,7 +32,7 @@ CAMINHO_AVATAR_ORIGINAL = "assets/images/FranBOT-Logo.png"
 
 class MyBot(commands.Bot):
     def __init__(self):
-        super().__init__(command_prefix=prefix, intents=intents)
+        super().__init__(command_prefix=commandPrefix, intents=intents)
 
     # Sincroniza comandos quando o bot inicia
     async def setup_hook(self):
@@ -265,7 +264,9 @@ async def check_botafogo_game():
 @bot.event
 async def on_ready():
     await asyncio.sleep(3)
+
     updatechannel = bot.get_channel(1319356880627171448)
+    updatemessage = 1355261000236138668
     
     #bot.loop.create_task(check_and_resend_loop())
 
@@ -293,84 +294,16 @@ async def on_ready():
     )
     await bot.change_presence(activity=activity)
 
-    if updateyn == 1:
-        if updatechannel:
-            await updatechannel.send(f"{conteudo}\n\n<@&1319355628195549247>")
-        else:
-            print("❌ Canal de atualização não encontrado.")
-    else:
-        print("❌ Atualização não habilitada.")
-
-# Função para processar a rolagem de dados
-def rolar_dado(expressao, detalhado=True):
-    if not detalhado:
-        # Comportamento antigo: apenas substitui e avalia a expressão
-        def substituir(match):
-            qtd, faces = match.groups()
-            qtd = int(qtd) if qtd else 1
-            faces = int(faces)
-            return str(sum(random.randint(1, faces) for _ in range(qtd)))
-        expr_mod = re.sub(r'(\d*)d(\d+)', substituir, expressao)
+    if updatechannel:
         try:
-            resultado = eval(expr_mod)
-        except:
-            return None
-        return {"resultado": resultado, "resultadoWOutEval": expr_mod, "detalhado": False}
+            # Busca a mensagem pelo ID fornecido
+            message = await updatechannel.fetch_message(updatemessage)
+            await message.edit(content=f"{conteudo}\n\n<@&1319355628195549247>")
+            print("✅ Mensagem editada com sucesso.")
+        except Exception as e:
+            print(f"❌ Não foi possível editar a mensagem: {e}")
     else:
-        # Novo comportamento: captura os resultados individuais de cada grupo de dados
-        detalhes = []  # Armazena os resultados individuais de cada grupo
-        def substituir(match):
-            qtd_str, faces_str = match.groups()
-            qtd = int(qtd_str) if qtd_str else 1
-            faces = int(faces_str)
-            # Rola cada dado individualmente
-            rolagens = [random.randint(1, faces) for _ in range(qtd)]
-            # Armazena a lista ordenada do maior para o menor
-            detalhes.append(sorted(rolagens, reverse=True))
-            # Retorna a soma para a avaliação matemática
-            return str(sum(rolagens))
-        expr_mod = re.sub(r'(\d*)d(\d+)', substituir, expressao)
-        try:
-            resultado = eval(expr_mod)
-        except:
-            return None
-        # Se houver apenas um grupo de dados, usamos o resultado dele; caso contrário, juntamos os resultados
-        if len(detalhes) == 1:
-            breakdown = str(detalhes[0])
-            # Extrai o grupo de dados original (por exemplo, "5d5")
-            m = re.search(r'(\d*d\d+)', expressao)
-            dice_group = m.group(1) if m else expressao
-        else:
-            breakdown = " + ".join(str(lst) for lst in detalhes)
-            dice_group = expressao
-        return {
-            "resultado": resultado,
-            "resultadoWOutEval": breakdown,
-            "dice_group": dice_group,
-            "detalhado": True
-        }
-# Comando de rolagem de dado (/rolar)
-@bot.tree.command(name="rolar", description="Rola dados no formato XdY com operações matemáticas")
-@app_commands.describe(expressao="Exemplo: 2d6+2, 4d10/2, 5#d5+5")
-async def rolar(interaction: discord.Interaction, expressao: str):
-    if "#" in expressao:
-        # Se for múltiplo (5#d5+5): usa o comportamento não detalhado
-        qtd, dado = expressao.split("#", 1)
-        qtd = int(qtd)
-        resultados = [rolar_dado(dado, detalhado=False) for _ in range(qtd)]
-        msg = "\n".join(
-            f"``{r['resultado']}`` ⟵ [{r['resultadoWOutEval']}] {expressao}"
-            for r in resultados
-        )
-        return await interaction.response.send_message(msg)
-    else:
-        # Para rolagens simples, usa o comportamento detalhado
-        res = rolar_dado(expressao, detalhado=True)
-        if res is None:
-            return await interaction.response.send_message("❌ Expressão inválida!", ephemeral=True)
-        # Aqui não encapsulamos em colchetes, pois o breakdown já vem formatado (ex.: "[5, 4, 3, 2, 1]")
-        msg = f"``{res['resultado']}`` ⟵ {res['resultadoWOutEval']} {res.get('dice_group', expressao)}"
-        return await interaction.response.send_message(msg)
+        print("❌ Canal de atualização não encontrado.")
 
 # Respostas de on_message
 REACTIONS = {
@@ -935,6 +868,77 @@ async def roleta(interaction: discord.Interaction, opcoes: str):
 @app_commands.default_permissions(administrator=True)  # Permite apenas para admins
 async def pdd(interaction: discord.Interaction):
     await interaction.response.send_message(f"{palavra_do_dia}", ephemeral=True)
+
+# Função para processar a rolagem de dados
+def rolar_dado(expressao, detalhado=True):
+    if not detalhado:
+        # Comportamento antigo: apenas substitui e avalia a expressão
+        def substituir(match):
+            qtd, faces = match.groups()
+            qtd = int(qtd) if qtd else 1
+            faces = int(faces)
+            return str(sum(random.randint(1, faces) for _ in range(qtd)))
+        expr_mod = re.sub(r'(\d*)d(\d+)', substituir, expressao)
+        try:
+            resultado = eval(expr_mod)
+        except:
+            return None
+        return {"resultado": resultado, "resultadoWOutEval": expr_mod, "detalhado": False}
+    else:
+        # Novo comportamento: captura os resultados individuais de cada grupo de dados
+        detalhes = []  # Armazena os resultados individuais de cada grupo
+        def substituir(match):
+            qtd_str, faces_str = match.groups()
+            qtd = int(qtd_str) if qtd_str else 1
+            faces = int(faces_str)
+            # Rola cada dado individualmente
+            rolagens = [random.randint(1, faces) for _ in range(qtd)]
+            # Armazena a lista ordenada do maior para o menor
+            detalhes.append(sorted(rolagens, reverse=True))
+            # Retorna a soma para a avaliação matemática
+            return str(sum(rolagens))
+        expr_mod = re.sub(r'(\d*)d(\d+)', substituir, expressao)
+        try:
+            resultado = eval(expr_mod)
+        except:
+            return None
+        # Se houver apenas um grupo de dados, usamos o resultado dele; caso contrário, juntamos os resultados
+        if len(detalhes) == 1:
+            breakdown = str(detalhes[0])
+            # Extrai o grupo de dados original (por exemplo, "5d5")
+            m = re.search(r'(\d*d\d+)', expressao)
+            dice_group = m.group(1) if m else expressao
+        else:
+            breakdown = " + ".join(str(lst) for lst in detalhes)
+            dice_group = expressao
+        return {
+            "resultado": resultado,
+            "resultadoWOutEval": breakdown,
+            "dice_group": dice_group,
+            "detalhado": True
+        }
+# Comando de rolagem de dado (/rolar)
+@bot.tree.command(name="rolar", description="Rola dados no formato XdY com operações matemáticas")
+@app_commands.describe(expressao="Exemplo: 2d6+2, 4d10/2, 5#d5+5")
+async def rolar(interaction: discord.Interaction, expressao: str):
+    if "#" in expressao:
+        # Se for múltiplo (5#d5+5): usa o comportamento não detalhado
+        qtd, dado = expressao.split("#", 1)
+        qtd = int(qtd)
+        resultados = [rolar_dado(dado, detalhado=False) for _ in range(qtd)]
+        msg = "\n".join(
+            f"``{r['resultado']}`` ⟵ [{r['resultadoWOutEval']}] {expressao}"
+            for r in resultados
+        )
+        return await interaction.response.send_message(msg)
+    else:
+        # Para rolagens simples, usa o comportamento detalhado
+        res = rolar_dado(expressao, detalhado=True)
+        if res is None:
+            return await interaction.response.send_message("❌ Expressão inválida!", ephemeral=True)
+        # Aqui não encapsulamos em colchetes, pois o breakdown já vem formatado (ex.: "[5, 4, 3, 2, 1]")
+        msg = f"``{res['resultado']}`` ⟵ {res['resultadoWOutEval']} {res.get('dice_group', expressao)}"
+        return await interaction.response.send_message(msg)
 
 # Inicia o bot
 bot.run(DISCORDTOKEN)
