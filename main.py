@@ -266,7 +266,6 @@ async def on_ready():
     await asyncio.sleep(3)
 
     updatechannel = bot.get_channel(1319356880627171448)
-    updatemessage = 1355261000236138668
 
     # Apaga todas as mensagens do canal antes de enviar nova
     await updatechannel.purge(limit=100)  # pode ajustar o limite conforme necessidade
