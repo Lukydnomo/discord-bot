@@ -148,5 +148,3 @@
 
 ### ❌ Removido
 - **Suporte a comandos prefixados** (`!comando`, `foa!comando`) – Agora é só na base do slash.
-
-<@&1319355628195549247>
