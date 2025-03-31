@@ -157,21 +157,24 @@ async def check_and_resend_loop():
 
 # Database System
 async def stop_github_actions():
-    run_id = os.getenv('RUN_ID')
-    
-    if not run_id:
-        print("Erro: run_id não encontrado.")
+    run_id = os.getenv("RUN_ID")
+
+    if not all([github_repo, run_id, GITHUBTOKEN]):
+        print("Erro: variável de ambiente faltando.")
         return
-    
+
     url = f"https://api.github.com/repos/{github_repo}/actions/runs/{run_id}/cancel"
-    headers = {"Authorization": f"token {GITHUBTOKEN}"}
-    
+    headers = {
+        "Authorization": f"token {GITHUBTOKEN}",
+        "Accept": "application/vnd.github+json"
+    }
+
     async with aiohttp.ClientSession() as session:
         async with session.post(url, headers=headers) as response:
             if response.status == 202:
-                print("Instância do GitHub Actions finalizada com sucesso.")
+                print("Execução cancelada com sucesso.")
             else:
-                print(f"Falha ao finalizar instância: {response.status}, {await response.text()}")
+                print(f"Erro ao cancelar: {response.status}, {await response.text()}")
 def get_file_content():
     url = f"https://api.github.com/repos/{github_repo}/contents/{json_file_path}"
     headers = {"Authorization": f"token {GITHUBTOKEN}"}
