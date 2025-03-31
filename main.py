@@ -951,8 +951,7 @@ async def shippar(interaction: discord.Interaction, nome1: str, nome2: str):
         # 4. Calcular e retornar o resultado final
         resultado = reduzir(contagem)
         return f"{resultado}% de compatibilidade"
-    await interaction.response.send_message(calcular_compatibilidade(nome1, nome2))
-
+    await interaction.response.send_message(f"{nome1.capitalize()} e {nome2.capitalize()} tem {calcular_compatibilidade(nome1, nome2)}")
 
 # Inicia o bot
 bot.run(DISCORDTOKEN)
