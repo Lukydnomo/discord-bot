@@ -242,27 +242,6 @@ async def castigar_automatico(member: discord.Member, tempo: int):
     except discord.DiscordException as e:
         print(f'Erro ao castigar {member.mention}: {e}')
 
-@tasks.loop(minutes=30)  # Verifica a cada 30 minutos
-async def check_botafogo_game():
-    bilau = "<@599721212288958485>"
-
-    def carregar_botafogo():
-        with open("resources/frasesbotafogo.txt", "r", encoding="utf-8") as f:
-            return [linha.strip() for linha in f.readlines()]
-    frasesBotafogo = carregar_botafogo()
-
-    now = datetime.now()
-    url = f'https://api.football-api.com/2.0/matches?team_id=botafogo_team_id&time={now.strftime("%Y-%m-%d")}&api_key={SPORTSTOKEN}'
-    response = requests.get(url)
-    data = response.json()
-
-    # Verifique se o Botafogo está jogando
-    for match in data['matches']:
-        if match['status'] == 'LIVE':
-            channel = bot.get_channel(1353925715866947657)
-            await channel.send(random.choice(frasesBotafogo))
-            break
-
 # Evento de quando o bot estiver pronto
 @bot.event
 async def on_ready():
@@ -281,8 +260,6 @@ async def on_ready():
     print("✅ Mensagens enviadas com sucesso.")
 
     #bot.loop.create_task(check_and_resend_loop())
-
-    await check_botafogo_game.start()  # Inicia a verificação periódica
 
     await logChannel.send(palavra_do_dia)
 
@@ -940,6 +917,42 @@ async def rolar(interaction: discord.Interaction, expressao: str):
         # Aqui não encapsulamos em colchetes, pois o breakdown já vem formatado (ex.: "[5, 4, 3, 2, 1]")
         msg = f"``{res['resultado']}`` ⟵ {res['resultadoWOutEval']} {res.get('dice_group', expressao)}"
         return await interaction.response.send_message(msg)
+    
+@bot.tree.command(name="shippar", description="Calcula a chance de 2 usuários ficarem juntos")
+async def shippar(interaction: discord.Interaction, nome1: str, nome2: str):
+    def calcular_compatibilidade(nome1inp, nome2inp):
+        # 1. Juntar os nomes e remover espaços
+        combinado = (nome1inp + nome2inp).replace(" ", "").lower()
+
+        # 2. Contar as letras na ordem de aparição (sem repetir letra na contagem)
+        contagem = []
+        letras_vistas = []
+        for letra in combinado:
+            if letra not in letras_vistas:
+                letras_vistas.append(letra)
+                contagem.append(combinado.count(letra))
+
+        # 3. Função para fazer as somas dos extremos e gerar nova sequência
+        def reduzir(sequencia):
+            while len(sequencia) > 2:
+                nova_seq = []
+                i, j = 0, len(sequencia) - 1
+                while i < j:
+                    soma = sequencia[i] + sequencia[j]
+                    nova_seq.append(soma)
+                    i += 1
+                    j -= 1
+                if i == j:
+                    nova_seq.append(sequencia[i])
+                # Concatenar todos os números como string e quebrar em dígitos novamente
+                sequencia = [int(d) for d in ''.join(str(num) for num in nova_seq)]
+            return int(''.join(str(d) for d in sequencia))
+
+        # 4. Calcular e retornar o resultado final
+        resultado = reduzir(contagem)
+        return f"{resultado}% de compatibilidade"
+    await interaction.response.send_message(calcular_compatibilidade(nome1, nome2))
+
 
 # Inicia o bot
 bot.run(DISCORDTOKEN)
