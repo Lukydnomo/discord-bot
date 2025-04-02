@@ -700,8 +700,6 @@ async def entrar(interaction: discord.Interaction, canal: discord.VoiceChannel):
     vc = await canal.connect()
     voice_clients[interaction.guild.id] = vc
     await interaction.response.send_message(f"🔊 Entrei no canal {canal.mention}!")
-@bot.tree.command(name="tocar", description="Toca um áudio no canal de voz sem sair")
-@app_commands.describe(arquivo="Nome do arquivo de áudio (deve estar no repositório do bot)")
 @bot.tree.command(name="tocar", description="Toca um ou mais áudios no canal de voz")
 @app_commands.describe(arquivo="Nome(s) do(s) arquivo(s) de áudio, separados por vírgula")
 async def tocar(interaction: discord.Interaction, arquivo: str):
