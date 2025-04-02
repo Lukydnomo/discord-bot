@@ -640,6 +640,7 @@ async def db_test(interaction: discord.Interaction, action: str, name: str, valu
 # Tocador
 voice_clients = {}
 queues = {}
+loop_status = {}  # 0 = off, 1 = loop música atual, 2 = loop fila
 def check_auto_disconnect(guild_id):
     async def task():
         await asyncio.sleep(60)  # Aguarda 1 minuto
@@ -653,21 +654,33 @@ def check_auto_disconnect(guild_id):
     loop = bot.loop # Obtém o loop de eventos do discord client
     asyncio.run_coroutine_threadsafe(task(), loop)  # Executa a tarefa de forma segura no loop principal
 def play_next(guild_id):
-    if guild_id in queues and queues[guild_id]:  # Verifica se a chave existe antes de acessar
-        audio_file = queues[guild_id].pop(0)
-        vc = voice_clients[guild_id]
-        
-        def after_playback(error):
-            if error:
-                print(f"Erro ao tocar áudio: {error}")
-            if not queues[guild_id]:  # Verifica se a fila ficou vazia após tocar
-                check_auto_disconnect(guild_id)  # Chama a função para desconectar se não houver mais áudios
+    if guild_id not in queues or not queues[guild_id]:
+        check_auto_disconnect(guild_id)
+        return
 
-            play_next(guild_id)  # Toca o próximo áudio da fila
+    vc = voice_clients[guild_id]
+    current_track = queues[guild_id][0]
 
-        vc.play(discord.FFmpegPCMAudio(audio_file), after=after_playback)
-    else:
-        check_auto_disconnect(guild_id)  # Se a fila estiver vazia, desconectar
+    def after_playback(error):
+        if error:
+            print(f"Erro ao tocar áudio: {error}")
+
+        # Se estiver em loop da música, repete o mesmo
+        if loop_status.get(guild_id, 0) == 1:
+            play_next(guild_id)
+        # Se estiver em loop da fila, move o atual para o final e toca o próximo
+        elif loop_status.get(guild_id, 0) == 2:
+            queues[guild_id].append(queues[guild_id].pop(0))
+            play_next(guild_id)
+        else:
+            # Loop desativado: remove a música da fila
+            queues[guild_id].pop(0)
+            if queues[guild_id]:
+                play_next(guild_id)
+            else:
+                check_auto_disconnect(guild_id)
+
+    vc.play(discord.FFmpegPCMAudio(current_track), after=after_playback)
 def buscar_arquivo(nome):
     nome_normalizado = unidecode.unidecode(nome).lower()
     for root, _, files in os.walk("assets/audios"):
@@ -791,6 +804,36 @@ async def fila(interaction: discord.Interaction):
     
     lista = "\n".join([f"{idx+1}. {os.path.basename(track)}" for idx, track in enumerate(queue)])
     await interaction.response.send_message(f"📜 **Fila de reprodução:**\n```\n{lista}\n```")
+@bot.tree.command(name="loop", description="Alterna entre: loop música atual -> loop fila -> desativado")
+async def loop(interaction: discord.Interaction):
+    guild_id = interaction.guild.id
+    estado = loop_status.get(guild_id, 0)
+    novo_estado = (estado + 1) % 3  # Alterna entre 0, 1 e 2
+
+    loop_status[guild_id] = novo_estado
+
+    mensagens = {
+        0: "🔁 Loop desativado!",
+        1: "🔂 Loop da música atual ativado!",
+        2: "🔁 Loop da fila inteira ativado!",
+    }
+
+    await interaction.response.send_message(mensagens[novo_estado])
+@bot.tree.command(name="shuffle", description="Embaralha a fila de áudios")
+async def shuffle(interaction: discord.Interaction):
+    guild_id = interaction.guild.id
+    fila = queues.get(guild_id)
+
+    if not fila or len(fila) <= 1:
+        return await interaction.response.send_message("🎶 A fila está vazia ou tem apenas um item!", ephemeral=True)
+
+    # Se a música atual tá tocando, deixa ela no topo e embaralha o resto
+    tocando_agora = fila[0]
+    restante = fila[1:]
+    random.shuffle(restante)
+    queues[guild_id] = [tocando_agora] + restante
+
+    await interaction.response.send_message("🔀 Fila embaralhada com sucesso!")
 
 @bot.tree.command(name="roletarussa", description="Vida ou morte.")
 async def roletarussa(interaction: discord.Interaction):
