@@ -46,7 +46,23 @@ arquivo_md = "changelog.md"
 
 # Abrir o arquivo em modo leitura
 with open(arquivo_md, "r", encoding="utf-8") as arquivo:
-    conteudo = arquivo.read()  # Lê todo o conteúdo do arquivo e coloca na variável
+    linhas = arquivo.readlines()
+
+# Filtrar o conteúdo ignorando os blocos "prettier-ignore"
+conteudo_filtrado = []
+ignorar_proxima = False
+
+for linha in linhas:
+    if "<!-- prettier-ignore -->" in linha.strip():
+        ignorar_proxima = True
+        continue
+    if ignorar_proxima:
+        ignorar_proxima = False
+        continue
+    conteudo_filtrado.append(linha)
+
+# Junta tudo de novo em uma única string
+conteudo = "".join(conteudo_filtrado)
 
 # Escolhe usuário aleatório
 def randomuser():
