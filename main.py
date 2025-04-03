@@ -23,7 +23,7 @@ DISCORDTOKEN = os.getenv("DISCORD_BOT_TOKEN")
 GITHUBTOKEN = os.getenv("DATABASE_TOKEN")
 SPORTSTOKEN = os.getenv("BOTA_FOGO_HORARIOS")
 luky = 767015394648915978
-logChannel = str(1317580138262695967)
+logChannel = 1317580138262695967
 usuarios_autorizados = [luky]
 github_repo = "Lukydnomo/discord-bot"
 json_file_path = "database.json"
@@ -260,8 +260,6 @@ async def on_ready():
     print("✅ Mensagens enviadas com sucesso.")
 
     #bot.loop.create_task(check_and_resend_loop())
-
-    await logChannel.send(palavra_do_dia)
 
     print(f'Bot conectado como {bot.user}')
     for guild in bot.guilds:
@@ -737,7 +735,6 @@ async def tocar(interaction: discord.Interaction, arquivo: str):
         await interaction.response.send_message(f"🎵 Tocando `{encontrados[0]}` e adicionando o resto à fila!")
     else:
         await interaction.response.send_message(f"🎶 Adicionado(s) à fila: {', '.join(encontrados)}")
-
 @bot.tree.command(name="listar", description="Lista todos os áudios")
 async def listar(interaction: discord.Interaction):
     diretorio = "assets/audios"
@@ -815,11 +812,19 @@ async def fila(interaction: discord.Interaction):
     
     lista = "\n".join([f"{idx+1}. {os.path.basename(track)}" for idx, track in enumerate(queue)])
     await interaction.response.send_message(f"📜 **Fila de reprodução:**\n```\n{lista}\n```")
-@bot.tree.command(name="loop", description="Alterna entre: loop música atual -> loop fila -> desativado")
-async def loop(interaction: discord.Interaction):
+@bot.tree.command(name="loop")
+@app_commands.describe(modo="0: Desativado, 1: Música Atual, 2: Fila Inteira (opcional)")
+async def loop(interaction: discord.Interaction, modo: int = None):
+    # Alterna o loop entre 0 (desativado), 1 (música atual) e 2 (fila inteira), ou define um modo específico
     guild_id = interaction.guild.id
-    estado = loop_status.get(guild_id, 0)
-    novo_estado = (estado + 1) % 3  # Alterna entre 0, 1 e 2
+    estado_atual = loop_status.get(guild_id, 0)
+
+    if modo is None:
+        # Alterna entre 0 → 1 → 2 → 0...
+        novo_estado = (estado_atual + 1) % 3
+    else:
+        # Se um valor for fornecido, define diretamente (garantindo que esteja entre 0 e 2)
+        novo_estado = max(0, min(2, modo))
 
     loop_status[guild_id] = novo_estado
 
