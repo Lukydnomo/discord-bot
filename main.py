@@ -248,16 +248,28 @@ async def on_ready():
     await asyncio.sleep(3)
 
     updatechannel = bot.get_channel(1319356880627171448)
-
-    # Limpa o canal antes
-    await updatechannel.purge(limit=100)
-    # Divide a mensagem em pedaços menores que 2000 caracteres
     full_message = f"{conteudo}\n\n<@&1319355628195549247>"
     message_chunks = [full_message[i:i+2000] for i in range(0, len(full_message), 2000)]
-    # Envia cada pedaço como uma mensagem separada
-    for chunk in message_chunks:
-        await updatechannel.send(chunk)
-    print("✅ Mensagens enviadas com sucesso.")
+
+    # Pega todas as mensagens do canal, mais antigas primeiro
+    existing_messages = []
+    async for msg in updatechannel.history(oldest_first=True):
+        existing_messages.append(msg)
+
+    # Compara o conteúdo atual com as mensagens existentes
+    is_same = len(existing_messages) == len(message_chunks) and all(
+        existing_messages[i].content.strip() == message_chunks[i].strip()
+        for i in range(len(message_chunks))
+    )
+
+    if is_same:
+        print("✅ Changelog já está no canal, nenhuma mensagem enviada.")
+    else:
+        await updatechannel.purge()
+        for chunk in message_chunks:
+            await updatechannel.send(chunk)
+        print("✅ Changelog atualizado no canal.")
+
 
     #bot.loop.create_task(check_and_resend_loop())
 
