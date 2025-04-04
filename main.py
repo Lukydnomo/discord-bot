@@ -393,8 +393,11 @@ async def on_message(message):
             await asyncio.sleep(3)  # Aguarda 3 segundos (opcional)
             await message.channel.send(random.choice(SARCASM_RESPONSES))  # Envia a resposta
 
-    # Palavras proíbidas (memes poggers heinn)
-    if palavra_do_dia in message.content.lower():
+    # Normaliza a mensagem e a palavra do dia (remove acentos e transforma ç -> c)
+    mensagem_normalizada = unidecode.unidecode(message.content.lower())
+    palavra_normalizada = unidecode.unidecode(palavra_do_dia.lower())
+
+    if palavra_normalizada in mensagem_normalizada:
         await message.channel.send(f'{palavra_do_dia.upper()} DETECTAD!!!! INICIANDO PROTOCOLO DE SEGURANÇA!!!!!')
         await castigar_automatico(message.author, 60)
 
