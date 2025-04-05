@@ -723,7 +723,7 @@ async def entrar(interaction: discord.Interaction, canal: discord.VoiceChannel):
     voice_clients[interaction.guild.id] = vc
     await interaction.response.send_message(f"🔊 Entrei no canal {canal.mention}!")
 @bot.tree.command(name="tocar", description="Toca um ou mais áudios no canal de voz")
-@app_commands.describe(arquivo="Nome(s) do(s) arquivo(s) de áudio, separados por vírgula")
+@app_commands.describe(arquivo="Nome(s) do(s) arquivo(s) de áudio ou pasta, separados por vírgula")
 async def tocar(interaction: discord.Interaction, arquivo: str):
     guild_id = interaction.guild.id
     vc = voice_clients.get(guild_id)
@@ -735,7 +735,6 @@ async def tocar(interaction: discord.Interaction, arquivo: str):
         vc = await canal.connect()
         voice_clients[guild_id] = vc
 
-    # Divide em múltiplas músicas
     nomes = [nome.strip() for nome in arquivo.split(",")]
     encontrados = []
 
@@ -743,22 +742,39 @@ async def tocar(interaction: discord.Interaction, arquivo: str):
         queues[guild_id] = []
 
     for nome in nomes:
-        audio_file = buscar_arquivo(nome)
-        if audio_file:
-            queues[guild_id].append(audio_file)
-            encontrados.append(nome)
+        if nome.startswith("*"):
+            pasta = nome[1:]
+            caminho_pasta = os.path.join("assets/audios", pasta)
+            if os.path.exists(caminho_pasta) and os.path.isdir(caminho_pasta):
+                arquivos = sorted([
+                    os.path.join(caminho_pasta, f)
+                    for f in os.listdir(caminho_pasta)
+                    if os.path.isfile(os.path.join(caminho_pasta, f))
+                ])
+                if arquivos:
+                    queues[guild_id].extend(arquivos)
+                    encontrados.append(f"[{len(arquivos)} de {pasta}]")
+                else:
+                    await interaction.channel.send(f"⚠️ A pasta `{pasta}` está vazia!")
+            else:
+                await interaction.channel.send(f"❌ Pasta `{pasta}` não encontrada!")
         else:
-            await interaction.channel.send(f"⚠️ Arquivo `{nome}` não encontrado!")
+            audio_file = buscar_arquivo(nome)
+            if audio_file:
+                queues[guild_id].append(audio_file)
+                encontrados.append(nome)
+            else:
+                await interaction.channel.send(f"⚠️ Arquivo `{nome}` não encontrado!")
 
     if not encontrados:
-        return await interaction.response.send_message("❌ Nenhum dos áudios foi encontrado!", ephemeral=True)
+        return await interaction.response.send_message("❌ Nenhum dos áudios ou pastas foi encontrado!", ephemeral=True)
 
-    # Se nada está tocando, começa a reprodução
     if not vc.is_playing():
         play_next(guild_id)
         await interaction.response.send_message(f"🎵 Tocando `{encontrados[0]}` e adicionando o resto à fila!")
     else:
         await interaction.response.send_message(f"🎶 Adicionado(s) à fila: {', '.join(encontrados)}")
+
 @bot.tree.command(name="listar", description="Lista todos os áudios")
 async def listar(interaction: discord.Interaction):
     diretorio = "assets/audios"
