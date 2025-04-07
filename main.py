@@ -1052,5 +1052,14 @@ async def shippar(interaction: discord.Interaction, nome1: str, nome2: str):
         return f"{resultado}% de compatibilidade"
     await interaction.response.send_message(f"{nome1.capitalize()} e {nome2.capitalize()} tem {calcular_compatibilidade(nome1, nome2)}")
 
+@bot.tree.command(name="r0lar", description="Comando secreto")
+@app_commands.default_permissions(administrator=True)  # Permite apenas para admins
+async def r0lar(interaction: discord.Interaction):
+    if interaction.user.id != luky:
+        await interaction.response.send_message("Você não tem permissão pra usar esse comando.", ephemeral=True)
+        return
+    else:
+        await interaction.response.send_message(rolar(None, "1d1"))
+
 # Inicia o bot
 bot.run(DISCORDTOKEN)
