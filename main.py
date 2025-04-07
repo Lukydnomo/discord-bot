@@ -1015,10 +1015,12 @@ async def hypertranslate(interaction: discord.Interaction, texto: str, vezes: in
     lang_codes = list(langs.values())
 
     try:
-        # Detecta o idioma original do texto
-        idioma_original = GoogleTranslator(source='auto', target='en').detect(texto)
+        # Primeira tradução apenas para detectar idioma original
+        tradutor_temp = GoogleTranslator(source="auto", target="en")
+        traduzido_temp = tradutor_temp.translate(texto)
+        idioma_original = tradutor_temp.source
 
-        atual = texto
+        atual = traduzido_temp
         usado = []
 
         for _ in range(vezes):
@@ -1028,9 +1030,9 @@ async def hypertranslate(interaction: discord.Interaction, texto: str, vezes: in
             usado.append(destino)
 
             atual = GoogleTranslator(source="auto", target=destino).translate(atual)
-            await asyncio.sleep(0.3)  # Evita rate-limit
+            await asyncio.sleep(0.3)
 
-        # Traduz de volta para o idioma original
+        # Traduz de volta para o idioma original detectado
         final = GoogleTranslator(source="auto", target=idioma_original).translate(atual)
 
         await interaction.followup.send(f"**{texto}** 🔀 **Resultado final após {vezes} traduções (retornado em `{idioma_original}`):**\n```{final}```")
