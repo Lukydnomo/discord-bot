@@ -21,7 +21,6 @@ intents.message_content = True
 commandPrefix = 'foa!'
 DISCORDTOKEN = os.getenv("DISCORD_BOT_TOKEN")
 GITHUBTOKEN = os.getenv("DATABASE_TOKEN")
-SPORTSTOKEN = os.getenv("BOTA_FOGO_HORARIOS")
 luky = 767015394648915978
 logChannel = 1317580138262695967
 usuarios_autorizados = [luky]
@@ -55,7 +54,6 @@ conteudo_filtrado = [
 
 # Junta tudo em uma única string
 conteudo = "".join(conteudo_filtrado)
-
 
 # Escolhe usuário aleatório
 def randomuser():
@@ -1051,15 +1049,6 @@ async def shippar(interaction: discord.Interaction, nome1: str, nome2: str):
         resultado = reduzir(contagem)
         return f"{resultado}% de compatibilidade"
     await interaction.response.send_message(f"{nome1.capitalize()} e {nome2.capitalize()} tem {calcular_compatibilidade(nome1, nome2)}")
-
-@bot.tree.command(name="r0lar", description="Comando secreto")
-@app_commands.default_permissions(administrator=True)  # Permite apenas para admins
-async def r0lar(interaction: discord.Interaction):
-    if interaction.user.id != luky:
-        await interaction.response.send_message("Você não tem permissão pra usar esse comando.", ephemeral=True)
-        return
-    else:
-        await interaction.response.send_message(f"``1`` ⟵ [1] 1d20")
 
 # Inicia o bot
 bot.run(DISCORDTOKEN)

@@ -37,4 +37,3 @@ jobs:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           DATABASE_TOKEN: ${{ secrets.DATABASE_TOKEN }}
           RUN_ID: ${{ github.run_id }}
-          BOTA_FOGO_HORARIOS: ${{ secrets.BOTA_FOGO_HORARIOS }}
