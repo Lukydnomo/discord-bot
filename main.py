@@ -1059,7 +1059,7 @@ async def r0lar(interaction: discord.Interaction):
         await interaction.response.send_message("Você não tem permissão pra usar esse comando.", ephemeral=True)
         return
     else:
-        await interaction.response.send_message(rolar(None, "1d1"))
+        await interaction.response.send_message(rolar(discord.Interaction, "1d1"))
 
 # Inicia o bot
 bot.run(DISCORDTOKEN)
