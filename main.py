@@ -12,6 +12,8 @@ from base64 import b64decode, b64encode
 import aiohttp
 import unidecode
 from datetime import datetime, timezone, timedelta
+from PIL import Image, ImageEnhance, ImageOps
+import io
 
 # Configuração do bot
 intents = discord.Intents.default()
@@ -772,7 +774,6 @@ async def tocar(interaction: discord.Interaction, arquivo: str):
         await interaction.response.send_message(f"🎵 Tocando `{encontrados[0]}` e adicionando o resto à fila!")
     else:
         await interaction.response.send_message(f"🎶 Adicionado(s) à fila: {', '.join(encontrados)}")
-
 @bot.tree.command(name="listar", description="Lista todos os áudios")
 async def listar(interaction: discord.Interaction):
     diretorio = "assets/audios"
@@ -1049,6 +1050,40 @@ async def shippar(interaction: discord.Interaction, nome1: str, nome2: str):
         resultado = reduzir(contagem)
         return f"{resultado}% de compatibilidade"
     await interaction.response.send_message(f"{nome1.capitalize()} e {nome2.capitalize()} tem {calcular_compatibilidade(nome1, nome2)}")
+
+@bot.tree.command(name="deepfry", description="Aplica o efeito deep fry em uma imagem.")
+@app_commands.describe(imagem="Imagem para aplicar o efeito deep fry")
+async def deepfry(interaction: discord.Interaction, imagem: discord.Attachment):
+    await interaction.response.defer()  # Pra dar tempo de processar a imagem
+
+    try:
+        # Baixa a imagem
+        img_bytes = await imagem.read()
+        img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+
+        # Aumenta brilho, contraste e nitidez
+        enhancer = ImageEnhance.Contrast(img)
+        img = enhancer.enhance(3.0)
+
+        enhancer = ImageEnhance.Sharpness(img)
+        img = enhancer.enhance(10.0)
+
+        enhancer = ImageEnhance.Color(img)
+        img = enhancer.enhance(5.0)
+
+        # Adiciona um overlay vermelho
+        overlay = Image.new('RGB', img.size, (255, 0, 0))
+        img = Image.blend(img, overlay, alpha=0.2)
+
+        # Faz compressão zoada JPEG
+        buffer = io.BytesIO()
+        img.save(buffer, format="JPEG", quality=10)
+        buffer.seek(0)
+
+        await interaction.followup.send("🧨 **Imagem deep fried com sucesso!**", file=discord.File(buffer, filename="deepfried.jpg"))
+
+    except Exception as e:
+        await interaction.followup.send(f"❌ Erro ao aplicar o efeito: {e}", ephemeral=True)
 
 # Inicia o bot
 bot.run(DISCORDTOKEN)
