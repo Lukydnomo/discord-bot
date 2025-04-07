@@ -1014,10 +1014,13 @@ async def hypertranslate(interaction: discord.Interaction, texto: str, vezes: in
     langs = GoogleTranslator().get_supported_languages(as_dict=True)
     lang_codes = list(langs.values())
 
-    atual = texto
-    usado = []
-
     try:
+        # Detecta o idioma original do texto
+        idioma_original = GoogleTranslator(source='auto', target='en').detect(texto)
+
+        atual = texto
+        usado = []
+
         for _ in range(vezes):
             destino = random.choice(lang_codes)
             while destino in usado or destino == "auto":
@@ -1027,10 +1030,10 @@ async def hypertranslate(interaction: discord.Interaction, texto: str, vezes: in
             atual = GoogleTranslator(source="auto", target=destino).translate(atual)
             await asyncio.sleep(0.3)  # Evita rate-limit
 
-        # Traduz de volta para pt no final
-        final = GoogleTranslator(source="auto", target="pt").translate(atual)
+        # Traduz de volta para o idioma original
+        final = GoogleTranslator(source="auto", target=idioma_original).translate(atual)
 
-        await interaction.followup.send(f"**{texto}** 🔀 **Resultado final após {vezes} traduções:**\n```{final}```")
+        await interaction.followup.send(f"**{texto}** 🔀 **Resultado final após {vezes} traduções (retornado em `{idioma_original}`):**\n```{final}```")
 
     except Exception as e:
         await interaction.followup.send(f"❌ Ocorreu um erro durante as traduções: {e}", ephemeral=True)
