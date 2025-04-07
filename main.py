@@ -1005,8 +1005,29 @@ async def deepfry(interaction: discord.Interaction, imagem: discord.Attachment):
         await interaction.followup.send(f"❌ Erro ao aplicar o efeito: {e}", ephemeral=True)
 
 @bot.tree.command(name="hypertranslate", description="Traduz um texto por várias línguas aleatórias e retorna o resultado final.")
-@app_commands.describe(texto="Texto original para traduzir", vezes="Quantidade de vezes a traduzir (máximo 50)")
-async def hypertranslate(interaction: discord.Interaction, texto: str, vezes: int = 10):
+@app_commands.describe(
+    texto="Texto original para traduzir",
+    vezes="Quantidade de vezes a traduzir (máximo 50)",
+    idioma_entrada="Idioma original do texto (ou auto para detectar)",
+    idioma_saida="Idioma final do texto traduzido"
+)
+@app_commands.choices(
+    idioma_entrada=[
+        app_commands.Choice(name=nome, value=cod)
+        for nome, cod in GoogleTranslator().get_supported_languages(as_dict=True).items()
+    ],
+    idioma_saida=[
+        app_commands.Choice(name=nome, value=cod)
+        for nome, cod in GoogleTranslator().get_supported_languages(as_dict=True).items()
+    ]
+)
+async def hypertranslate(
+    interaction: discord.Interaction,
+    texto: str,
+    vezes: int = 10,
+    idioma_entrada: app_commands.Choice[str] = None,
+    idioma_saida: app_commands.Choice[str] = None
+):
     await interaction.response.defer()
 
     if vezes < 1 or vezes > 50:
@@ -1015,29 +1036,33 @@ async def hypertranslate(interaction: discord.Interaction, texto: str, vezes: in
     langs = GoogleTranslator().get_supported_languages(as_dict=True)
     lang_codes = list(langs.values())
 
+    entrada = idioma_entrada.value if idioma_entrada else "auto"
+    saida = idioma_saida.value if idioma_saida else entrada
+
+    atual = texto
+    usado = []
+
     try:
-        # Detecta o idioma original com langdetect
-        idioma_original = detect(texto)
-
-        atual = texto
-        usado = []
-
         for _ in range(vezes):
             destino = random.choice(lang_codes)
-            while destino in usado or destino in ["auto", idioma_original]:
+            while destino in usado or destino == entrada or destino == "auto":
                 destino = random.choice(lang_codes)
             usado.append(destino)
 
             atual = GoogleTranslator(source="auto", target=destino).translate(atual)
             await asyncio.sleep(0.3)
 
-        # Traduz de volta para o idioma original detectado
-        final = GoogleTranslator(source="auto", target=idioma_original).translate(atual)
+        # Traduz de volta para o idioma final escolhido
+        final = GoogleTranslator(source="auto", target=saida).translate(atual)
 
-        await interaction.followup.send(f"**{texto}** 🔀 **Resultado final após {vezes} traduções (retornado em `{idioma_original}`):**\n```{final}```")
+        await interaction.followup.send(
+            f"🌐 **Tradução maluca iniciada!**\n"
+            f"**Idioma de entrada:** `{entrada}`\n"
+            f"**Idioma final:** `{saida}`\n"
+            f"**Rodadas:** {vezes}\n"
+            f"🔁 **Texto final:**\n```{final}```"
+        )
 
-    except LangDetectException:
-        await interaction.followup.send("❌ Não consegui detectar o idioma original do texto fornecido.", ephemeral=True)
     except Exception as e:
         await interaction.followup.send(f"❌ Ocorreu um erro durante as traduções: {e}", ephemeral=True)
 
