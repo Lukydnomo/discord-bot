@@ -75,103 +75,21 @@ def randomuser():
             return random.choice(members)  # Retorna um membro aleatório
     
     return "fudeu nego"  # Retorno caso não haja membros válidos
-# Função para salvar a mensagem deletada no arquivo JSON
-async def save_deleted_message(message):
-    data = get_file_content()
 
-    deleted_message_data = {
-        "author": message.author.name,
-        "content": message.content,
-        "timestamp": str(message.created_at),
-        "channel_id": message.channel.id
-    }
-
-    # Garante que "deleted_messages" é uma lista
-    if "deleted_messages" not in data or not isinstance(data["deleted_messages"], list):
-        data["deleted_messages"] = []
-
-    # Adicionando a mensagem deletada ao banco de dados
-    data["deleted_messages"].append(deleted_message_data)
-
-    # Atualizando o arquivo com a nova mensagem deletada
-    await save("deleted_messages", data)
-# Função para verificar se passaram 5 minutos e reenviar a mensagem
-async def check_and_resend_loop():
-    # Canal de logs onde erros serão reportados
-    error_log_channel_id = 1317580138262695967  # Substitua pelo ID do canal de log de erros
-    error_log_channel = bot.get_channel(error_log_channel_id)
-
-    while True:
-        data = get_file_content()
-
-        if not data or "deleted_messages" not in data or "deleted_messages" not in data["deleted_messages"]:
-            if error_log_channel:
-                await error_log_channel.send("🔍 Nenhuma mensagem deletada encontrada.")
-            await asyncio.sleep(10)
-
-        deleted_messages = data["deleted_messages"]["deleted_messages"]
-        now = datetime.now(timezone.utc)
-
-        for deleted_message_data in deleted_messages:
-            if not deleted_message_data:
-                continue
-
-            if isinstance(deleted_message_data, str):
-                try:
-                    deleted_message_data = json.loads(deleted_message_data)
-                except json.JSONDecodeError:
-                    if error_log_channel:
-                        await error_log_channel.send(f"⚠️ Erro ao decodificar JSON da mensagem deletada: {deleted_message_data}")
-                    continue
-
-            if "timestamp" not in deleted_message_data or "channel_id" not in deleted_message_data:
-                if error_log_channel:
-                    await error_log_channel.send(f"⚠️ Mensagem deletada sem timestamp ou channel_id: {deleted_message_data}")
-                continue
-
-            # Debug: printar o timestamp
-            print(f"⏳ Timestamp da mensagem: {deleted_message_data['timestamp']}")
-
-            # Ajustar o timestamp removendo o sufixo se presente
-            timestamp_str = deleted_message_data["timestamp"]
-            if timestamp_str.endswith("+00:00"):
-                timestamp_str = timestamp_str.replace("+00:00", "").strip()
-
-            try:
-                timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S.%f").replace(tzinfo=timezone.utc)
-            except ValueError:
-                try:
-                    timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
-                except ValueError:
-                    if error_log_channel:
-                        await error_log_channel.send(f"❌ Erro ao converter timestamp para a mensagem: {deleted_message_data}")
-                    continue
-
-            time_diff = (now - timestamp).total_seconds() / 60
-            print(f"⏳ Tempo decorrido: {time_diff} minutos")
-
-            if 5 <= time_diff < 7:
-                channel_id = deleted_message_data["channel_id"]
-                channel = bot.get_channel(channel_id)
-                if channel is None:
-                    if error_log_channel:
-                        await error_log_channel.send(f"❌ Erro: Canal {channel_id} não encontrado.")
-                    continue
-
-                print(f"📩 Enviando mensagem deletada no canal {channel_id}...")
-                try:
-                    await channel.send(f"Ah, vocês lembram quando {deleted_message_data['author']} mandou isso? '{deleted_message_data['content']}'")
-                except Exception as e:
-                    if error_log_channel:
-                        await error_log_channel.send(f"❌ Erro ao tentar enviar mensagem no canal {channel_id}: {e}")
-                    continue
-
-                # Remove a mensagem do JSON
-                data["deleted_messages"]["deleted_messages"] = [msg for msg in deleted_messages if msg != deleted_message_data]
-                print(f"✅ Mensagem removida do banco de dados.")
-                await save("deleted_messages", data)
-
-        await asyncio.sleep(10)
+async def safe_request(coroutine_func, *args, **kwargs):
+    for tentativa in range(3):
+        try:
+            return await coroutine_func(*args, **kwargs)
+        except discord.HTTPException as e:
+            if e.status == 429:
+                retry_after = getattr(e, "retry_after", 10)
+                print(f"[Rate Limit] Esperando {retry_after:.1f}s...")
+                await asyncio.sleep(retry_after)
+            else:
+                raise
+        except Exception as e:
+            print(f"[Erro] {e}")
+            await asyncio.sleep(5)
 
 # Database System
 async def stop_github_actions():
@@ -400,7 +318,7 @@ async def on_message(message):
         await asyncio.sleep(2)
         async with message.channel.typing():  # Usa o contexto assíncrono para simular digitação
             await asyncio.sleep(3)  # Aguarda 3 segundos (opcional)
-            await message.channel.send(random.choice(SARCASM_RESPONSES))  # Envia a resposta
+            await safe_request(message.channel.send, random.choice(SARCASM_RESPONSES))
 
     # Normaliza a mensagem e a palavra do dia (remove acentos e transforma ç -> c)
     mensagem_normalizada = unidecode.unidecode(message.content.lower())
@@ -411,10 +329,6 @@ async def on_message(message):
         await castigar_automatico(message.author, 60)
 
     await bot.process_commands(message)
-#@bot.event
-#async def on_message_delete(message):
-    #print(f"Mensagem deletada: {message.content}")
-    #await save_deleted_message(message)
 
 @bot.tree.command(name="punir", description="Pune um membro movendo-o para um canal de voz específico por um tempo determinado.")
 @app_commands.describe(
