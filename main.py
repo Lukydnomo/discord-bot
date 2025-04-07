@@ -1016,7 +1016,7 @@ async def rolar(interaction: discord.Interaction, expressao: str):
         # Aqui não encapsulamos em colchetes, pois o breakdown já vem formatado (ex.: "[5, 4, 3, 2, 1]")
         msg = f"``{res['resultado']}`` ⟵ {res['resultadoWOutEval']} {res.get('dice_group', expressao)}"
         return await interaction.response.send_message(msg)
-    
+
 @bot.tree.command(name="shippar", description="Calcula a chance de 2 usuários ficarem juntos")
 async def shippar(interaction: discord.Interaction, nome1: str, nome2: str):
     def calcular_compatibilidade(nome1inp, nome2inp):
@@ -1059,7 +1059,7 @@ async def r0lar(interaction: discord.Interaction):
         await interaction.response.send_message("Você não tem permissão pra usar esse comando.", ephemeral=True)
         return
     else:
-        await interaction.response.send_message(rolar(discord.Interaction, "1d1"))
+        await interaction.response.send_message(f"``1`` ⟵ [1] 1d20")
 
 # Inicia o bot
 bot.run(DISCORDTOKEN)
