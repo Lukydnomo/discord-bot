@@ -18,6 +18,7 @@ import requests
 import aiohttp
 from PIL import Image, ImageEnhance, ImageOps
 from deep_translator import GoogleTranslator
+from langdetect import detect, LangDetectException
 import unidecode
 
 # Instâncias iniciais
@@ -1015,17 +1016,15 @@ async def hypertranslate(interaction: discord.Interaction, texto: str, vezes: in
     lang_codes = list(langs.values())
 
     try:
-        # Primeira tradução apenas para detectar idioma original
-        tradutor_temp = GoogleTranslator(source="auto", target="en")
-        traduzido_temp = tradutor_temp.translate(texto)
-        idioma_original = tradutor_temp.source
+        # Detecta o idioma original com langdetect
+        idioma_original = detect(texto)
 
-        atual = traduzido_temp
+        atual = texto
         usado = []
 
         for _ in range(vezes):
             destino = random.choice(lang_codes)
-            while destino in usado or destino == "auto":
+            while destino in usado or destino in ["auto", idioma_original]:
                 destino = random.choice(lang_codes)
             usado.append(destino)
 
@@ -1037,6 +1036,8 @@ async def hypertranslate(interaction: discord.Interaction, texto: str, vezes: in
 
         await interaction.followup.send(f"**{texto}** 🔀 **Resultado final após {vezes} traduções (retornado em `{idioma_original}`):**\n```{final}```")
 
+    except LangDetectException:
+        await interaction.followup.send("❌ Não consegui detectar o idioma original do texto fornecido.", ephemeral=True)
     except Exception as e:
         await interaction.followup.send(f"❌ Ocorreu um erro durante as traduções: {e}", ephemeral=True)
 

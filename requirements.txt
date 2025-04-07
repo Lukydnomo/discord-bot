@@ -5,3 +5,4 @@ unidecode
 pytz
 pillow
 deep_translator
+langdetect
