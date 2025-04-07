@@ -1061,15 +1061,10 @@ async def deepfry(interaction: discord.Interaction, imagem: discord.Attachment):
         img_bytes = await imagem.read()
         img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
 
-        # Aumenta brilho, contraste e nitidez
-        enhancer = ImageEnhance.Contrast(img)
-        img = enhancer.enhance(3.0)
-
-        enhancer = ImageEnhance.Sharpness(img)
-        img = enhancer.enhance(10.0)
-
-        enhancer = ImageEnhance.Color(img)
-        img = enhancer.enhance(5.0)
+        img = ImageEnhance.Contrast(img).enhance(4.0)
+        img = ImageEnhance.Sharpness(img).enhance(12.0)
+        img = ImageEnhance.Color(img).enhance(8.0)
+        img = ImageEnhance.Brightness(img).enhance(1.5)
 
         # Adiciona um overlay vermelho
         overlay = Image.new('RGB', img.size, (255, 0, 0))
