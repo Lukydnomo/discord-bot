@@ -1030,7 +1030,7 @@ async def hypertranslate(interaction: discord.Interaction, texto: str, vezes: in
         # Traduz de volta para pt no final
         final = GoogleTranslator(source="auto", target="pt").translate(atual)
 
-        await interaction.followup.send(f"🔀 **Resultado final após {vezes} traduções:**\n```{final}```")
+        await interaction.followup.send(f"**{texto}** 🔀 **Resultado final após {vezes} traduções:**\n```{final}```")
 
     except Exception as e:
         await interaction.followup.send(f"❌ Ocorreu um erro durante as traduções: {e}", ephemeral=True)
