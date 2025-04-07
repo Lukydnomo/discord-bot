@@ -1004,6 +1004,33 @@ async def deepfry(interaction: discord.Interaction, imagem: discord.Attachment):
     except Exception as e:
         await interaction.followup.send(f"❌ Erro ao aplicar o efeito: {e}", ephemeral=True)
 
+POPULAR_LANGUAGES = {
+    "English": "en",
+    "Português": "pt",
+    "Español": "es",
+    "Français": "fr",
+    "Deutsch": "de",
+    "Italiano": "it",
+    "Русский": "ru",
+    "中文": "zh",
+    "日本語": "ja",
+    "한국어": "ko",
+    "العربية": "ar",
+    "हिन्दी": "hi",
+    "বাংলা": "bn",
+    "Türkçe": "tr",
+    "Việt": "vi",
+    "Polski": "pl",
+    "Nederlands": "nl",
+    "Ελληνικά": "el",
+    "Čeština": "cs",
+    "Svenska": "sv",
+    "Dansk": "da",
+    "Suomi": "fi",
+    "עברית": "he",
+    "Bahasa Indonesia": "id",
+    "Norsk": "no"
+}
 @bot.tree.command(name="hypertranslate", description="Traduz um texto por várias línguas aleatórias e retorna o resultado final.")
 @app_commands.describe(
     texto="Texto original para traduzir",
@@ -1014,11 +1041,11 @@ async def deepfry(interaction: discord.Interaction, imagem: discord.Attachment):
 @app_commands.choices(
     idioma_entrada=[
         app_commands.Choice(name=nome, value=cod)
-        for nome, cod in GoogleTranslator().get_supported_languages(as_dict=True).items()
+        for nome, cod in POPULAR_LANGUAGES.items()
     ],
     idioma_saida=[
         app_commands.Choice(name=nome, value=cod)
-        for nome, cod in GoogleTranslator().get_supported_languages(as_dict=True).items()
+        for nome, cod in POPULAR_LANGUAGES.items()
     ]
 )
 async def hypertranslate(
@@ -1033,11 +1060,13 @@ async def hypertranslate(
     if vezes < 1 or vezes > 50:
         return await interaction.followup.send("❌ Escolha entre 1 e 50 traduções.", ephemeral=True)
 
+    # Define o idioma de entrada; se não informado, usa "auto"
+    entrada = idioma_entrada.value if idioma_entrada else "auto"
+    # Se o idioma de saída não for informado, retorna para o idioma de entrada
+    saida = idioma_saida.value if idioma_saida else entrada
+
     langs = GoogleTranslator().get_supported_languages(as_dict=True)
     lang_codes = list(langs.values())
-
-    entrada = idioma_entrada.value if idioma_entrada else "auto"
-    saida = idioma_saida.value if idioma_saida else entrada
 
     atual = texto
     usado = []
@@ -1045,6 +1074,7 @@ async def hypertranslate(
     try:
         for _ in range(vezes):
             destino = random.choice(lang_codes)
+            # Garante que não escolha o idioma de entrada ou repetido
             while destino in usado or destino == entrada or destino == "auto":
                 destino = random.choice(lang_codes)
             usado.append(destino)
@@ -1052,7 +1082,7 @@ async def hypertranslate(
             atual = GoogleTranslator(source="auto", target=destino).translate(atual)
             await asyncio.sleep(0.3)
 
-        # Traduz de volta para o idioma final escolhido
+        # Traduz de volta para o idioma de saída escolhido
         final = GoogleTranslator(source="auto", target=saida).translate(atual)
 
         await interaction.followup.send(
