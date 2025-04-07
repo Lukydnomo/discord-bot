@@ -1,19 +1,28 @@
-import discord
-from discord.ext import commands, tasks
-from discord import app_commands
-from discord.utils import utcnow
-import asyncio
+# Core Python
 import os
+import io
+import re
 import json
 import random
-import re
-import requests
-from base64 import b64decode, b64encode
-import aiohttp
-import unidecode
+import asyncio
 from datetime import datetime, timezone, timedelta
+from base64 import b64decode, b64encode
+
+# Discord
+import discord
+from discord import app_commands
+from discord.ext import commands
+
+# Terceiros
+import requests
+import aiohttp
 from PIL import Image, ImageEnhance, ImageOps
-import io
+from deep_translator import GoogleTranslator
+import unidecode
+
+# Instâncias iniciais
+translate = GoogleTranslator
+
 
 # Configuração do bot
 intents = discord.Intents.default()
@@ -1079,6 +1088,38 @@ async def deepfry(interaction: discord.Interaction, imagem: discord.Attachment):
 
     except Exception as e:
         await interaction.followup.send(f"❌ Erro ao aplicar o efeito: {e}", ephemeral=True)
+
+@bot.tree.command(name="hypertranslate", description="Traduz um texto por várias línguas aleatórias e retorna o resultado final.")
+@app_commands.describe(texto="Texto original para traduzir", vezes="Quantidade de vezes a traduzir (máximo 50)")
+async def hypertranslate(interaction: discord.Interaction, texto: str, vezes: int = 10):
+    await interaction.response.defer()
+
+    if vezes < 1 or vezes > 50:
+        return await interaction.followup.send("❌ Escolha entre 1 e 50 traduções.", ephemeral=True)
+
+    langs = GoogleTranslator().get_supported_languages(as_dict=True)
+    lang_codes = list(langs.values())
+
+    atual = texto
+    usado = []
+
+    try:
+        for _ in range(vezes):
+            destino = random.choice(lang_codes)
+            while destino in usado or destino == "auto":
+                destino = random.choice(lang_codes)
+            usado.append(destino)
+
+            atual = GoogleTranslator(source="auto", target=destino).translate(atual)
+            await asyncio.sleep(0.3)  # Evita rate-limit
+
+        # Traduz de volta para pt no final
+        final = GoogleTranslator(source="auto", target="pt").translate(atual)
+
+        await interaction.followup.send(f"🔀 **Resultado final após {vezes} traduções:**\n```{final}```")
+
+    except Exception as e:
+        await interaction.followup.send(f"❌ Ocorreu um erro durante as traduções: {e}", ephemeral=True)
 
 # Inicia o bot
 bot.run(DISCORDTOKEN)
