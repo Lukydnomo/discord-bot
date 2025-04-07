@@ -224,3 +224,24 @@
 ### ❌ Removido
 
 - **Aviso automático de jogo do Botafogo** – A API era um cocôzão e cobrar **R$300 por mês** pra zoar a Bilau? Dispenso. 💸💩
+
+<!-- prettier-ignore -->
+- - - - - - - - - -
+
+## [1.6.0] - 2025-04-07
+
+✨ **O bot tá cada vez mais poliglota e frito!** ✨
+
+### 🆕 Adicionado
+
+🌐 **Comandos de Tradução:**
+
+- **`/hypertranslate`** – Traduz um texto passando por várias línguas aleatórias e retorna o resultado final.
+
+🍟 **Comandos de Imagem:**
+
+- **`/deepfry`** – Aplica o famoso efeito "deep fry" em uma imagem.
+
+### 📝 Observação
+
+- O bot está aberto a cada vez mais possibilidades graças aos novos conhecimentos do dev mais lindo do mundo/meu criador, Luky! Ele continua estudando Python e melhorando o código constantemente, mas ainda luta para ter ideias de novas funções. Sugestões são muito bem-vindas para deixar o bot cada vez mais completo.
