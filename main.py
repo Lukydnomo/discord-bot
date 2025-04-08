@@ -1099,38 +1099,42 @@ async def hypertranslate(
 from PIL import Image, ImageDraw, ImageFont, ImageChops
 import io
 
-@bot.tree.command(name="lapide", description="Gera uma imagem de lápide com o nome de alguém (ou o seu se não especificar).")
-@app_commands.describe(usuario="(Opcional) Usuário que será inscrito na lápide")
-async def lapide(interaction: discord.Interaction, usuario: discord.Member = None):
+@bot.tree.command(name="lapide", description="Cria uma lápide com o nome de alguém ou texto personalizado.")
+@app_commands.describe(
+    usuario="(Opcional) Alvo da lápide",
+    texto="(Opcional) Texto a ser escrito na lápide"
+)
+async def lapide(interaction: discord.Interaction, usuario: discord.Member = None, texto: str = None):
     await interaction.response.defer()
 
     try:
-        # Nome a ser usado: ou o membro passado, ou quem usou o comando
-        nome = (usuario.display_name if usuario else interaction.user.display_name).upper()
+        # Decide o que será escrito
+        nome_final = texto or (usuario.display_name if usuario else interaction.user.display_name)
+        nome_final = nome_final.upper()
 
-        # Caminhos da imagem e fonte
+        # Caminhos
         caminho_imagem = "assets/images/grave.png"
         caminho_fonte = "assets/fonts/PTSerif-Bold.ttf"
 
-        # 1) Carrega imagem da lápide
+        # 1) Carrega imagem base
         img = Image.open(caminho_imagem).convert("RGBA")
 
-        # 2) Carrega fonte
+        # 2) Fonte
         fonte = ImageFont.truetype(caminho_fonte, 50)
 
-        # 3) Cria camada de texto
+        # 3) Camada de texto
         text_layer = Image.new("RGBA", (600, 200), (0, 0, 0, 0))
         draw = ImageDraw.Draw(text_layer)
 
-        bbox = fonte.getbbox(nome)
+        bbox = fonte.getbbox(nome_final)
         w_text = bbox[2] - bbox[0]
         h_text = bbox[3] - bbox[1]
         x_center = (600 - w_text) // 2
         y_center = (200 - h_text) // 2
 
-        draw.text((x_center, y_center), nome, font=fonte, fill=(50, 50, 50, 180))
+        draw.text((x_center, y_center), nome_final, font=fonte, fill=(50, 50, 50, 180))
 
-        # 4) Rotaciona e aplica blend
+        # 4) Inclinação e blending
         rotated = text_layer.rotate(3.5, expand=True, resample=Image.BICUBIC)
 
         pos_x, pos_y = 160, 400
@@ -1139,13 +1143,13 @@ async def lapide(interaction: discord.Interaction, usuario: discord.Member = Non
         blended = ImageChops.multiply(area_crop, rotated)
         img.paste(blended, (pos_x, pos_y), rotated)
 
-        # 5) Salva em buffer e envia
+        # 5) Buffer e envio
         buffer = io.BytesIO()
         img.save(buffer, format="PNG")
         buffer.seek(0)
 
         await interaction.followup.send(
-            content=f"🪦 Aqui jaz **{nome}**...",
+            content=f"🪦 Aqui jaz **{nome_final}**...",
             file=discord.File(fp=buffer, filename="lapide.png")
         )
 
