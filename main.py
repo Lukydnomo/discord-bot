@@ -7,6 +7,7 @@ import random
 import asyncio
 from datetime import datetime, timezone, timedelta
 from base64 import b64decode, b64encode
+import subprocess
 
 # Discord
 import discord
@@ -1155,6 +1156,54 @@ async def lapide(interaction: discord.Interaction, usuario: discord.Member = Non
 
     except Exception as e:
         await interaction.followup.send(f"❌ Erro ao gerar a lápide: {e}", ephemeral=True)
+
+# Configurações de voz (pode personalizar)
+TTS_CONFIG = {
+    "pitch": 65,
+    "speed": 72,
+    "mouth": 128,
+    "throat": 128,
+    "voice": "en"  # ou pt, es, fr, etc.
+}
+def gerar_audio_tts(texto, caminho_saida="tts.wav"):
+    comando = [
+        "espeak",
+        f"-v{TTS_CONFIG['voice']}",
+        f"-p{TTS_CONFIG['pitch']}",
+        f"-s{TTS_CONFIG['speed']}",
+        f"--mouth={TTS_CONFIG['mouth']}",
+        f"--throat={TTS_CONFIG['throat']}",
+        "-w", caminho_saida,
+        texto
+    ]
+    subprocess.run(comando)
+@bot.tree.command(name="tts", description="Gera um TTS com voz zoada.")
+@app_commands.describe(texto="Texto a ser falado", modo="Modo: 'chat' ou 'voz'")
+async def tts(interaction: discord.Interaction, texto: str, modo: str):
+    await interaction.response.defer()
+
+    gerar_audio_tts(texto, "tts.wav")
+
+    if modo.lower() == "chat":
+        await interaction.followup.send("🔊 Áudio gerado:", file=discord.File("tts.wav"))
+    elif modo.lower() == "voz":
+        if not interaction.user.guild_permissions.administrator:
+            return await interaction.followup.send("🚫 Apenas administradores podem usar o modo de voz!", ephemeral=True)
+        if not interaction.user.voice:
+            return await interaction.followup.send("⚠️ Você precisa estar em um canal de voz!", ephemeral=True)
+
+        canal = interaction.user.voice.channel
+        vc = await canal.connect() if interaction.guild.id not in voice_clients else voice_clients[interaction.guild.id]
+
+        if interaction.guild.id not in voice_clients:
+            voice_clients[interaction.guild.id] = vc
+
+        vc.play(discord.FFmpegPCMAudio("tts.wav"), after=lambda e: print("TTS reproduzido."))
+
+        await interaction.followup.send("🎙️ Falando no canal de voz...")
+
+    else:
+        await interaction.followup.send("❌ Modo inválido! Use 'chat' ou 'voz'.", ephemeral=True)
 
 # Inicia o bot
 bot.run(DISCORDTOKEN)
