@@ -7,7 +7,6 @@ import random
 import asyncio
 from datetime import datetime, timezone, timedelta
 from base64 import b64decode, b64encode
-import subprocess
 
 # Discord
 import discord
@@ -17,9 +16,8 @@ from discord.ext import commands
 # Terceiros
 import requests
 import aiohttp
-from PIL import Image, ImageEnhance, ImageOps, ImageDraw, ImageFont, ImageChops
+from PIL import Image, ImageEnhance, ImageDraw, ImageFont, ImageChops
 from deep_translator import GoogleTranslator
-from langdetect import detect, LangDetectException
 import unidecode
 
 # Instâncias iniciais
@@ -238,28 +236,10 @@ REACTIONS = {
     "parabéns": ["🥳", "🎊"],      # Reage com 🥳 e 🎊 a mensagens contendo "parabéns"
     "obrigado": ["🙏"],           # Reage com 🙏 a mensagens contendo "obrigado"
 }
-SARCASM_RESPONSES = [
-    "Escreveu a bíblia carai",
-    "Ningúem perguntou",
-    "E o fodasse?",
-    "Meu tico que eu vou ler isso",
-    "Minhas bola",
-    "Seloko tá escrevendo mais que o Ozamu Tezuka",
-    f"Redação do enem nota {random.randrange(0,300)}",
-    "Esse aí passa em medicina",
-    "Redação do krl tmnc",
-    "Bora escrever um livro cria?",
-    "Esse texto aí vai virar curso de faculdade",
-    "Parece que você leu o manual do lil penis",
-    "Escreveu mais que a lista de clientes de um editor de vídeo",
-    "Meu Deus, não sabia que você era escritor (naipe ichiro oda)",
-    "Vai lançar uma série de 20 temporadas com esse texto? Pq se for a netflix enfia no cu",
-    "Parece um episódio de anime cheio de filler, não, pior, PARECE UM AD DA TWITCH ESSA PORRA",
-    "Texto mais longo que meu pau",
-    "Você não cansa de se ouvir?",
-    "Parece que escreveu a versão expandida do Senhor dos Anais",
-    "Vai lançar um audiobook?"
-]
+def carregar_sarcasmResponses():
+        with open("resources/sarcasmResponses.txt", "r", encoding="utf-8") as f:
+            return [linha.strip() for linha in f.readlines()]
+SARCASM_RESPONSES = carregar_sarcasmResponses()
 def is_spam(text):
     # Remove espaços e ignora letras maiúsculas/minúsculas
     normalized = text.replace(" ", "").lower()
@@ -1097,9 +1077,6 @@ async def hypertranslate(
     except Exception as e:
         await interaction.followup.send(f"❌ Ocorreu um erro durante as traduções: {e}", ephemeral=True)
 
-from PIL import Image, ImageDraw, ImageFont, ImageChops
-import io
-
 @bot.tree.command(name="lapide", description="Cria uma lápide com o nome de alguém ou texto personalizado.")
 @app_commands.describe(
     usuario="(Opcional) Alvo da lápide",
@@ -1156,66 +1133,6 @@ async def lapide(interaction: discord.Interaction, usuario: discord.Member = Non
 
     except Exception as e:
         await interaction.followup.send(f"❌ Erro ao gerar a lápide: {e}", ephemeral=True)
-
-# Configurações do TTS com espeak-ng
-TTS_CONFIG = {
-    "pitch": 70,       # 0–99 (padrão: 50)
-    "speed": 160,      # palavras por minuto
-    "mouth": 128,      # 0–255
-    "throat": 128,     # 0–255
-    "voice": "pt"      # idioma (pt, en, es, etc.)
-}
-def gerar_audio_tts(texto, caminho_saida="tts.wav"):
-    comando = [
-        "espeak-ng",
-        f"-v{TTS_CONFIG['voice']}",
-        f"-p{TTS_CONFIG['pitch']}",
-        f"-s{TTS_CONFIG['speed']}",
-        f"--mouth={TTS_CONFIG['mouth']}",
-        f"--throat={TTS_CONFIG['throat']}",
-        "-w", caminho_saida,
-        texto
-    ]
-    subprocess.run(comando, check=True)
-@bot.tree.command(name="tts", description="Gera um TTS com voz customizada.")
-@app_commands.describe(
-    texto="Texto a ser falado",
-    modo="Escolha se quer enviar no chat ou tocar no canal de voz"
-)
-@app_commands.choices(
-    modo=[
-        app_commands.Choice(name="Enviar no chat", value="chat"),
-        app_commands.Choice(name="Tocar no canal de voz", value="voz")
-    ]
-)
-async def tts(interaction: discord.Interaction, texto: str, modo: app_commands.Choice[str]):
-    await interaction.response.defer()
-
-    try:
-        gerar_audio_tts(texto, "tts.wav")
-        if not os.path.exists("tts.wav"):
-            raise FileNotFoundError("espeak-ng falhou ao gerar o áudio.")
-    except Exception as e:
-        return await interaction.followup.send(f"❌ Erro ao gerar o TTS: {e}", ephemeral=True)
-
-    if modo.value == "chat":
-        await interaction.followup.send("🔊 Áudio gerado:", file=discord.File("tts.wav"))
-
-    elif modo.value == "voz":
-        if not interaction.user.guild_permissions.administrator:
-            return await interaction.followup.send("🚫 Apenas administradores podem usar o modo de voz!", ephemeral=True)
-        if not interaction.user.voice:
-            return await interaction.followup.send("⚠️ Você precisa estar em um canal de voz!", ephemeral=True)
-
-        canal = interaction.user.voice.channel
-        vc = voice_clients.get(interaction.guild.id)
-
-        if not vc:
-            vc = await canal.connect()
-            voice_clients[interaction.guild.id] = vc
-
-        vc.play(discord.FFmpegPCMAudio("tts.wav"), after=lambda e: print("✅ TTS finalizado"))
-        await interaction.followup.send("🎙️ Falando no canal de voz...")
 
 # Inicia o bot
 bot.run(DISCORDTOKEN)

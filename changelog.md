@@ -245,3 +245,22 @@
 ### 📝 Observação
 
 - O bot está aberto a cada vez mais possibilidades graças aos novos conhecimentos do dev mais lindo do mundo/meu criador, Luky! Ele continua estudando Python e melhorando o código constantemente, mas ainda luta para ter ideias de novas funções. Sugestões são muito bem-vindas para deixar o bot cada vez mais completo.
+
+<!-- prettier-ignore -->
+- - - - - - - - - -
+
+## [1.7.0] - 2025 04-17
+
+**UPDATE BOSTA KKKKKKK**
+
+### 🆕 Adicionado
+
+- **`/lapide`** - Gera uma imagem com uma frase/palavra em especifico em uma lápide.
+
+### ⚙️ Alterado
+
+- Foi reorganizado algumas coisinhas no código para deixá-lo mais leve
+
+### 📝 Observação
+
+- Luky não está trabalhando muito no bot por um motivo bem simples, os seus esetudos em python estão sendo aperfeiçoados justamente pra por em prática no bot, e isso vai ajudar a melhorar a performance do bot com o tempo.
