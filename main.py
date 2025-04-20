@@ -23,7 +23,6 @@ import unidecode
 # Instâncias iniciais
 translate = GoogleTranslator
 
-
 # Configuração do bot
 intents = discord.Intents.default()
 intents.voice_states = True
@@ -39,6 +38,40 @@ github_repo = "Lukydnomo/discord-bot"
 json_file_path = "database.json"
 NOME_ORIGINAL = "FranBOT"
 CAMINHO_AVATAR_ORIGINAL = "assets/images/FranBOT-Logo.png"
+
+def cancel_previous_github_runs():
+    run_id = os.getenv("RUN_ID")
+    token = os.getenv("GITHUB_TOKEN")
+    if not run_id or not token:
+        print("⚠️  Faltando RUN_ID ou GITHUB_TOKEN — pulando cancelamento de runs antigas.")
+        return
+
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github+json"
+    }
+    # Lista as execuções em andamento (in_progress, queued…)
+    list_url = f"https://api.github.com/repos/{github_repo}/actions/runs?status=in_progress&per_page=100"
+    resp = requests.get(list_url, headers=headers)
+
+    if resp.status_code != 200:
+        print(f"❌ Erro ao listar runs: {resp.status_code} {resp.text}")
+        return
+
+    data = resp.json().get("workflow_runs", [])
+    for run in data:
+        rid = run.get("id")
+        # cancela todas exceto a atual
+        if str(rid) != run_id:
+            cancel_url = f"https://api.github.com/repos/{github_repo}/actions/runs/{rid}/cancel"
+            cancel_resp = requests.post(cancel_url, headers=headers)
+            if cancel_resp.status_code == 202:
+                print(f"✅ Run antiga cancelada: {rid}")
+            else:
+                print(f"⚠️ Falha ao cancelar run {rid}: {cancel_resp.status_code}")
+
+# chama antes de inicializar o bot
+cancel_previous_github_runs()
 
 class MyBot(commands.Bot):
     def __init__(self):
