@@ -39,6 +39,9 @@ json_file_path = "database.json"
 NOME_ORIGINAL = "FranBOT"
 CAMINHO_AVATAR_ORIGINAL = "assets/images/FranBOT-Logo.png"
 
+MAX_DICE_GROUP = 100
+MAX_FACES       = 1000
+
 def cancel_previous_github_runs():
     run_id = os.getenv("RUN_ID")
     token = os.getenv("GITHUB_TOKEN")
@@ -307,25 +310,14 @@ async def on_message(message):
     matches = re.findall(r'\$(\d*#?\d*d\d+[\+\-\*/\(\)\d]*)', message.content)
     resultados = []
     if matches:
+        loop = asyncio.get_running_loop()
+        resultados = []
         for m in matches:
-            if '#' in m:
-                # Se houver "#" na expressão, dividimos em quantidade e o dado base
-                qtd_str, dado = m.split("#", 1)
-                try:
-                    qtd = int(qtd_str)
-                except ValueError:
-                    qtd = 1  # Caso não consiga converter, assume 1
-                # Rola a expressão "dado" a quantidade especificada
-                for _ in range(qtd):
-                    res = rolar_dado(dado, detalhado=False)
-                    resultados.append(
-                        f"``{res['resultado']}`` ⟵ [{res['resultadoWOutEval']}] {m}"
-                    )
-            else:
-                res = rolar_dado(m, detalhado=True)
-                resultados.append(
-                    f"``{res['resultado']}`` ⟵ {res['resultadoWOutEval']} {res.get('dice_group', m)}"
-                )
+            # this will run rolar_dado in a separate thread
+            res = await asyncio.to_thread(rolar_dado, m, True)
+            resultados.append(
+                f"``{res['resultado']}`` ⟵ {res['resultadoWOutEval']} {res.get('dice_group', m)}"
+            )
         await message.channel.send("\n".join(resultados))
         
     # Respostas sarcasticas
@@ -886,45 +878,68 @@ async def pdd(interaction: discord.Interaction):
 # Função para processar a rolagem de dados
 def rolar_dado(expressao, detalhado=True):
     if not detalhado:
-        # Comportamento antigo: apenas substitui e avalia a expressão
-        def substituir(match):
-            qtd, faces = match.groups()
-            qtd = int(qtd) if qtd else 1
-            faces = int(faces)
-            return str(sum(random.randint(1, faces) for _ in range(qtd)))
-        expr_mod = re.sub(r'(\d*)d(\d+)', substituir, expressao)
-        try:
-            resultado = eval(expr_mod)
-        except:
-            return None
-        return {"resultado": resultado, "resultadoWOutEval": expr_mod, "detalhado": False}
-    else:
-        # Novo comportamento: captura os resultados individuais de cada grupo de dados
-        detalhes = []  # Armazena os resultados individuais de cada grupo
+        detalhes = []
         def substituir(match):
             qtd_str, faces_str = match.groups()
-            qtd = int(qtd_str) if qtd_str else 1
+            qtd   = int(qtd_str)  if qtd_str  else 1
             faces = int(faces_str)
-            # Rola cada dado individualmente
+
+            # ─── validação de limites ───
+            if qtd > MAX_DICE_GROUP or faces > MAX_FACES:
+                raise ValueError(
+                    f"Máximo permitido: {MAX_DICE_GROUP} dados de até d{MAX_FACES}"
+                )
+            # ─────────────────────────────
+
             rolagens = [random.randint(1, faces) for _ in range(qtd)]
-            # Armazena a lista ordenada do maior para o menor
             detalhes.append(sorted(rolagens, reverse=True))
-            # Retorna a soma para a avaliação matemática
             return str(sum(rolagens))
+
         expr_mod = re.sub(r'(\d*)d(\d+)', substituir, expressao)
         try:
             resultado = eval(expr_mod)
         except:
             return None
-        # Se houver apenas um grupo de dados, usamos o resultado dele; caso contrário, juntamos os resultados
+
+        return {
+            "resultado": resultado,
+            "resultadoWOutEval": expr_mod,
+            "detalhado": False
+        }
+
+    else:
+        detalhes = []
+        def substituir(match):
+            qtd_str, faces_str = match.groups()
+            qtd   = int(qtd_str)  if qtd_str  else 1
+            faces = int(faces_str)
+
+            # ─── validação de limites ───
+            if qtd > MAX_DICE_GROUP or faces > MAX_FACES:
+                raise ValueError(
+                    f"Máximo permitido: {MAX_DICE_GROUP} dados de até d{MAX_FACES}"
+                )
+            # ─────────────────────────────
+
+            rolagens = [random.randint(1, faces) for _ in range(qtd)]
+            detalhes.append(sorted(rolagens, reverse=True))
+            return str(sum(rolagens))
+
+        expr_mod = re.sub(r'(\d*)d(\d+)', substituir, expressao)
+        try:
+            resultado = eval(expr_mod)
+        except:
+            return None
+
+        # montagem do breakdown
         if len(detalhes) == 1:
-            breakdown = str(detalhes[0])
-            # Extrai o grupo de dados original (por exemplo, "5d5")
-            m = re.search(r'(\d*d\d+)', expressao)
+            breakdown  = str(detalhes[0])
+            m          = re.search(r'(\d*d\d+)', expressao)
             dice_group = m.group(1) if m else expressao
         else:
-            breakdown = " + ".join(str(lst) for lst in detalhes)
+            breakdown  = " + ".join(str(lst) for lst in detalhes)
             dice_group = expressao
+
         return {
             "resultado": resultado,
             "resultadoWOutEval": breakdown,
@@ -947,7 +962,7 @@ async def rolar(interaction: discord.Interaction, expressao: str):
         return await interaction.response.send_message(msg)
     else:
         # Para rolagens simples, usa o comportamento detalhado
-        res = rolar_dado(expressao, detalhado=True)
+        res = await asyncio.to_thread(rolar_dado, expressao, True)
         if res is None:
             return await interaction.response.send_message("❌ Expressão inválida!", ephemeral=True)
         # Aqui não encapsulamos em colchetes, pois o breakdown já vem formatado (ex.: "[5, 4, 3, 2, 1]")
