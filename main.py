@@ -28,19 +28,7 @@ intents = discord.Intents.default()
 intents.voice_states = True
 intents.members = True
 intents.message_content = True
-commandPrefix = 'foa!'
-DISCORDTOKEN = os.getenv("DISCORD_BOT_TOKEN")
-GITHUBTOKEN = os.getenv("DATABASE_TOKEN")
-luky = 767015394648915978
-logChannel = 1317580138262695967
-usuarios_autorizados = [luky]
-github_repo = "Lukydnomo/discord-bot"
-json_file_path = "database.json"
-NOME_ORIGINAL = "FranBOT"
-CAMINHO_AVATAR_ORIGINAL = "assets/images/FranBOT-Logo.png"
-
-MAX_DICE_GROUP = 100
-MAX_FACES       = 1000
+from config import *
 
 def cancel_previous_github_runs():
     run_id = os.getenv("RUN_ID")
@@ -128,6 +116,54 @@ async def safe_request(coroutine_func, *args, **kwargs):
             await asyncio.sleep(5)
 
 # Database System
+_cached_data = None  # Cache em memória
+_cached_sha = None   # SHA do arquivo no GitHub
+
+def get_file_content():
+    global _cached_data, _cached_sha
+    if _cached_data is None:
+        url = f"https://api.github.com/repos/{github_repo}/contents/{json_file_path}"
+        headers = {"Authorization": f"token {GITHUBTOKEN}"}
+        response = requests.get(url, headers=headers).json()
+
+        if "content" in response:
+            try:
+                _cached_data = json.loads(b64decode(response["content"]).decode())
+                _cached_sha = response.get("sha")  # Armazena o SHA para atualizações futuras
+            except json.JSONDecodeError:
+                _cached_data = {}
+                _cached_sha = None
+        else:
+            print(f"❌ Erro ao obter conteúdo do arquivo: {response}")
+            _cached_data = {}
+            _cached_sha = None
+
+    return _cached_data
+
+def update_file_content(data):
+    global _cached_data, _cached_sha
+    if data == _cached_data:
+        print("🔄 Nenhuma alteração detectada, não será feita atualização.")
+        return  # Evita atualização desnecessária
+
+    url = f"https://api.github.com/repos/{github_repo}/contents/{json_file_path}"
+    headers = {"Authorization": f"token {GITHUBTOKEN}"}
+    new_content = b64encode(json.dumps(data, indent=4).encode()).decode()
+    commit_message = "Atualizando banco de dados"
+    payload = {
+        "message": commit_message,
+        "content": new_content,
+        "sha": _cached_sha  # Inclui o SHA para evitar conflitos
+    }
+
+    response = requests.put(url, headers=headers, json=payload)
+    if response.status_code == 200 or response.status_code == 201:
+        print("✅ Banco de dados atualizado com sucesso!")
+        _cached_data = data  # Atualiza o cache local
+        _cached_sha = response.json().get("content", {}).get("sha")  # Atualiza o SHA
+    else:
+        print(f"❌ Erro ao atualizar o banco de dados: {response.status_code} {response.text}")
+
 async def stop_github_actions():
     run_id = os.getenv("RUN_ID")
 
@@ -147,27 +183,7 @@ async def stop_github_actions():
                 print("Execução cancelada com sucesso.")
             else:
                 print(f"Erro ao cancelar: {response.status}, {await response.text()}")
-def get_file_content():
-    url = f"https://api.github.com/repos/{github_repo}/contents/{json_file_path}"
-    headers = {"Authorization": f"token {GITHUBTOKEN}"}
-    response = requests.get(url, headers=headers).json()
-    if "content" in response:
-        try:
-            return json.loads(b64decode(response["content"]).decode())
-        except json.JSONDecodeError:
-            return {}
-    return {}
-def update_file_content(data):
-    url = f"https://api.github.com/repos/{github_repo}/contents/{json_file_path}"
-    headers = {"Authorization": f"token {GITHUBTOKEN}"}
-    current_data = requests.get(url, headers=headers).json()
-    sha = current_data.get("sha", "") if "sha" in current_data else None
-    new_content = b64encode(json.dumps(data, indent=4).encode()).decode()
-    commit_message = "Atualizando banco de dados"
-    payload = {"message": commit_message, "content": new_content}
-    if sha:
-        payload["sha"] = sha
-    requests.put(url, headers=headers, json=payload)
+
 async def save(name, value):
     data = get_file_content()
     if name in data:
@@ -184,6 +200,7 @@ async def save(name, value):
     
     # Finalizar a instância do bot no GitHub Actions
     await stop_github_actions()
+
 def load(name):
     data = get_file_content()
     return data.get(name, None)
@@ -192,7 +209,9 @@ def load(name):
 def carregar_dicionario():
     with open("resources/palavras.txt", "r", encoding="utf-8") as f:
         return [linha.strip() for linha in f.readlines()]
+
 dicionario = carregar_dicionario()
+
 def obter_palavra_do_dia():
     data_atual = datetime.now(timezone.utc).strftime("%m/%d/%y")
     data = get_file_content()
@@ -203,6 +222,7 @@ def obter_palavra_do_dia():
     data["palavra_do_dia"] = {"palavra": nova_palavra, "dia": data_atual}
     update_file_content(data)
     return nova_palavra
+
 palavra_do_dia = obter_palavra_do_dia()
 
 # Castigo
@@ -217,6 +237,9 @@ async def castigar_automatico(member: discord.Member, tempo: int):
 # Evento de quando o bot estiver pronto
 @bot.event
 async def on_ready():
+
+    get_file_content()
+
     await asyncio.sleep(3)
 
     updatechannel = bot.get_channel(1319356880627171448)
