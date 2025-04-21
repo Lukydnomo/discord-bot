@@ -1330,9 +1330,5 @@ async def ascii(interaction: discord.Interaction, texto: str, fonte: app_command
         await interaction.response.send_message(f"```\n{arte}\n```")
     except Exception as e:
         await interaction.response.send_message(f"❌ Erro ao gerar a arte ASCII: {e}", ephemeral=True)
-DISCORDTOKEN = os.getenv("DISCORDTOKEN")
-if not DISCORDTOKEN:
-    raise ValueError("❌ DISCORDTOKEN is not set. Please define it as an environment variable.")
-bot.run(DISCORDTOKEN)
 # Inicia o bot
 bot.run(DISCORDTOKEN)
