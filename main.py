@@ -1225,10 +1225,9 @@ async def hypertranslate(
             f"🌐 **Tradução concluída!**\n"
             f"🔤 **Texto original:** {texto}\n"
             f"🔁 **Texto traduzido:** {final}\n"
-            f"📊 **Rodadas:** {vezes}"
+            f"📊 **Rodadas:** {vezes}\n"
             f"**Idioma de entrada:** `{entrada}`\n"
             f"**Idioma final:** `{saida}`\n"
-            f"**Rodadas:** {vezes}\n"
             f"🔁 **Texto final:**\n```{final}```"
         )
 
