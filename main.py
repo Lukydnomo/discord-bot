@@ -15,10 +15,10 @@ from discord.ext import commands
 
 # Terceiros
 import requests
-import aiohttp
 from PIL import Image, ImageEnhance, ImageDraw, ImageFont, ImageChops
 from deep_translator import GoogleTranslator
 import unidecode
+import logging
 
 # Instâncias iniciais
 translate = GoogleTranslator
@@ -30,36 +30,53 @@ intents.members = True
 intents.message_content = True
 from config import *
 
+# Configuração do logger
+logger = logging.getLogger("discord_bot")
+logger.setLevel(logging.INFO)
+
 def cancel_previous_github_runs():
+    """
+    Cancela execuções anteriores no GitHub Actions, exceto a execução atual.
+    """
     run_id = os.getenv("RUN_ID")
     token = os.getenv("GITHUB_TOKEN")
+
     if not run_id or not token:
-        print("⚠️  Faltando RUN_ID ou GITHUB_TOKEN — pulando cancelamento de runs antigas.")
+        logger.warning("⚠️ Faltando RUN_ID ou GITHUB_TOKEN — pulando cancelamento de runs antigas.")
         return
 
     headers = {
         "Authorization": f"token {token}",
         "Accept": "application/vnd.github+json"
     }
-    # Lista as execuções em andamento (in_progress, queued…)
-    list_url = f"https://api.github.com/repos/{github_repo}/actions/runs?status=in_progress&per_page=100"
-    resp = requests.get(list_url, headers=headers)
 
-    if resp.status_code != 200:
-        print(f"❌ Erro ao listar runs: {resp.status_code} {resp.text}")
+    # Lista as execuções em andamento
+    list_url = f"https://api.github.com/repos/{github_repo}/actions/runs?status=in_progress&per_page=100"
+    try:
+        response = requests.get(list_url, headers=headers)
+        response.raise_for_status()
+    except requests.RequestException as e:
+        logger.error(f"❌ Erro ao listar runs: {e}")
         return
 
-    data = resp.json().get("workflow_runs", [])
-    for run in data:
+    runs = response.json().get("workflow_runs", [])
+    if not runs:
+        logger.info("✅ Nenhuma execução em andamento encontrada.")
+        return
+
+    # Cancela execuções anteriores
+    for run in runs:
         rid = run.get("id")
-        # cancela todas exceto a atual
         if str(rid) != run_id:
             cancel_url = f"https://api.github.com/repos/{github_repo}/actions/runs/{rid}/cancel"
-            cancel_resp = requests.post(cancel_url, headers=headers)
-            if cancel_resp.status_code == 202:
-                print(f"✅ Run antiga cancelada: {rid}")
-            else:
-                print(f"⚠️ Falha ao cancelar run {rid}: {cancel_resp.status_code}")
+            try:
+                cancel_resp = requests.post(cancel_url, headers=headers)
+                if cancel_resp.status_code == 202:
+                    logger.info(f"✅ Run antiga cancelada: {rid}")
+                else:
+                    logger.warning(f"⚠️ Falha ao cancelar run {rid}: {cancel_resp.status_code}")
+            except requests.RequestException as e:
+                logger.error(f"❌ Erro ao cancelar run {rid}: {e}")
 
 # chama antes de inicializar o bot
 cancel_previous_github_runs()
@@ -100,21 +117,43 @@ def randomuser():
     
     return "fudeu nego"  # Retorno caso não haja membros válidos
 
-async def safe_request(coroutine_func, *args, **kwargs):
-    for tentativa in range(3):
+# Configuração do logger
+logger = logging.getLogger("discord_bot")
+logger.setLevel(logging.INFO)
+
+async def safe_request(coroutine_func, *args, max_retries=3, **kwargs):
+    """
+    Executa uma coroutine com tentativas seguras em caso de falhas.
+    
+    Args:
+        coroutine_func: A coroutine a ser executada.
+        *args: Argumentos posicionais para a coroutine.
+        max_retries: Número máximo de tentativas (padrão: 3).
+        **kwargs: Argumentos nomeados para a coroutine.
+    
+    Returns:
+        O resultado da coroutine, se bem-sucedido.
+    
+    Raises:
+        Exception: Repassa a exceção após exceder o número de tentativas.
+    """
+    for tentativa in range(1, max_retries + 1):
         try:
             return await coroutine_func(*args, **kwargs)
         except discord.HTTPException as e:
-            if e.status == 429:
+            if e.status == 429:  # Rate limit
                 retry_after = getattr(e, "retry_after", 10)
-                print(f"[Rate Limit] Esperando {retry_after:.1f}s...")
+                logger.warning(f"[Rate Limit] Tentativa {tentativa}/{max_retries}: Esperando {retry_after:.1f}s...")
                 await asyncio.sleep(retry_after)
             else:
+                logger.error(f"[HTTPException] Tentativa {tentativa}/{max_retries}: {e}")
                 raise
         except Exception as e:
-            print(f"[Erro] {e}")
-            await asyncio.sleep(5)
-
+            logger.error(f"[Erro] Tentativa {tentativa}/{max_retries}: {e}")
+            if tentativa < max_retries:
+                await asyncio.sleep(5)
+            else:
+                raise
 # Database System
 _cached_data = None  # Cache em memória
 _cached_sha = None   # SHA do arquivo no GitHub
@@ -189,11 +228,19 @@ dicionario = carregar_dicionario()
 def obter_palavra_do_dia():
     data_atual = datetime.now(timezone.utc).strftime("%m/%d/%y")
     data = get_file_content()
+
+    # Verifica se a palavra do dia já foi definida para a data atual
     if "palavra_do_dia" in data and data["palavra_do_dia"].get("dia") == data_atual:
         return data["palavra_do_dia"]["palavra"]
-    
+
+    # Escolhe uma nova palavra e atualiza apenas a entrada correspondente
     nova_palavra = random.choice(dicionario)
-    data["palavra_do_dia"] = {"palavra": nova_palavra, "dia": data_atual}
+    if "palavra_do_dia" not in data:
+        data["palavra_do_dia"] = {}
+    data["palavra_do_dia"]["palavra"] = nova_palavra
+    data["palavra_do_dia"]["dia"] = data_atual
+
+    # Atualiza o banco de dados
     update_file_content(data)
     return nova_palavra
 
@@ -211,10 +258,18 @@ async def castigar_automatico(member: discord.Member, tempo: int):
 # Evento de quando o bot estiver pronto
 @bot.event
 async def on_ready():
-
     get_file_content()
 
     await asyncio.sleep(3)
+
+    print(f'Bot conectado como {bot.user}')
+    for guild in bot.guilds:
+        try:
+            print(f"Sincronizando comandos para o servidor: {guild.name}")
+            await bot.tree.sync(guild=guild)
+            print(f"✅ Comandos sincronizados com sucesso para o servidor: {guild.name}")
+        except Exception as e:
+            print(f"❌ Falha ao sincronizar comandos no servidor {guild.name}: {e}")
 
     updatechannel = bot.get_channel(1319356880627171448)
     full_message = f"{conteudo}\n\n<@&1319355628195549247>"
@@ -239,17 +294,6 @@ async def on_ready():
             await updatechannel.send(chunk)
         print("✅ Changelog atualizado no canal.")
 
-
-    #bot.loop.create_task(check_and_resend_loop())
-
-    print(f'Bot conectado como {bot.user}')
-    for guild in bot.guilds:
-        try:
-            print(f"Sincronizando comandos para o servidor: {guild.name}")
-            await bot.tree.sync(guild=guild)
-            print(f"✅ Comandos sincronizados com sucesso para o servidor: {guild.name}")
-        except Exception as e:
-            print(f"❌ Falha ao sincronizar comandos no servidor {guild.name}: {e}")
 
     activity = discord.Activity(
         type=discord.ActivityType.playing,
@@ -1224,6 +1268,101 @@ async def lapide(interaction: discord.Interaction, usuario: discord.Member = Non
 
     except Exception as e:
         await interaction.followup.send(f"❌ Erro ao gerar a lápide: {e}", ephemeral=True)
+
+@bot.tree.command(name="batalha", description="Desafie outro jogador ou o bot para uma batalha!")
+@app_commands.describe(
+    oponente="Oponente para a batalha (deixe vazio para lutar contra o bot)"
+)
+async def batalha(interaction: discord.Interaction, oponente: discord.Member = None):
+    # Atributos iniciais
+    jogador1 = {
+        "nome": interaction.user.display_name,
+        "vida": 100,
+        "ataque": 20,
+        "defesa": 10
+    }
+
+    jogador2 = {
+        "nome": oponente.display_name if oponente else "Bot",
+        "vida": 100,
+        "ataque": 15 if oponente else 25,
+        "defesa": 8 if oponente else 12
+    }
+
+    # Mensagem inicial
+    await interaction.response.send_message(
+        f"⚔️ **Batalha Iniciada!**\n"
+        f"**{jogador1['nome']}** vs **{jogador2['nome']}**\n"
+        f"🎮 Escolha seu ataque reagindo abaixo!"
+    )
+
+    # Ataques disponíveis
+    ataques = {
+        "⚔️": {"nome": "Ataque Básico", "dano": 15},
+        "🛡️": {"nome": "Defesa", "dano": 0},
+        "❤️": {"nome": "Cura", "dano": -10}
+    }
+
+    # Envia as reações para os ataques
+    msg = await interaction.original_response()
+    for emoji in ataques.keys():
+        await msg.add_reaction(emoji)
+
+    # Função para processar turnos
+    def calcular_dano(atacante, defensor, ataque):
+        if ataque["nome"] == "Defesa":
+            defensor["defesa"] += 5
+            return f"🛡️ **{atacante['nome']}** aumentou sua defesa!"
+        elif ataque["nome"] == "Cura":
+            atacante["vida"] = min(100, atacante["vida"] - ataque["dano"])
+            return f"❤️ **{atacante['nome']}** se curou em {-ataque['dano']} pontos de vida!"
+        else:
+            dano = max(0, ataque["dano"] - defensor["defesa"])
+            defensor["vida"] -= dano
+            return f"⚔️ **{atacante['nome']}** causou {dano} de dano em **{defensor['nome']}**!"
+
+    # Loop de turnos
+    turno = 0
+    while jogador1["vida"] > 0 and jogador2["vida"] > 0:
+        atacante = jogador1 if turno % 2 == 0 else jogador2
+        defensor = jogador2 if turno % 2 == 0 else jogador1
+
+        # Espera a reação do jogador
+        def check(reaction, user):
+            return (
+                reaction.message.id == msg.id
+                and str(reaction.emoji) in ataques
+                and user.id == (atacante["id"] if atacante == jogador1 else interaction.user.id)
+            )
+
+        try:
+            reaction, user = await bot.wait_for("reaction_add", timeout=30.0, check=check)
+        except asyncio.TimeoutError:
+            await interaction.followup.send(f"⏳ **{atacante['nome']}** demorou demais! Turno perdido.")
+            turno += 1
+            continue
+
+        # Processa o ataque
+        ataque = ataques[str(reaction.emoji)]
+        resultado = calcular_dano(atacante, defensor, ataque)
+
+        # Atualiza a mensagem
+        await msg.edit(
+            content=(
+                f"⚔️ **Batalha em Andamento!**\n"
+                f"**{jogador1['nome']}**: {jogador1['vida']} ❤️\n"
+                f"**{jogador2['nome']}**: {jogador2['vida']} ❤️\n\n"
+                f"{resultado}"
+            )
+        )
+
+        # Verifica se alguém venceu
+        if jogador1["vida"] <= 0 or jogador2["vida"] <= 0:
+            vencedor = jogador1 if jogador1["vida"] > 0 else jogador2
+            await msg.edit(content=f"🏆 **{vencedor['nome']} venceu a batalha!**")
+            break
+
+        turno += 1
 
 # Inicia o bot
 bot.run(DISCORDTOKEN)
