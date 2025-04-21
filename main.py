@@ -19,6 +19,7 @@ from PIL import Image, ImageEnhance, ImageDraw, ImageFont, ImageChops
 from deep_translator import GoogleTranslator
 import unidecode
 import logging
+import pyfiglet
 
 # Instâncias iniciais
 translate = GoogleTranslator
@@ -1268,6 +1269,36 @@ async def lapide(interaction: discord.Interaction, usuario: discord.Member = Non
 
     except Exception as e:
         await interaction.followup.send(f"❌ Erro ao gerar a lápide: {e}", ephemeral=True)
+
+# Lista de fontes famosas e melhores
+FONTES_DISPONIVEIS = [
+    "5lineoblique", "standard", "slant", "3-d", "alphabet", "doh", "isometric1", "block", "bubble", "digital"
+]
+
+@bot.tree.command(name="ascii", description="Gera uma arte ASCII com o texto e fonte escolhidos.")
+@app_commands.describe(
+    texto="Texto para converter em arte ASCII",
+    fonte="Fonte para a arte ASCII (opcional, padrão: standard)"
+)
+@app_commands.choices(
+    fonte=[app_commands.Choice(name=fonte, value=fonte) for fonte in FONTES_DISPONIVEIS]
+)
+async def ascii(interaction: discord.Interaction, texto: str, fonte: app_commands.Choice[str] = None):
+    try:
+        # Define a fonte padrão se nenhuma for escolhida
+        fonte_escolhida = fonte.value if fonte else "standard"
+
+        # Gera a arte ASCII
+        arte = pyfiglet.figlet_format(texto, font=fonte_escolhida)
+        if len(arte) > 2000:  # Limite de caracteres do Discord
+            return await interaction.response.send_message(
+                "❌ O resultado é muito grande para ser enviado no Discord!",
+                ephemeral=True
+            )
+
+        await interaction.response.send_message(f"```\n{arte}\n```")
+    except Exception as e:
+        await interaction.response.send_message(f"❌ Erro ao gerar a arte ASCII: {e}", ephemeral=True)
 
 # Inicia o bot
 bot.run(DISCORDTOKEN)
