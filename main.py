@@ -273,7 +273,8 @@ async def on_ready():
             print(f"❌ Falha ao sincronizar comandos no servidor {guild.name}: {e}")
 
     updatechannel = bot.get_channel(1319356880627171448)
-    full_message = f"{conteudo}\n\n<@&1319355628195549247>"
+    mention_message = "<@&1319355628195549247>"
+    full_message = f"{conteudo}"
     message_chunks = [full_message[i:i+2000] for i in range(0, len(full_message), 2000)]
 
     # Pega todas as mensagens do canal, mais antigas primeiro
@@ -282,10 +283,10 @@ async def on_ready():
         existing_messages.append(msg)
 
     # Compara o conteúdo atual com as mensagens existentes
-    is_same = len(existing_messages) == len(message_chunks) and all(
+    is_same = len(existing_messages) == len(message_chunks) + 1 and all(
         existing_messages[i].content.strip() == message_chunks[i].strip()
         for i in range(len(message_chunks))
-    )
+    ) and existing_messages[-1].content.strip() == mention_message.strip()
 
     if is_same:
         print("✅ Changelog já está no canal, nenhuma mensagem enviada.")
@@ -293,6 +294,7 @@ async def on_ready():
         await updatechannel.purge()
         for chunk in message_chunks:
             await updatechannel.send(chunk)
+        await updatechannel.send(mention_message)
         print("✅ Changelog atualizado no canal.")
 
 
