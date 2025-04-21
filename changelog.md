@@ -283,7 +283,7 @@
 <!-- prettier-ignore -->
 - - - - - - - - - -
 
-## [1.7.1] - 2025-04-21
+## [1.7.1v2] - 2025-04-21
 
 **Atualização rápida para otimizar o bot e resolver problemas que estavam causando desafios significativos para o desenvolvedor.**
 
