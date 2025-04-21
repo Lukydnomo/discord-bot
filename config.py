@@ -11,4 +11,4 @@ json_file_path = "database.json"
 NOME_ORIGINAL = "FranBOT"
 CAMINHO_AVATAR_ORIGINAL = "assets/images/FranBOT-Logo.png"
 MAX_DICE_GROUP = 100
-MAX_FACES = 1000
+MAX_FACES = 10000
