@@ -6,7 +6,7 @@ import json
 import random
 import asyncio
 from datetime import datetime, timezone, timedelta
-from base64 import b64decode, b64encode
+from base64 import b64decode, b64encode, urlsafe_b64decode, urlsafe_b64encode
 
 # Discord
 import discord
@@ -816,6 +816,43 @@ async def shuffle(interaction: discord.Interaction):
     queues[guild_id] = [tocando_agora] + restante
 
     await interaction.response.send_message("🔀 Fila embaralhada com sucesso!")
+@bot.tree.command(name="salvar_fila", description="Salva a fila atual em um ID único")
+async def salvar_fila(interaction: discord.Interaction):
+    guild_id = interaction.guild.id
+    queue = queues.get(guild_id, [])
+
+    if not queue:
+        return await interaction.response.send_message("❌ A fila está vazia, nada para salvar!", ephemeral=True)
+
+    # Serializa a fila em JSON e codifica em Base64 para gerar um ID único
+    fila_serializada = json.dumps(queue)
+    fila_codificada = urlsafe_b64encode(fila_serializada.encode()).decode()
+
+    # Salva a fila no banco de dados usando o ID gerado
+    await save(f"fila_{fila_codificada}", queue)
+
+    await interaction.response.send_message(f"✅ Fila salva com sucesso! Use este ID para carregar: `{fila_codificada}`", ephemeral=True)
+@bot.tree.command(name="carregar_fila", description="Carrega uma fila salva usando um ID")
+@app_commands.describe(fila_id="ID da fila a ser carregada (opcional)")
+async def carregar_fila(interaction: discord.Interaction, fila_id: str):
+    try:
+        # Decodifica o ID e carrega a fila do banco de dados
+        fila_decodificada = urlsafe_b64decode(fila_id.encode()).decode()
+        fila = load(f"fila_{fila_decodificada}")
+
+        if not fila:
+            return await interaction.response.send_message("❌ Nenhuma fila encontrada com este ID!", ephemeral=True)
+
+        guild_id = interaction.guild.id
+        if guild_id not in queues:
+            queues[guild_id] = []
+
+        # Adiciona os itens carregados à fila atual
+        queues[guild_id].extend(fila)
+
+        await interaction.response.send_message(f"✅ Fila carregada com sucesso! `{len(fila)}` itens adicionados à fila atual.")
+    except Exception as e:
+        await interaction.response.send_message(f"❌ Erro ao carregar a fila: {e}", ephemeral=True)
 
 @bot.tree.command(name="roletarussa", description="Vida ou morte.")
 async def roletarussa(interaction: discord.Interaction):
