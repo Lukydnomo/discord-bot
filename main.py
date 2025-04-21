@@ -1161,7 +1161,7 @@ POPULAR_LANGUAGES = {
 @bot.tree.command(name="hypertranslate", description="Traduz um texto por várias línguas aleatórias e retorna o resultado final.")
 @app_commands.describe(
     texto="Texto original para traduzir",
-    vezes=app_commands.Range[int, 1, 50]("Quantidade de vezes a traduzir (máximo 50)"),
+    vezes="Quantidade de vezes a traduzir (máximo 50)",
     idioma_entrada="Idioma original do texto (ou auto para detectar)",
     idioma_saida="Idioma final do texto traduzido"
 )
@@ -1178,7 +1178,7 @@ POPULAR_LANGUAGES = {
 async def hypertranslate(
     interaction: discord.Interaction,
     texto: str,
-    vezes: int = 10,
+    vezes: app_commands.Range[int, 1, 50] = 10,
     idioma_entrada: app_commands.Choice[str] = None,
     idioma_saida: app_commands.Choice[str] = None
 ):
