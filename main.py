@@ -23,6 +23,7 @@ import pyfiglet
 
 # Instâncias iniciais
 translate = GoogleTranslator
+cached_supported_languages = None  # Cache for supported languages
 
 # Configuração do bot
 intents = discord.Intents.default()
@@ -109,7 +110,7 @@ conteudo_filtrado = [
 conteudo = "".join(conteudo_filtrado)
 
 # Escolhe usuário aleatório
-def randomuser():
+async def randomuser():
     for guild in bot.guilds:  # Itera sobre os servidores onde o bot está
         members = [member for member in guild.members if not member.bot]  # Filtra membros não-bots
         
@@ -938,7 +939,7 @@ async def missao(interaction: discord.Interaction):
     "Manda um áudio gemendo no grupo da família e depois responde: 'Foi sem querer, meu cachorro pisou no microfone.'",
     "Chama um desconhecido no Instagram e conta uma história totalmente falsa sobre como vocês já foram melhores amigos na infância.",
     "No meio de uma call, começa a discursar como se fosse um coach ultra motivacional sobre o 'poder da mamada' para o sucesso.",
-    f"Manda uma mensagem pro {randomuser()} dizendo: 'Sonhei que a gente se pegava na força do ódio, mas no final gostei. O que isso significa?' e espera a resposta.",
+    f"Manda uma mensagem pro {await randomuser()} dizendo: 'Sonhei que a gente se pegava na força do ódio, mas no final gostei. O que isso significa?' e espera a resposta.",
     f"Chega no {randomuser()} e fala bem sério: 'Eu vendi tua cueca/calcinha usada na deep web por R$350, foi mal.' e vê a reação.",
     f"Faz um gemido bem convincente no ouvido do {randomuser()} e diz: 'Desculpa, não consegui me segurar.'",
     f"Liga pro {randomuser()} e começa a respirar fundo no telefone, depois solta: 'Tu tem ideia do que tu fez comigo naquela noite?' e desliga.",
@@ -1160,7 +1161,7 @@ POPULAR_LANGUAGES = {
 @bot.tree.command(name="hypertranslate", description="Traduz um texto por várias línguas aleatórias e retorna o resultado final.")
 @app_commands.describe(
     texto="Texto original para traduzir",
-    vezes="Quantidade de vezes a traduzir (máximo 50)",
+    vezes=app_commands.Range[int, 1, 50]("Quantidade de vezes a traduzir (máximo 50)"),
     idioma_entrada="Idioma original do texto (ou auto para detectar)",
     idioma_saida="Idioma final do texto traduzido"
 )
@@ -1191,7 +1192,10 @@ async def hypertranslate(
     # Se o idioma de saída não for informado, retorna para o idioma de entrada
     saida = idioma_saida.value if idioma_saida else entrada
 
-    langs = GoogleTranslator().get_supported_languages(as_dict=True)
+    global cached_supported_languages
+    if cached_supported_languages is None:
+        cached_supported_languages = GoogleTranslator().get_supported_languages(as_dict=True)
+    langs = cached_supported_languages
     lang_codes = list(langs.values())
 
     atual = texto
@@ -1218,7 +1222,10 @@ async def hypertranslate(
         final = GoogleTranslator(source="auto", target=saida).translate(atual)
 
         await interaction.followup.send(
-            f"🌐 **Tradução de {texto} iniciada!**\n"
+            f"🌐 **Tradução concluída!**\n"
+            f"🔤 **Texto original:** {texto}\n"
+            f"🔁 **Texto traduzido:** {final}\n"
+            f"📊 **Rodadas:** {vezes}"
             f"**Idioma de entrada:** `{entrada}`\n"
             f"**Idioma final:** `{saida}`\n"
             f"**Rodadas:** {vezes}\n"
@@ -1234,16 +1241,23 @@ async def hypertranslate(
     texto="(Opcional) Texto a ser escrito na lápide"
 )
 async def lapide(interaction: discord.Interaction, usuario: discord.Member = None, texto: str = None):
+    nome_final = texto if texto else (usuario.display_name if usuario else "Desconhecido")
     await interaction.response.defer()
 
     try:
         # Decide o que será escrito
-        nome_final = texto or (usuario.display_name if usuario else interaction.user.display_name)
-        nome_final = nome_final.upper()
+        # Nome final já definido acima
+        # Caminhos
 
         # Caminhos
         caminho_imagem = "assets/images/grave.png"
         caminho_fonte = "assets/fonts/PTSerif-Bold.ttf"
+
+        # Verifica se os arquivos necessários existem
+        if not os.path.exists(caminho_imagem):
+            return await interaction.followup.send("❌ O arquivo de imagem `grave.png` não foi encontrado!", ephemeral=True)
+        if not os.path.exists(caminho_fonte):
+            return await interaction.followup.send("❌ O arquivo de fonte `PTSerif-Bold.ttf` não foi encontrado!", ephemeral=True)
 
         # 1) Carrega imagem base
         img = Image.open(caminho_imagem).convert("RGBA")
@@ -1304,6 +1318,8 @@ async def ascii(interaction: discord.Interaction, texto: str, fonte: app_command
         fonte_escolhida = fonte.value if fonte else "standard"
 
         # Gera a arte ASCII
+        if fonte_escolhida not in FONTES_DISPONIVEIS:
+            fonte_escolhida = "standard"  # Fallback to default font if invalid
         arte = pyfiglet.figlet_format(texto, font=fonte_escolhida, width=50)
         if len(arte) > 2000:  # Limite de caracteres do Discord
             return await interaction.response.send_message(
@@ -1314,6 +1330,9 @@ async def ascii(interaction: discord.Interaction, texto: str, fonte: app_command
         await interaction.response.send_message(f"```\n{arte}\n```")
     except Exception as e:
         await interaction.response.send_message(f"❌ Erro ao gerar a arte ASCII: {e}", ephemeral=True)
-
+DISCORDTOKEN = os.getenv("DISCORDTOKEN")
+if not DISCORDTOKEN:
+    raise ValueError("❌ DISCORDTOKEN is not set. Please define it as an environment variable.")
+bot.run(DISCORDTOKEN)
 # Inicia o bot
 bot.run(DISCORDTOKEN)
