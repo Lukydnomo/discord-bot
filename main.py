@@ -164,26 +164,6 @@ def update_file_content(data):
     else:
         print(f"❌ Erro ao atualizar o banco de dados: {response.status_code} {response.text}")
 
-async def stop_github_actions():
-    run_id = os.getenv("RUN_ID")
-
-    if not all([github_repo, run_id, GITHUBTOKEN]):
-        print("Erro: variável de ambiente faltando.")
-        return
-
-    url = f"https://api.github.com/repos/{github_repo}/actions/runs/{run_id}/cancel"
-    headers = {
-        "Authorization": f"token {GITHUBTOKEN}",
-        "Accept": "application/vnd.github+json"
-    }
-
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, headers=headers) as response:
-            if response.status == 202:
-                print("Execução cancelada com sucesso.")
-            else:
-                print(f"Erro ao cancelar: {response.status}, {await response.text()}")
-
 async def save(name, value):
     data = get_file_content()
     if name in data:
@@ -194,12 +174,6 @@ async def save(name, value):
     else:
         data[name] = value
     update_file_content(data)
-
-    # Aguardar 35 segundos antes de parar o bot
-    await asyncio.sleep(35)
-    
-    # Finalizar a instância do bot no GitHub Actions
-    await stop_github_actions()
 
 def load(name):
     data = get_file_content()
