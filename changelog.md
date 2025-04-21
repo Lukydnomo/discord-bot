@@ -279,3 +279,16 @@
 ### 📝 Observação
 
 - O código está mais organizado e otimizado do que nunca, com uma base sólida para futuras melhorias. Além disso, mudanças no ambiente de desenvolvimento do criador prometem acelerar a produção de atualizações, possibilitando um ritmo mais constante de novidades.
+
+<!-- prettier-ignore -->
+- - - - - - - - - -
+
+## [1.7.1] - 2025-04-21
+
+**Atualização rápida para otimizar o bot e resolver problemas que estavam causando desafios significativos para o desenvolvedor.**
+
+## ⚙️ Alterado
+
+- Foi decidido focar na otimização do bot devido à demora na inicialização.
+- As funções foram separadas em arquivos distintos.
+- Os arquivos foram reorganizados para melhorar a leitura e o funcionamento.
