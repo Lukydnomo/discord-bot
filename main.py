@@ -116,7 +116,7 @@ def randomuser():
         if members:
             return random.choice(members)  # Retorna um membro aleatório
     
-    return "fudeu nego"  # Retorno caso não haja membros válidos
+    return "No valid members found"  # Retorno caso não haja membros válidos
 
 # Configuração do logger
 logger = logging.getLogger("discord_bot")
@@ -249,6 +249,13 @@ palavra_do_dia = obter_palavra_do_dia()
 
 # Castigo
 async def castigar_automatico(member: discord.Member, tempo: int):
+    """
+    Temporarily mutes a Discord member for a specified duration.
+
+    Args:
+        member (discord.Member): The member to be muted.
+        tempo (int): Duration of the mute in seconds.
+    """
     try:
         duration = timedelta(seconds=tempo)
         until_time = datetime.now(timezone.utc) + duration
@@ -1198,7 +1205,13 @@ async def hypertranslate(
                 destino = random.choice(lang_codes)
             usado.append(destino)
 
-            atual = GoogleTranslator(source="auto", target=destino).translate(atual)
+            try:
+                atual = GoogleTranslator(source="auto", target=destino).translate(atual)
+                if not atual:  # Handle empty or unexpected results
+                    raise ValueError(f"Tradução falhou para o idioma {destino}.")
+            except Exception as e:
+                await interaction.followup.send(f"❌ Erro ao traduzir para o idioma {destino}: {e}", ephemeral=True)
+                return
             await asyncio.sleep(0.3)
 
         # Traduz de volta para o idioma de saída escolhido
