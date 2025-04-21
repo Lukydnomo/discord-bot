@@ -1289,7 +1289,7 @@ async def ascii(interaction: discord.Interaction, texto: str, fonte: app_command
         fonte_escolhida = fonte.value if fonte else "standard"
 
         # Gera a arte ASCII
-        arte = pyfiglet.figlet_format(texto, font=fonte_escolhida)
+        arte = pyfiglet.figlet_format(texto, font=fonte_escolhida, width=50)
         if len(arte) > 2000:  # Limite de caracteres do Discord
             return await interaction.response.send_message(
                 "❌ O resultado é muito grande para ser enviado no Discord!",

@@ -4,11 +4,11 @@
 
 ### Added
 
-- Comando pra avisar os players q a sesião iniciou
+- Comando para avisar os jogadores que a sessão iniciou
 
 ### Testando
 
-- Testando o bglh pra mandar os update do bot automáticamente
+- Testando a funcionalidade para enviar as atualizações do bot automaticamente
 
 <!-- prettier-ignore -->
 - - - - - - - - - -
@@ -17,7 +17,7 @@
 
 ### Fixed
 
-- Bot marcando usuário inexisteste nos updates
+- Bot marcando usuário inexistente nos updates
 - Pouco espaço pra marcação do cargo
 
 <!-- prettier-ignore -->
@@ -45,7 +45,7 @@
 
 ### Changed
 
-- Foi mudado como o aviso que a sessão iria iniciar era interpretado, agr ele escolhe uma entre 30 opções pra manter a fluídes do bglh
+- Foi mudado como o aviso que a sessão iria iniciar era interpretado. Agora ele escolhe uma entre 30 opções para manter a fluidez da funcionalidade
 
 <!-- prettier-ignore -->
 - - - - - - - - - -
@@ -72,7 +72,7 @@
 
 ### Changed
 
-- (Admin Only) Foi mudado a dinâmica de como funciona o comando de iniciar e terminar sesião, fundindo a mecânica de abri e fechar a sesião em um unico comando
+- (Admin Only) Foi mudado a dinâmica de como funciona o comando de iniciar e terminar sessão, fundindo a mecânica de abri e fechar a sessão em um unico comando
 
 <!-- prettier-ignore -->
 - - - - - - - - - -
@@ -136,7 +136,7 @@
 
 ### Added
 
-- Jokenpô (kkkkkkkk)
+- Jokenpô (jogo de pedra, papel e tesoura)
 
 ### Removed
 
@@ -223,7 +223,7 @@
 
 ### ❌ Removido
 
-- **Aviso automático de jogo do Botafogo** – A API era um cocôzão e cobrar **R$300 por mês** pra zoar a Bilau? Dispenso. 💸💩
+- **Aviso automático de jogo do Botafogo** – A API era ineficiente e custava **R$300 por mês**, o que não justificava o uso.
 
 <!-- prettier-ignore -->
 - - - - - - - - - -
@@ -251,7 +251,7 @@
 
 ## [1.7.0] - 2025-04-17
 
-**UPDATE BOSTA KKKKKKK**
+**Minor Update**
 
 ### 🆕 Adicionado
 
@@ -263,4 +263,19 @@
 
 ### 📝 Observação
 
-- Luky não está trabalhando muito no bot por um motivo bem simples, os seus esetudos em python estão sendo aperfeiçoados justamente pra por em prática no bot, e isso vai ajudar a melhorar a performance do bot com o tempo.
+- Luky não está trabalhando muito no bot por um motivo bem simples, os seus estudos em python estão sendo aperfeiçoados justamente pra por em prática no bot, e isso vai ajudar a melhorar a performance do bot com o tempo.
+
+<!-- prettier-ignore -->
+- - - - - - - - - -
+
+## [1.7.1] - 2025-04-21
+
+**Another Minor Update**
+
+### 🆕 Adicionado
+
+- **`/ascii`** - Gera uma arte ASCII personalizada podendo escolher dentre algumas fontes.
+
+### 📝 Observação
+
+- O código está mais organizado e otimizado do que nunca, com uma base sólida para futuras melhorias. Além disso, mudanças no ambiente de desenvolvimento do criador prometem acelerar a produção de atualizações, possibilitando um ritmo mais constante de novidades.
