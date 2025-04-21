@@ -824,33 +824,42 @@ async def salvar_fila(interaction: discord.Interaction):
     if not queue:
         return await interaction.response.send_message("❌ A fila está vazia, nada para salvar!", ephemeral=True)
 
-    # Serializa a fila em JSON e codifica em Base64 para gerar um ID único
-    fila_serializada = json.dumps(queue)
+    # Gera um ID único baseado nos nomes dos arquivos na fila
+    nomes_arquivos = [os.path.basename(track) for track in queue]
+    fila_serializada = ",".join(nomes_arquivos)
     fila_codificada = urlsafe_b64encode(fila_serializada.encode()).decode()
-
-    # Salva a fila no banco de dados usando o ID gerado
-    await save(f"fila_{fila_codificada}", queue)
 
     await interaction.response.send_message(f"✅ Fila salva com sucesso! Use este ID para carregar: `{fila_codificada}`", ephemeral=True)
 @bot.tree.command(name="carregar_fila", description="Carrega uma fila salva usando um ID")
-@app_commands.describe(fila_id="ID da fila a ser carregada (opcional)")
+@app_commands.describe(fila_id="ID da fila a ser carregada")
 async def carregar_fila(interaction: discord.Interaction, fila_id: str):
     try:
-        # Decodifica o ID e carrega a fila do banco de dados
+        # Decodifica o ID para obter os nomes dos arquivos
         fila_decodificada = urlsafe_b64decode(fila_id.encode()).decode()
-        fila = load(f"fila_{fila_decodificada}")
-
-        if not fila:
-            return await interaction.response.send_message("❌ Nenhuma fila encontrada com este ID!", ephemeral=True)
+        nomes_arquivos = fila_decodificada.split(",")
 
         guild_id = interaction.guild.id
         if guild_id not in queues:
             queues[guild_id] = []
 
-        # Adiciona os itens carregados à fila atual
-        queues[guild_id].extend(fila)
+        encontrados = []
+        for nome in nomes_arquivos:
+            audio_file = buscar_arquivo(nome)
+            if audio_file:
+                queues[guild_id].append(audio_file)
+                encontrados.append(nome)
+            else:
+                await interaction.channel.send(f"⚠️ Arquivo `{nome}` não encontrado!")
 
-        await interaction.response.send_message(f"✅ Fila carregada com sucesso! `{len(fila)}` itens adicionados à fila atual.")
+        if not encontrados:
+            return await interaction.response.send_message("❌ Nenhum dos áudios foi encontrado!", ephemeral=True)
+
+        vc = voice_clients.get(guild_id)
+        if not vc or not vc.is_playing():
+            play_next(guild_id)
+            await interaction.response.send_message(f"🎵 Fila carregada e tocando `{encontrados[0]}`!")
+        else:
+            await interaction.response.send_message(f"🎶 Fila carregada! Adicionado(s) à fila: {', '.join(encontrados)}")
     except Exception as e:
         await interaction.response.send_message(f"❌ Erro ao carregar a fila: {e}", ephemeral=True)
 
