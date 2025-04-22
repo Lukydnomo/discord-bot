@@ -51,21 +51,23 @@ async function downloadYouTubeAudio(url, videoId) {
         fs.mkdirSync(path.join(__dirname, 'downloads'));
     }
 
-    return new Promise((resolve, reject) => {
-        ytdl(url, {
-            filter: 'audioonly',
-            quality: 'highestaudio',
-            requestOptions: {
-                headers: {
-                    cookie: 'CONSENT=YES+1',
-                    'x-youtube-client-name': '1',
-                    'x-youtube-client-version': '2.20200101'
-                }
+    // Opções do ytdl com configurações atualizadas
+    const ytdlOptions = {
+        filter: 'audioonly',
+        quality: 'highestaudio',
+        requestOptions: {
+            headers: {
+                // Removemos o cookie header problemático
+                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36'
             }
-        })
-        .pipe(fs.createWriteStream(outputPath))
-        .on('finish', () => resolve(outputPath))
-        .on('error', reject);
+        }
+    };
+
+    return new Promise((resolve, reject) => {
+        ytdl(url, ytdlOptions)
+            .pipe(fs.createWriteStream(outputPath))
+            .on('finish', () => resolve(outputPath))
+            .on('error', reject);
     });
 }
 
@@ -107,12 +109,13 @@ app.post('/youtube/search', async (req, res) => {
     try {
         let videoUrl = query;
         if (ytdl.validateURL(query)) {
+            // Removemos os parâmetros extras da URL
+            videoUrl = query.split('&')[0];
+            
             const info = await ytdl.getBasicInfo(videoUrl, {
                 requestOptions: {
                     headers: {
-                        cookie: 'CONSENT=YES+1',
-                        'x-youtube-client-name': '1',
-                        'x-youtube-client-version': '2.20200101'
+                        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36'
                     }
                 }
             });
