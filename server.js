@@ -1,6 +1,8 @@
 const express = require('express');
 const ytdl = require('ytdl-core');
-const ytSearch = require('yt-search'); // Biblioteca para buscar vídeos no YouTube
+const ytSearch = require('yt-search');
+const fs = require('fs');
+const path = require('path');
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -40,6 +42,26 @@ function getVideoId(url) {
     }
 }
 
+// Função para baixar o áudio do YouTube
+async function downloadYouTubeAudio(url, videoId) {
+    const outputPath = path.join(__dirname, 'downloads', `${videoId}.mp3`);
+    
+    // Cria o diretório se não existir
+    if (!fs.existsSync(path.join(__dirname, 'downloads'))) {
+        fs.mkdirSync(path.join(__dirname, 'downloads'));
+    }
+
+    return new Promise((resolve, reject) => {
+        ytdl(url, {
+            filter: 'audioonly',
+            quality: 'highestaudio'
+        })
+        .pipe(fs.createWriteStream(outputPath))
+        .on('finish', () => resolve(outputPath))
+        .on('error', reject);
+    });
+}
+
 // Endpoint para obter informações de um vídeo do YouTube
 app.post('/youtube/info', async (req, res) => {
     const { url } = req.body;
@@ -67,7 +89,7 @@ app.post('/youtube/info', async (req, res) => {
     }
 });
 
-// Endpoint para buscar vídeos ou playlists no YouTube
+// Endpoint para buscar e baixar vídeos do YouTube
 app.post('/youtube/search', async (req, res) => {
     const { query } = req.body;
 
@@ -78,62 +100,40 @@ app.post('/youtube/search', async (req, res) => {
     try {
         let videoUrl = query;
         if (ytdl.validateURL(query)) {
-            // Limpa a URL removendo parâmetros extras
-            videoUrl = cleanUrl(query);
-            console.log(`Processando link do YouTube: ${videoUrl}`);
+            const info = await ytdl.getBasicInfo(videoUrl);
+            const videoId = info.videoDetails.videoId;
+            
+            // Baixa o áudio
+            const audioPath = await downloadYouTubeAudio(videoUrl, videoId);
 
-            try {
-                const info = await ytdl.getBasicInfo(videoUrl, {
-                    requestOptions: {
-                        headers: {
-                            'Cookie': 'CONSENT=YES+1'
-                        }
-                    }
-                });
-
-                return res.json({
-                    type: 'video',
-                    title: info.videoDetails.title,
-                    url: info.videoDetails.video_url,
-                    duration: info.videoDetails.lengthSeconds,
-                    author: info.videoDetails.author.name,
-                });
-            } catch (error) {
-                console.log("Erro ao obter info do vídeo, tentando fallback...");
-                // Tenta buscar usando ytSearch
-                const searchResults = await ytSearch(videoUrl);
-                if (searchResults.videos && searchResults.videos.length > 0) {
-                    const firstResult = searchResults.videos[0];
-                    return res.json({
-                        type: 'video',
-                        title: firstResult.title,
-                        url: firstResult.url,
-                        duration: firstResult.duration.seconds || 0,
-                        author: firstResult.author.name,
-                    });
-                }
-                throw error;
-            }
+            return res.json({
+                type: 'video',
+                title: info.videoDetails.title,
+                filePath: audioPath,
+                duration: info.videoDetails.lengthSeconds,
+                author: info.videoDetails.author.name
+            });
         }
 
-        // Caso contrário, busca no YouTube
-        console.log(`Realizando busca no YouTube: ${query}`);
+        // Caso seja uma busca
         const searchResults = await ytSearch(query);
-        const videos = searchResults.videos.slice(0, 5);
-
-        if (videos.length === 0) {
-            return res.status(404).json({ error: 'Nenhum resultado encontrado.' });
+        const firstVideo = searchResults.videos[0];
+        if (!firstVideo) {
+            return res.status(404).json({ error: 'Nenhum vídeo encontrado.' });
         }
 
-        res.json({
-            type: 'search',
-            results: videos.map(video => ({
-                title: video.title,
-                url: video.url,
-                duration: video.duration.seconds || 0,
-                author: video.author.name,
-            })),
+        // Baixa o primeiro resultado
+        const videoId = firstVideo.videoId;
+        const audioPath = await downloadYouTubeAudio(firstVideo.url, videoId);
+
+        return res.json({
+            type: 'video',
+            title: firstVideo.title,
+            filePath: audioPath,
+            duration: firstVideo.duration.seconds,
+            author: firstVideo.author.name
         });
+
     } catch (error) {
         console.error('Erro ao buscar vídeos no YouTube:', error);
         res.status(500).json({ error: 'Erro ao buscar vídeos no YouTube.', details: error.message });
