@@ -446,9 +446,12 @@ async def tocar(interaction: discord.Interaction, arquivo: str):
     if guild_id not in queues:
         queues[guild_id] = []
 
-    # Process YouTube links or local files
-    for nome in [n.strip() for n in arquivo.split(",")]:
-        if "youtube.com" in nome or "youtu.be" in nome:
+    encontrados = []
+    nomes = [nome.strip() for nome in arquivo.split(",")]
+
+    for nome in nomes:
+        # 1) Detecta link do YouTube
+        if re.match(r'https?://(www\.)?(youtube\.com|youtu\.be)/', nome):
             try:
                 async with aiohttp.ClientSession() as session:
                     async with session.post(
@@ -468,15 +471,15 @@ async def tocar(interaction: discord.Interaction, arquivo: str):
                             "path": data["filePath"],
                             "title": data["title"]
                         })
-                        
-                        if not voice_clients[guild_id].is_playing():
-                            await interaction.followup.send(f"🎵 Tocando: {data['title']}")
-                            play_next(guild_id)
-                        else:
-                            await interaction.followup.send(f"🎶 Adicionado à fila: {data['title']}")
-            
+                        encontrados.append(f"▶️ {data.get('title', 'YouTube')}")
             except Exception as e:
                 await interaction.followup.send(f"❌ Erro ao processar link: {str(e)}", ephemeral=True)
+            continue
+
+        # 2) Continua tratando pastas locais e arquivos
+        if nome.startswith("*"):
+            pasta = nome[1:]
+            # ... seu código existente para pastas ...
         else:
             audio_file = buscar_arquivo(nome)
             if audio_file:
@@ -485,13 +488,18 @@ async def tocar(interaction: discord.Interaction, arquivo: str):
                     "path": audio_file,
                     "title": nome
                 })
-                if not voice_clients[guild_id].is_playing():
-                    await interaction.followup.send(f"🎵 Tocando: {nome}")
-                    play_next(guild_id)
-                else:
-                    await interaction.followup.send(f"🎶 Adicionado à fila: {nome}")
+                encontrados.append(nome)
             else:
-                await interaction.followup.send(f"⚠️ Arquivo `{nome}` não encontrado!", ephemeral=True)
+                await interaction.channel.send(f"⚠️ Arquivo `{nome}` não encontrado!")
+
+    if encontrados:
+        if not voice_clients[guild_id].is_playing():
+            await interaction.followup.send(f"🎵 Tocando: {encontrados[0]}")
+            play_next(guild_id)
+        else:
+            await interaction.followup.send(f"🎶 Adicionado(s) à fila: {', '.join(encontrados)}")
+    else:
+        await interaction.followup.send("❌ Nenhum áudio encontrado ou válido!", ephemeral=True)
 @bot.tree.command(name="listar", description="Lista todos os áudios")
 async def listar(interaction: discord.Interaction):
     diretorio = "assets/audios"
