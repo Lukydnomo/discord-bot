@@ -613,38 +613,10 @@ async def roletarussa(interaction: discord.Interaction):
 
 @bot.tree.command(name="missao", description="Receba uma missão")
 async def missao(interaction: discord.Interaction):
-    missoes = [
-    "No meio de uma conversa séria, olha pra alguém e diz: 'Mano, eu tava pensando aqui... Tu deixaria eu te dar uma mamada?' com a cara mais séria possível.",
-    "Sempre que alguém falar contigo por 10 minutos, responde só com gestos, olhares intensos e mordendo os lábios.",
-    "Liga pra um número aleatório da tua lista de contatos e fala 'Você sabe por que eu liguei...' e fica em silêncio esperando a reação.",
-    "Entra no chat da pessoa mais improvável e manda: 'Mano, não sei como te contar isso, mas eu sonhei que a gente se pegava. E foi bom.'",
-    "Finge que acabou de encontrar Jesus/Buda/um Alien e tenta converter um amigo do grupo de maneira fanática.",
-    "Escreve uma resenha absurda no status do WhatsApp, tipo: 'Recomendo a experiência de levar uma dedada no cu. Profundo e emocionante.'",
-    "Pede pra alguém abrir o Google na tua frente e digita: 'É normal sentir prazer em...' e deixa o autocorretor terminar.",
-    "Manda um áudio gemendo no grupo da família e depois responde: 'Foi sem querer, meu cachorro pisou no microfone.'",
-    "Chama um desconhecido no Instagram e conta uma história totalmente falsa sobre como vocês já foram melhores amigos na infância.",
-    "No meio de uma call, começa a discursar como se fosse um coach ultra motivacional sobre o 'poder da mamada' para o sucesso.",
-    f"Manda uma mensagem pro {await randomuser()} dizendo: 'Sonhei que a gente se pegava na força do ódio, mas no final gostei. O que isso significa?' e espera a resposta.",
-    f"Chega no {randomuser()} e fala bem sério: 'Eu vendi tua cueca/calcinha usada na deep web por R$350, foi mal.' e vê a reação.",
-    f"Faz um gemido bem convincente no ouvido do {randomuser()} e diz: 'Desculpa, não consegui me segurar.'",
-    f"Liga pro {randomuser()} e começa a respirar fundo no telefone, depois solta: 'Tu tem ideia do que tu fez comigo naquela noite?' e desliga.",
-    f"Manda pro {randomuser()}: 'Preciso ser honesto... Minha mãe me pegou vendo tuas fotos e perguntou se tu era meu crush.'",
-    f"Olha pro {randomuser()} no meio de um papo aleatório e diz: 'Tu já experimentou chupar um dedão do pé? Porque eu sonhei que fazia isso contigo.'",
-    f"Chega no {randomuser()} e fala: 'Preciso te contar... Eu tatuei teu nome numa área íntima, mas só te mostro se tu pedir com carinho.'",
-    f"Manda um áudio pro {randomuser()} gemendo e depois explica: 'Foi sem querer, tava testando meu novo microfone ASMR.'",
-    f"Vai no PV do {randomuser()} e manda: 'Ei... Quanto tu cobraria pra pisar em mim de coturno?' e mantém a conversa séria.",
-    f"Faz uma aposta com {randomuser()}, perde de propósito e depois fala: 'Aposta é aposta, agora tu tem que me deixar morder tua orelha.'"
-]
     await interaction.response.send_message(random.choice(missoes))
 
 @bot.tree.command(name="piada", description="Piadocas pesadonas")
 async def piada(interaction: discord.Interaction):
-    def carregar_piada():
-        with open("assets/resources/piadas.txt", "r", encoding="utf-8") as f:
-            return [linha.strip() for linha in f.readlines()]
-    
-    piadas = carregar_piada()
-
     await interaction.response.send_message(random.choice(piadas))
 
 @bot.tree.command(name="roleta", description="Escolhe uma opção aleatóriamente")

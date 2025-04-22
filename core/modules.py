@@ -101,6 +101,10 @@ def load(name):
     data = get_file_content()
     return data.get(name, None)
 # Utilitários
+def carregar_missoes():
+        with open("assets/resources/missoes.txt", "r", encoding="utf-8") as f:
+            return [linha.strip() for linha in f.readlines()] 
+missoes = carregar_missoes()
 def carregar_dicionario():
     with open("assets/resources/palavras.txt", "r", encoding="utf-8") as f:
         return [linha.strip() for linha in f.readlines()]
@@ -124,6 +128,10 @@ def obter_palavra_do_dia():
     update_file_content(data)
     return nova_palavra
 palavra_do_dia = obter_palavra_do_dia()
+def carregar_piada():
+        with open("assets/resources/piadas.txt", "r", encoding="utf-8") as f:
+            return [linha.strip() for linha in f.readlines()] 
+piadas = carregar_piada()
 def carregar_sarcasmResponses():
         with open("assets/resources/sarcasmResponses.txt", "r", encoding="utf-8") as f:
             return [linha.strip() for linha in f.readlines()]
