@@ -6,6 +6,13 @@ const port = process.env.PORT || 3000;
 
 app.use(express.json());
 
+// Função para limpar a URL removendo parâmetros extras
+function cleanUrl(url) {
+    const urlObject = new URL(url);
+    urlObject.search = ''; // Remove todos os parâmetros
+    return urlObject.toString();
+}
+
 // Endpoint para obter informações de um vídeo do YouTube
 app.post('/youtube/info', async (req, res) => {
     const { url } = req.body;
@@ -35,9 +42,12 @@ app.post('/youtube/search', async (req, res) => {
     }
 
     try {
-        // Se for um link, valida e retorna informações
+        let videoUrl = query;
         if (ytdl.validateURL(query)) {
-            const info = await ytdl.getInfo(query);
+            // Limpa a URL removendo parâmetros extras
+            videoUrl = cleanUrl(query);
+            console.log(`Processando link do YouTube: ${videoUrl}`);
+            const info = await ytdl.getInfo(videoUrl);
             return res.json({
                 type: 'video',
                 title: info.videoDetails.title,
@@ -48,6 +58,7 @@ app.post('/youtube/search', async (req, res) => {
         }
 
         // Caso contrário, busca no YouTube
+        console.log(`Realizando busca no YouTube: ${query}`);
         const searchResults = await ytSearch(query);
         const videos = searchResults.videos.slice(0, 5); // Retorna os 5 primeiros resultados
 
@@ -60,13 +71,13 @@ app.post('/youtube/search', async (req, res) => {
             results: videos.map(video => ({
                 title: video.title,
                 url: video.url,
-                duration: video.duration.seconds,
+                duration: video.duration.seconds || 0,
                 author: video.author.name,
             })),
         });
     } catch (error) {
         console.error('Erro ao buscar vídeos no YouTube:', error);
-        res.status(500).json({ error: 'Erro ao buscar vídeos no YouTube.' });
+        res.status(500).json({ error: 'Erro ao buscar vídeos no YouTube.', details: error.message });
     }
 });
 

@@ -420,10 +420,13 @@ async def tocar(interaction: discord.Interaction, arquivo: str):
             try:
                 # Envia requisição ao servidor Node.js para processar o link
                 response = requests.post("http://localhost:3000/youtube/search", json={"query": nome})
-                data = response.json()
+                if response.status_code != 200:
+                    await interaction.channel.send(f"❌ Erro ao processar o link `{nome}`: {response.status_code} - {response.text}")
+                    continue
 
-                if response.status_code != 200 or "error" in data:
-                    await interaction.channel.send(f"❌ Erro ao processar o link `{nome}`: {data.get('error', 'Erro desconhecido')}")
+                data = response.json()
+                if "error" in data:
+                    await interaction.channel.send(f"❌ Erro ao processar o link `{nome}`: {data['error']}")
                     continue
 
                 if data['type'] == 'video':

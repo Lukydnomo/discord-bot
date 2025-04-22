@@ -1,4 +1,4 @@
 express
-ytdl-core
+ytdl-core@latest
 yt-search
 axios
