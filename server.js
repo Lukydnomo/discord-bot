@@ -52,105 +52,6 @@ function cleanupDownloads() {
 // Limpa downloads antigos a cada hora
 setInterval(cleanupDownloads, 60 * 60 * 1000);
 
-async function downloadYouTubeAudio(url, videoId, maxRetries = 3) {
-  const downloadsDir = path.join(__dirname, 'downloads');
-  const outputPath = path.join(downloadsDir, `${videoId}.mp3`);
-
-  // Cria o diretório se não existir
-  if (!fs.existsSync(downloadsDir)) {
-    fs.mkdirSync(downloadsDir, { recursive: true });
-  }
-
-  // Verifica se arquivo já existe e é válido
-  if (fs.existsSync(outputPath)) {
-    try {
-      const stats = fs.statSync(outputPath);
-      if (stats.size > 0) {
-        return outputPath;
-      }
-      // Se arquivo existe mas está vazio, remove para baixar novamente
-      fs.unlinkSync(outputPath);
-    } catch (err) {
-      console.error('Erro ao verificar arquivo existente:', err);
-    }
-  }
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      const info = await ytdl.getInfo(url);
-      const format = ytdl.chooseFormat(info.formats, {
-        quality: 'highestaudio',
-        filter: 'audioonly',
-      });
-
-      const stream = ytdl(url, { ...YTDL_OPTIONS, format });
-
-      await new Promise((resolve, reject) => {
-        const writeStream = fs.createWriteStream(outputPath);
-        let dataReceived = false;
-
-        stream.pipe(writeStream);
-
-        stream.on('data', () => {
-          dataReceived = true;
-        });
-
-        stream.on('error', (error) => {
-          writeStream.end();
-          if (!dataReceived) {
-            reject(new Error(`Erro no download: ${error.message}`));
-          } else {
-            console.warn(`Aviso: Erro no stream após receber dados:`, error);
-            resolve();
-          }
-        });
-
-        writeStream.on('error', (error) => {
-          reject(new Error(`Erro na escrita: ${error.message}`));
-        });
-
-        writeStream.on('finish', () => {
-          if (dataReceived) {
-            resolve();
-          } else {
-            reject(new Error('Stream finalizado sem dados'));
-          }
-        });
-      });
-
-      // Verifica se o arquivo foi baixado corretamente
-      const stats = fs.statSync(outputPath);
-      if (stats.size === 0) {
-        throw new Error('Arquivo baixado está vazio');
-      }
-
-      return outputPath;
-    } catch (error) {
-      console.error(`Tentativa ${attempt}/${maxRetries} falhou:`, error);
-
-      // Remove arquivo corrompido se existir
-      if (fs.existsSync(outputPath)) {
-        try {
-          fs.unlinkSync(outputPath);
-        } catch (err) {
-          console.error('Erro ao remover arquivo corrompido:', err);
-        }
-      }
-
-      if (attempt === maxRetries) {
-        throw new Error(
-          `Falha após ${maxRetries} tentativas: ${error.message}`
-        );
-      }
-
-      // Espera antes de tentar novamente (exponential backoff)
-      await new Promise((resolve) =>
-        setTimeout(resolve, Math.pow(2, attempt) * 1000)
-      );
-    }
-  }
-}
-
 app.post('/youtube/search', async (req, res) => {
   const { query } = req.body;
 
@@ -158,40 +59,86 @@ app.post('/youtube/search', async (req, res) => {
     return res.status(400).json({ error: 'Query é obrigatória' });
   }
 
-  try {
-    let videoUrl = query;
-    let videoInfo;
-
-    if (ytdl.validateURL(query)) {
-      const cleanUrl = query.split('&')[0];
+  let videoInfo;
+  if (ytdl.validateURL(query)) {
+    const cleanUrl = query.split('&')[0];
+    try {
       videoInfo = await ytdl.getBasicInfo(cleanUrl);
-    } else {
+    } catch (err) {
+      console.warn(
+        'getBasicInfo falhou, tentando buscar via yt-search:',
+        err.message
+      );
       const results = await ytSearch(query);
-      if (!results.videos.length) {
-        return res.status(404).json({ error: 'Nenhum vídeo encontrado' });
-      }
+      if (!results.videos.length) throw err;
       videoInfo = await ytdl.getBasicInfo(results.videos[0].url);
     }
-
-    const videoId = videoInfo.videoDetails.videoId;
-    const audioPath = await downloadYouTubeAudio(videoUrl, videoId);
-
-    res.json({
-      type: 'video',
-      title: videoInfo.videoDetails.title,
-      filePath: audioPath,
-      duration: videoInfo.videoDetails.lengthSeconds,
-      author: videoInfo.videoDetails.author.name,
-      url: videoInfo.videoDetails.video_url,
-    });
-  } catch (error) {
-    console.error('Erro ao processar vídeo:', error);
-    res.status(500).json({
-      error: 'Erro ao processar vídeo',
-      details: error.message,
-    });
+  } else {
+    const results = await ytSearch(query);
+    if (!results.videos.length) {
+      return res.status(404).json({ error: 'Nenhum vídeo encontrado' });
+    }
+    videoInfo = await ytdl.getBasicInfo(results.videos[0].url);
   }
+
+  const videoId = videoInfo.videoDetails.videoId;
+  // Usa sempre a URL original (ou limpa) para download
+  const audioUrl = ytdl.validateURL(query)
+    ? query.split('&')[0]
+    : videoInfo.videoDetails.video_url;
+  const audioPath = await downloadYouTubeAudio(audioUrl, videoId);
+
+  res.json({
+    type: 'video',
+    title: videoInfo.videoDetails.title,
+    filePath: audioPath,
+    duration: videoInfo.videoDetails.lengthSeconds,
+    author: videoInfo.videoDetails.author.name,
+    url: videoInfo.videoDetails.video_url,
+  });
 });
+
+async function downloadYouTubeAudio(url, videoId, maxRetries = 3) {
+  const downloadsDir = path.join(__dirname, 'downloads');
+  const outputPath = path.join(downloadsDir, `${videoId}.mp3`);
+
+  if (!fs.existsSync(downloadsDir)) {
+    fs.mkdirSync(downloadsDir, { recursive: true });
+  }
+
+  if (fs.existsSync(outputPath)) {
+    try {
+      const stats = fs.statSync(outputPath);
+      if (stats.size > 0) {
+        return outputPath;
+      }
+      fs.unlinkSync(outputPath);
+    } catch {}
+  }
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      // Pula getInfo e baixa direto o áudio
+      const stream = ytdl(url, {
+        filter: 'audioonly',
+        quality: 'highestaudio',
+        requestOptions: YTDL_OPTIONS.requestOptions,
+      });
+
+      await new Promise((resolve, reject) => {
+        const writeStream = fs.createWriteStream(outputPath);
+        stream.pipe(writeStream);
+        stream.on('end', resolve);
+        stream.on('error', reject);
+      });
+
+      return outputPath;
+    } catch (error) {
+      console.warn(`Tentativa ${attempt} falhou:`, error.message);
+      if (attempt === maxRetries) throw error;
+    }
+  }
+}
 
 app.listen(port, () => {
   console.log(`Servidor Node.js rodando na porta ${port}`);
