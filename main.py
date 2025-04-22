@@ -404,7 +404,7 @@ async def tocar(interaction: discord.Interaction, arquivo: str):
     if not vc:
         canal = interaction.user.voice.channel if interaction.user.voice else None
         if not canal:
-            return await interaction.followup.send("❌ Você não está em um canal de voz e o bot também não está!", ephemeral=True)
+            return await interaction.followup.send("❌ Você precisa estar em um canal de voz!", ephemeral=True)
         vc = await canal.connect()
         voice_clients[guild_id] = vc
 
@@ -418,22 +418,34 @@ async def tocar(interaction: discord.Interaction, arquivo: str):
         # Verifica se é um link do YouTube
         if nome.startswith("http://") or nome.startswith("https://"):
             try:
-                # Envia requisição ao servidor Node.js para processar o link
-                response = requests.post("http://localhost:3000/youtube/search", json={"query": nome})
-                if response.status_code != 200:
-                    await interaction.channel.send(f"❌ Erro ao processar o link `{nome}`: {response.status_code} - {response.text}")
-                    continue
+                # Envia requisição ao servidor Node.js com retry
+                for attempt in range(3):  # Try up to 3 times
+                    try:
+                        response = requests.post(
+                            "http://localhost:3000/youtube/search", 
+                            json={"query": nome},
+                            headers={"Content-Type": "application/json"},
+                            timeout=30  # Add timeout
+                        )
+                        response.raise_for_status()
+                        data = response.json()
+                        break
+                    except requests.RequestException as e:
+                        if attempt == 2:  # Last attempt
+                            raise
+                        await asyncio.sleep(1 * (attempt + 1))  # Exponential backoff
+                        continue
 
-                data = response.json()
                 if "error" in data:
-                    await interaction.channel.send(f"❌ Erro ao processar o link `{nome}`: {data['error']}")
+                    await interaction.channel.send(f"⚠️ Erro ao processar o link `{nome}`: {data['error']}")
                     continue
 
-                # Usa o caminho do arquivo baixado
                 queues[guild_id].append(data['filePath'])
-                encontrados.append(data['title'])
+                encontrados.append(f"{data['title']} ({data['author']})")
+
             except Exception as e:
-                await interaction.channel.send(f"❌ Erro ao processar o link `{nome}`: {e}")
+                await interaction.channel.send(f"❌ Erro ao processar o link `{nome}`: {str(e)}")
+                continue
         else:
             # Trata como arquivo local
             audio_file = buscar_arquivo(nome)
