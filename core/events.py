@@ -3,7 +3,7 @@ import discord
 import unidecode
 from core.modules import *
 
-async def on_ready(bot, conteudo):
+async def on_ready_custom(bot, conteudo):
     """
     Evento executado quando o bot está pronto.
     """
@@ -85,7 +85,7 @@ REACTIONS = {
     "parabéns": ["🥳", "🎊"],
     "obrigado": ["🙏"],
 }
-async def on_message(bot, message):
+async def on_message_custom(bot, message):
     """
     Evento executado quando uma mensagem é enviada em um canal.
     """

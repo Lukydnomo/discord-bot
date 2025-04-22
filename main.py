@@ -76,12 +76,12 @@ logger.setLevel(logging.INFO)
 # Evento de quando o bot estiver pronto
 @bot.event
 async def on_ready():
-    await on_ready(bot, conteudo)
+    print(f"Bot conectado como {bot.user}")
+    await on_ready_custom(bot, conteudo)  # Chama a função personalizada
 
-# Evento on_message com suporte para rolagem via "$"
 @bot.event
 async def on_message(message):
-    await on_message(bot, message)
+    await on_message_custom(bot, message)
 
 @bot.tree.command(name="punir", description="Pune um membro movendo-o para um canal de voz específico por um tempo determinado.")
 @app_commands.describe(
