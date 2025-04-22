@@ -396,13 +396,15 @@ async def entrar(interaction: discord.Interaction, canal: discord.VoiceChannel):
 @bot.tree.command(name="tocar", description="Toca um ou mais áudios no canal de voz ou links do YouTube")
 @app_commands.describe(arquivo="Nome(s) do(s) arquivo(s) de áudio ou link(s), separados por vírgula")
 async def tocar(interaction: discord.Interaction, arquivo: str):
+    await interaction.response.defer()  # Defer a resposta para evitar o timeout
+
     guild_id = interaction.guild.id
     vc = voice_clients.get(guild_id)
 
     if not vc:
         canal = interaction.user.voice.channel if interaction.user.voice else None
         if not canal:
-            return await interaction.response.send_message("❌ Você não está em um canal de voz e o bot também não está!", ephemeral=True)
+            return await interaction.followup.send("❌ Você não está em um canal de voz e o bot também não está!", ephemeral=True)
         vc = await canal.connect()
         voice_clients[guild_id] = vc
 
@@ -443,13 +445,13 @@ async def tocar(interaction: discord.Interaction, arquivo: str):
                 await interaction.channel.send(f"⚠️ Arquivo `{nome}` não encontrado!")
 
     if not encontrados:
-        return await interaction.response.send_message("❌ Nenhum dos áudios ou links foi encontrado!", ephemeral=True)
+        return await interaction.followup.send("❌ Nenhum dos áudios ou links foi encontrado!", ephemeral=True)
 
     if not vc.is_playing():
         play_next(guild_id)
-        await interaction.response.send_message(f"🎵 Tocando `{encontrados[0]}` e adicionando o resto à fila!")
+        await interaction.followup.send(f"🎵 Tocando `{encontrados[0]}` e adicionando o resto à fila!")
     else:
-        await interaction.response.send_message(f"🎶 Adicionado(s) à fila: {', '.join(encontrados)}")
+        await interaction.followup.send(f"🎶 Adicionado(s) à fila: {', '.join(encontrados)}")
 @bot.tree.command(name="listar", description="Lista todos os áudios")
 async def listar(interaction: discord.Interaction):
     diretorio = "assets/audios"
