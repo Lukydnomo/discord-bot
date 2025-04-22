@@ -65,6 +65,7 @@ app.post('/youtube/search', async (req, res) => {
             })),
         });
     } catch (error) {
+        console.error('Erro ao buscar vídeos no YouTube:', error);
         res.status(500).json({ error: 'Erro ao buscar vídeos no YouTube.' });
     }
 });
@@ -73,3 +74,27 @@ app.post('/youtube/search', async (req, res) => {
 app.listen(port, () => {
     console.log(`Servidor Node.js rodando na porta ${port}`);
 });
+
+// Exemplo de uso do endpoint /youtube/search
+const requests = require('axios');
+
+async function processarLink(nome, interaction) {
+    try {
+        const response = await requests.post("http://localhost:3000/youtube/search", { query: nome });
+        if (response.status !== 200) {
+            await interaction.channel.send(`❌ Erro ao processar o link \`${nome}\`: ${response.statusText}`);
+            return;
+        }
+
+        const data = response.data;
+        if ("error" in data) {
+            await interaction.channel.send(`❌ Erro ao processar o link \`${nome}\`: ${data.error}`);
+            return;
+        }
+
+        // Processar os dados retornados
+        console.log(data);
+    } catch (error) {
+        await interaction.channel.send(`❌ Erro ao processar o link \`${nome}\`: ${error.message}`);
+    }
+}
