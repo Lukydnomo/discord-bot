@@ -16,6 +16,7 @@ import pyfiglet
 import unidecode
 from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFont
 from deep_translator import GoogleTranslator
+import aiohttp
 
 # Instâncias iniciais
 cached_supported_languages = None  # Cache for supported languages
@@ -347,19 +348,31 @@ def play_next(guild_id):
         check_auto_disconnect(guild_id)
         return
 
-    vc = voice_clients[guild_id]
+    vc = voice_clients.get(guild_id)
+    if not vc:
+        return
+
     current_track = queues[guild_id][0]
 
     def after_playback(error):
         if error:
             print(f"Erro ao tocar áudio: {error}")
+            # Se houver erro, tenta a próxima faixa
+            if loop_status.get(guild_id, 0) != 1:  # Se não estiver em loop de música
+                queues[guild_id].pop(0)
+            if queues[guild_id]:
+                play_next(guild_id)
+            else:
+                check_auto_disconnect(guild_id)
+            return
 
-        if loop_status.get(guild_id, 0) == 1:
+        # Gerencia o loop após reprodução bem-sucedida
+        if loop_status.get(guild_id, 0) == 1:  # Loop música atual
             play_next(guild_id)
-        elif loop_status.get(guild_id, 0) == 2:
+        elif loop_status.get(guild_id, 0) == 2:  # Loop fila inteira
             queues[guild_id].append(queues[guild_id].pop(0))
             play_next(guild_id)
-        else:
+        else:  # Sem loop
             queues[guild_id].pop(0)
             if queues[guild_id]:
                 play_next(guild_id)
@@ -367,13 +380,32 @@ def play_next(guild_id):
                 check_auto_disconnect(guild_id)
 
     try:
-        # Aqui agora sempre será um arquivo local, pois o Node.js já baixou
-        vc.play(discord.FFmpegPCMAudio(current_track), after=after_playback)
+        # Configura opções do FFmpeg para melhor qualidade
+        ffmpeg_options = {
+            'options': '-vn -b:a 128k',  # Apenas áudio, bitrate 128k
+            'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'  # Opções de reconexão
+        }
+
+        # Verifica o tipo de faixa e obtém o caminho correto
+        audio_path = current_track.get('path', current_track) if isinstance(current_track, dict) else current_track
+
+        if not os.path.exists(audio_path):
+            print(f"Arquivo não encontrado: {audio_path}")
+            after_playback(Exception("Arquivo não encontrado"))
+            return
+
+        # Inicia a reprodução
+        vc.play(
+            discord.FFmpegPCMAudio(
+                audio_path,
+                **ffmpeg_options
+            ),
+            after=after_playback
+        )
+
     except Exception as e:
         print(f"Erro ao tocar a faixa: {e}")
-        queues[guild_id].pop(0)
-        if queues[guild_id]:
-            play_next(guild_id)
+        after_playback(e)
 def buscar_arquivo(nome):
     nome_normalizado = unidecode.unidecode(nome).lower()
     for root, _, files in os.walk("assets/audios"):
@@ -396,73 +428,70 @@ async def entrar(interaction: discord.Interaction, canal: discord.VoiceChannel):
 @bot.tree.command(name="tocar", description="Toca um ou mais áudios no canal de voz ou links do YouTube")
 @app_commands.describe(arquivo="Nome(s) do(s) arquivo(s) de áudio ou link(s), separados por vírgula")
 async def tocar(interaction: discord.Interaction, arquivo: str):
-    await interaction.response.defer()  # Defer a resposta para evitar o timeout
+    await interaction.response.defer()  # Defer the response to avoid timeout
+
+    # Check if user is in a voice channel
+    if not interaction.user.voice:
+        return await interaction.followup.send("❌ Você precisa estar em um canal de voz!", ephemeral=True)
 
     guild_id = interaction.guild.id
-    vc = voice_clients.get(guild_id)
-
-    if not vc:
-        canal = interaction.user.voice.channel if interaction.user.voice else None
-        if not canal:
-            return await interaction.followup.send("❌ Você precisa estar em um canal de voz!", ephemeral=True)
-        vc = await canal.connect()
-        voice_clients[guild_id] = vc
-
-    nomes = [nome.strip() for nome in arquivo.split(",")]
-    encontrados = []
+    
+    # Connect to voice if not already connected
+    if guild_id not in voice_clients:
+        try:
+            voice_clients[guild_id] = await interaction.user.voice.channel.connect()
+        except Exception as e:
+            return await interaction.followup.send(f"❌ Erro ao conectar ao canal de voz: {str(e)}", ephemeral=True)
 
     if guild_id not in queues:
         queues[guild_id] = []
 
-    for nome in nomes:
-        # Verifica se é um link do YouTube
-        if nome.startswith("http://") or nome.startswith("https://"):
+    # Process YouTube links or local files
+    for nome in [n.strip() for n in arquivo.split(",")]:
+        if "youtube.com" in nome or "youtu.be" in nome:
             try:
-                # Envia requisição ao servidor Node.js com retry
-                for attempt in range(3):  # Try up to 3 times
-                    try:
-                        response = requests.post(
-                            "http://localhost:3000/youtube/search", 
-                            json={"query": nome},
-                            headers={"Content-Type": "application/json"},
-                            timeout=30  # Add timeout
-                        )
-                        response.raise_for_status()
-                        data = response.json()
-                        break
-                    except requests.RequestException as e:
-                        if attempt == 2:  # Last attempt
-                            raise
-                        await asyncio.sleep(1 * (attempt + 1))  # Exponential backoff
-                        continue
-
-                if "error" in data:
-                    await interaction.channel.send(f"⚠️ Erro ao processar o link `{nome}`: {data['error']}")
-                    continue
-
-                queues[guild_id].append(data['filePath'])
-                encontrados.append(f"{data['title']} ({data['author']})")
-
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(
+                        "http://localhost:3000/youtube/search",
+                        json={"query": nome},
+                        headers={"Content-Type": "application/json"},
+                        timeout=aiohttp.ClientTimeout(total=30)
+                    ) as response:
+                        if response.status != 200:
+                            error_text = await response.text()
+                            await interaction.followup.send(f"❌ Erro ao processar link: {error_text}", ephemeral=True)
+                            continue
+                        
+                        data = await response.json()
+                        queues[guild_id].append({
+                            "type": "youtube",
+                            "path": data["filePath"],
+                            "title": data["title"]
+                        })
+                        
+                        if not voice_clients[guild_id].is_playing():
+                            await interaction.followup.send(f"🎵 Tocando: {data['title']}")
+                            play_next(guild_id)
+                        else:
+                            await interaction.followup.send(f"🎶 Adicionado à fila: {data['title']}")
+            
             except Exception as e:
-                await interaction.channel.send(f"❌ Erro ao processar o link `{nome}`: {str(e)}")
-                continue
+                await interaction.followup.send(f"❌ Erro ao processar link: {str(e)}", ephemeral=True)
         else:
-            # Trata como arquivo local
             audio_file = buscar_arquivo(nome)
             if audio_file:
-                queues[guild_id].append(audio_file)
-                encontrados.append(nome)
+                queues[guild_id].append({
+                    "type": "local",
+                    "path": audio_file,
+                    "title": nome
+                })
+                if not voice_clients[guild_id].is_playing():
+                    await interaction.followup.send(f"🎵 Tocando: {nome}")
+                    play_next(guild_id)
+                else:
+                    await interaction.followup.send(f"🎶 Adicionado à fila: {nome}")
             else:
-                await interaction.channel.send(f"⚠️ Arquivo `{nome}` não encontrado!")
-
-    if not encontrados:
-        return await interaction.followup.send("❌ Nenhum dos áudios ou links foi encontrado!", ephemeral=True)
-
-    if not vc.is_playing():
-        play_next(guild_id)
-        await interaction.followup.send(f"🎵 Tocando `{encontrados[0]}` e adicionando o resto à fila!")
-    else:
-        await interaction.followup.send(f"🎶 Adicionado(s) à fila: {', '.join(encontrados)}")
+                await interaction.followup.send(f"⚠️ Arquivo `{nome}` não encontrado!", ephemeral=True)
 @bot.tree.command(name="listar", description="Lista todos os áudios")
 async def listar(interaction: discord.Interaction):
     diretorio = "assets/audios"
@@ -538,7 +567,7 @@ async def fila(interaction: discord.Interaction):
     if not queue:
         return await interaction.response.send_message("🎶 A fila está vazia!", ephemeral=True)
     
-    lista = "\n".join([f"{idx+1}. {os.path.basename(track)}" for idx, track in enumerate(queue)])
+    lista = "\n".join([f"{idx+1}. {track['title']}" for idx, track in enumerate(queue)])
     await interaction.response.send_message(f"📜 **Fila de reprodução:**\n```\n{lista}\n```")
 @bot.tree.command(name="loop")
 @app_commands.describe(modo="0: Desativado, 1: Música Atual, 2: Fila Inteira (opcional)")
@@ -587,7 +616,7 @@ async def salvar_fila(interaction: discord.Interaction):
         return await interaction.response.send_message("❌ A fila está vazia, nada para salvar!", ephemeral=True)
 
     # Gera um ID único baseado nos nomes dos arquivos na fila
-    nomes_arquivos = [os.path.basename(track) for track in queue]
+    nomes_arquivos = [track["title"] for track in queue]
     fila_serializada = ",".join(nomes_arquivos)
     fila_codificada = urlsafe_b64encode(fila_serializada.encode()).decode()
 
@@ -608,7 +637,11 @@ async def carregar_fila(interaction: discord.Interaction, fila_id: str):
         for nome in nomes_arquivos:
             audio_file = buscar_arquivo(nome)
             if audio_file:
-                queues[guild_id].append(audio_file)
+                queues[guild_id].append({
+                    "type": "local",
+                    "path": audio_file,
+                    "title": nome
+                })
                 encontrados.append(nome)
             else:
                 await interaction.channel.send(f"⚠️ Arquivo `{nome}` não encontrado!")
