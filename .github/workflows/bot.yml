@@ -29,6 +29,7 @@ jobs:
 
       - name: Instalar dependências do servidor Node.js
         run: |
+          echo '{}' > package.json
           while read package; do
             npm install "$package"
           done < requirements/requirementsJS.txt
@@ -44,7 +45,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install ffmpeg
           python -m pip install --upgrade pip
-          pip install -r requirementsPY.txt
+          pip install -r requirements/requirementsPY.txt
 
       - name: Run Bot
         run: python main.py
