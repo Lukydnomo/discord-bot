@@ -54,7 +54,14 @@ async function downloadYouTubeAudio(url, videoId) {
     return new Promise((resolve, reject) => {
         ytdl(url, {
             filter: 'audioonly',
-            quality: 'highestaudio'
+            quality: 'highestaudio',
+            requestOptions: {
+                headers: {
+                    cookie: 'CONSENT=YES+1',
+                    'x-youtube-client-name': '1',
+                    'x-youtube-client-version': '2.20200101'
+                }
+            }
         })
         .pipe(fs.createWriteStream(outputPath))
         .on('finish', () => resolve(outputPath))
@@ -100,7 +107,16 @@ app.post('/youtube/search', async (req, res) => {
     try {
         let videoUrl = query;
         if (ytdl.validateURL(query)) {
-            const info = await ytdl.getBasicInfo(videoUrl);
+            const info = await ytdl.getBasicInfo(videoUrl, {
+                requestOptions: {
+                    headers: {
+                        cookie: 'CONSENT=YES+1',
+                        'x-youtube-client-name': '1',
+                        'x-youtube-client-version': '2.20200101'
+                    }
+                }
+            });
+            
             const videoId = info.videoDetails.videoId;
             
             // Baixa o áudio
