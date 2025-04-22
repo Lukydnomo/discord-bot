@@ -42,8 +42,8 @@ function getVideoId(url) {
     }
 }
 
-// Função para baixar o áudio do YouTube
-async function downloadYouTubeAudio(url, videoId) {
+// Função para baixar o áudio do YouTube com retry
+async function downloadYouTubeAudio(url, videoId, maxRetries = 3) {
     const outputPath = path.join(__dirname, 'downloads', `${videoId}.mp3`);
     
     // Cria o diretório se não existir
@@ -51,24 +51,65 @@ async function downloadYouTubeAudio(url, videoId) {
         fs.mkdirSync(path.join(__dirname, 'downloads'));
     }
 
-    // Opções do ytdl com configurações atualizadas
+    // Se o arquivo já existe, retorna o caminho
+    if (fs.existsSync(outputPath)) {
+        return outputPath;
+    }
+
     const ytdlOptions = {
         filter: 'audioonly',
         quality: 'highestaudio',
         requestOptions: {
             headers: {
-                // Removemos o cookie header problemático
-                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36'
+                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'accept': '*/*',
+                'accept-encoding': 'gzip, deflate, br',
+                'accept-language': 'en-US,en;q=0.9',
+                'origin': 'https://www.youtube.com',
+                'referer': 'https://www.youtube.com/'
             }
         }
     };
 
-    return new Promise((resolve, reject) => {
-        ytdl(url, ytdlOptions)
-            .pipe(fs.createWriteStream(outputPath))
-            .on('finish', () => resolve(outputPath))
-            .on('error', reject);
-    });
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            const stream = ytdl(url, ytdlOptions);
+            
+            await new Promise((resolve, reject) => {
+                const writeStream = fs.createWriteStream(outputPath);
+                
+                stream.pipe(writeStream);
+
+                stream.on('error', (error) => {
+                    console.error(`Tentativa ${attempt}: Erro no stream:`, error);
+                    writeStream.end();
+                    reject(error);
+                });
+
+                writeStream.on('error', (error) => {
+                    console.error(`Tentativa ${attempt}: Erro na escrita:`, error);
+                    reject(error);
+                });
+
+                writeStream.on('finish', () => {
+                    console.log(`Download concluído: ${outputPath}`);
+                    resolve();
+                });
+            });
+
+            return outputPath;
+        } catch (error) {
+            console.error(`Tentativa ${attempt} falhou:`, error);
+            
+            // Se for a última tentativa, lança o erro
+            if (attempt === maxRetries) {
+                throw error;
+            }
+            
+            // Espera um pouco antes de tentar novamente
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        }
+    }
 }
 
 // Endpoint para obter informações de um vídeo do YouTube
@@ -109,74 +150,46 @@ app.post('/youtube/search', async (req, res) => {
     try {
         let videoUrl = query;
         if (ytdl.validateURL(query)) {
-            // Removemos parâmetros extras
-            videoUrl = query.split('&')[0];
+            videoUrl = query.split('&')[0]; // Remove parâmetros extras
 
-            let info;
-            try {
-                info = await ytdl.getBasicInfo(videoUrl, {
-                    requestOptions: {
-                        headers: {
-                            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36'
-                        }
-                    }
-                });
-            } catch (error) {
-                // Se o erro indicar status 410, tenta fallback com ytSearch
-                if (error.message && error.message.includes("410")) {
-                    console.log("Fallback: erro 410 detectado, tentando buscar vídeo alternativo via ytSearch...");
-                    const searchResults = await ytSearch(query);
-                    if (searchResults.videos && searchResults.videos.length > 0) {
-                        const firstVideo = searchResults.videos[0];
-                        const videoId = firstVideo.videoId;
-                        const audioPath = await downloadYouTubeAudio(firstVideo.url, videoId);
-                        return res.json({
-                            type: 'video',
-                            title: firstVideo.title,
-                            filePath: audioPath,
-                            duration: firstVideo.duration.seconds,
-                            author: firstVideo.author.name
-                        });
-                    } else {
-                        return res.status(500).json({ error: 'Vídeo não disponível (fallback falhou).' });
-                    }
-                }
-                throw error;
-            }
-            
+            let info = await ytdl.getBasicInfo(videoUrl);
             const videoId = info.videoDetails.videoId;
+            
             // Baixa o áudio
             const audioPath = await downloadYouTubeAudio(videoUrl, videoId);
 
             return res.json({
                 type: 'video',
                 title: info.videoDetails.title,
-                filePath: audioPath,
+                filePath: audioPath, // Retorna o caminho do arquivo baixado
                 duration: info.videoDetails.lengthSeconds,
                 author: info.videoDetails.author.name
             });
         }
 
-        // Caso query não seja link
+        // Caso seja busca
         const searchResults = await ytSearch(query);
-        const firstVideo = searchResults.videos[0];
-        if (!firstVideo) {
+        if (!searchResults.videos.length) {
             return res.status(404).json({ error: 'Nenhum vídeo encontrado.' });
         }
 
-        const videoId = firstVideo.videoId;
-        const audioPath = await downloadYouTubeAudio(firstVideo.url, videoId);
+        const firstVideo = searchResults.videos[0];
+        const audioPath = await downloadYouTubeAudio(firstVideo.url, firstVideo.videoId);
 
         return res.json({
             type: 'video',
             title: firstVideo.title,
-            filePath: audioPath,
+            filePath: audioPath, // Retorna o caminho do arquivo baixado
             duration: firstVideo.duration.seconds,
             author: firstVideo.author.name
         });
+
     } catch (error) {
-        console.error('Erro ao buscar vídeos no YouTube:', error);
-        res.status(500).json({ error: 'Erro ao buscar vídeos no YouTube.', details: error.message });
+        console.error('Erro ao processar vídeo:', error);
+        res.status(500).json({ 
+            error: 'Erro ao processar vídeo.', 
+            details: error.message 
+        });
     }
 });
 

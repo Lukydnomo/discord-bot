@@ -429,17 +429,9 @@ async def tocar(interaction: discord.Interaction, arquivo: str):
                     await interaction.channel.send(f"❌ Erro ao processar o link `{nome}`: {data['error']}")
                     continue
 
-                if data['type'] == 'video':
-                    # Aqui está a correção: usar a URL completa em vez de apenas o ID
-                    url_completa = f"https://www.youtube.com/watch?v={data['url'].split('v=')[1]}"
-                    queues[guild_id].append(url_completa)
-                    encontrados.append(data['title'])
-                elif data['type'] == 'search':
-                    first_result = data['results'][0]
-                    # Mesmo para resultados de busca
-                    url_completa = f"https://www.youtube.com/watch?v={first_result['url'].split('v=')[1]}"
-                    queues[guild_id].append(url_completa)
-                    encontrados.append(first_result['title'])
+                # Usa o caminho do arquivo baixado
+                queues[guild_id].append(data['filePath'])
+                encontrados.append(data['title'])
             except Exception as e:
                 await interaction.channel.send(f"❌ Erro ao processar o link `{nome}`: {e}")
         else:
