@@ -9,15 +9,35 @@ app.use(express.json());
 // Função para limpar a URL removendo parâmetros extras
 function cleanUrl(url) {
     const urlObject = new URL(url);
-    urlObject.search = ''; // Remove todos os parâmetros
+    // Captura o valor de 'v'
+    const v = urlObject.searchParams.get('v');
+    // Remove todos os parâmetros
+    urlObject.search = '';
+    // Se tiver 'v', insere-o de volta
+    if (v) {
+        urlObject.search = `?v=${v}`;
+    }
     return urlObject.toString();
 }
 
 // Função para extrair o ID do vídeo da URL
 function getVideoId(url) {
-    const urlObject = new URL(url);
-    const videoId = urlObject.searchParams.get('v');
-    return videoId;
+    try {
+        const urlObject = new URL(url);
+        let videoId = urlObject.searchParams.get('v');
+
+        // Verifica se o ID foi encontrado no parâmetro 'v'
+        if (!videoId) {
+            // Tenta extrair o ID de outros formatos de URL
+            const path = urlObject.pathname.split('/');
+            videoId = path[path.length - 1];
+        }
+
+        return videoId;
+    } catch (error) {
+        console.error('Erro ao extrair o ID do vídeo:', error);
+        return null;
+    }
 }
 
 // Endpoint para obter informações de um vídeo do YouTube
