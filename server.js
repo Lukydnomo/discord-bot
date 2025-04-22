@@ -89,7 +89,9 @@ app.post('/youtube/search', async (req, res) => {
     console.error('Erro ao obter informações do vídeo:', err);
     return res.status(500).json({
       error: 'Erro ao obter informações do vídeo',
-      details: err.message,
+      details: err.message.includes('Status code:')
+        ? err.message
+        : err.toString(),
     });
   }
 

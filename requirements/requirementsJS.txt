@@ -1,4 +1,0 @@
-express
-ytdl-core
-yt-search
-axios
