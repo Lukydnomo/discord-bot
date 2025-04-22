@@ -50,12 +50,19 @@ app.post('/youtube/info', async (req, res) => {
 
     try {
         const info = await ytdl.getInfo(url);
+        const format = ytdl.chooseFormat(info.formats, { 
+            quality: 'highestaudio',
+            filter: 'audioonly' 
+        });
+
         res.json({
             title: info.videoDetails.title,
             lengthSeconds: info.videoDetails.lengthSeconds,
             author: info.videoDetails.author.name,
+            audioUrl: format.url
         });
     } catch (error) {
+        console.error('Erro ao obter informações do vídeo:', error);
         res.status(500).json({ error: 'Erro ao obter informações do vídeo.' });
     }
 });

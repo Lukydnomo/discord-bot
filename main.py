@@ -369,11 +369,24 @@ def play_next(guild_id):
     try:
         # Se for um link do YouTube
         if current_track.startswith("http://") or current_track.startswith("https://"):
+            # Get audio URL from Node.js server
+            response = requests.post("http://localhost:3000/youtube/info", json={"url": current_track})
+            if response.status_code != 200:
+                print(f"Erro ao obter URL do áudio: {response.text}")
+                return
+
+            data = response.json()
             FFMPEG_OPTIONS = {
                 'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
                 'options': '-vn'
             }
-            vc.play(discord.FFmpegPCMAudio(current_track, **FFMPEG_OPTIONS), after=after_playback)
+            
+            audio_url = data.get('audioUrl')
+            if not audio_url:
+                print("URL do áudio não encontrada")
+                return
+
+            vc.play(discord.FFmpegPCMAudio(audio_url, **FFMPEG_OPTIONS), after=after_playback)
         else:
             # Se for arquivo local
             vc.play(discord.FFmpegPCMAudio(current_track), after=after_playback)
