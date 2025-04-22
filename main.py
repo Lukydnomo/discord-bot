@@ -38,20 +38,27 @@ cancel_previous_github_runs()
 
 async def poll_js_logs():
     """Busca e exibe logs do servidor Node.js"""
+    log_file = "server.log"
+    last_position = 0
+
     while True:
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(f"{YT_BACKEND_URL}/logs") as response:
-                    if response.status == 200:
-                        logs = await response.json()
-                        for log in logs:
-                            # Formata e exibe os logs
-                            timestamp = log['timestamp'].split('T')[1].split('.')[0]
-                            print(f"[JSTerminal] [{timestamp}] [{log['type'].upper()}] {log['message']}")
+            if os.path.exists(log_file):
+                with open(log_file, 'r', encoding='utf-8') as f:
+                    # Move para a última posição lida
+                    f.seek(last_position)
+                    
+                    # Lê as novas linhas
+                    for line in f:
+                        print(f"[JSTerminal] {line.strip()}")
+                    
+                    # Atualiza a posição
+                    last_position = f.tell()
+
         except Exception as e:
-            print(f"[JSTerminal] Erro ao buscar logs: {e}")
+            print(f"[JSTerminal] Erro ao ler logs: {e}")
         
-        await asyncio.sleep(1)  # Espera 1 segundo antes de buscar novamente
+        await asyncio.sleep(1)  # Espera 1 segundo antes de verificar novamente
 
 class MyBot(commands.Bot):
     def __init__(self):

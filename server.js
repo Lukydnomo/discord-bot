@@ -17,8 +17,20 @@ function addLog(message, type = 'info') {
     message: message,
   };
   logQueue.push(log);
-  console.log(`[${type.toUpperCase()}] ${message}`); // Mantém o log no console do Node
+
+  // Log no console
+  console.log(`[${type.toUpperCase()}] ${message}`);
+
+  // Log em arquivo
+  const logPath = path.join(__dirname, 'server.log');
+  fs.appendFileSync(
+    logPath,
+    `[${log.timestamp}] [${type.toUpperCase()}] ${message}\n`
+  );
 }
+
+// No início do servidor
+addLog('Servidor Node.js iniciado', 'info');
 
 // Novo endpoint para buscar logs
 app.get('/logs', (req, res) => {
@@ -78,6 +90,8 @@ function cleanupDownloads() {
 setInterval(cleanupDownloads, 60 * 60 * 1000);
 
 app.post('/youtube/search', async (req, res) => {
+  addLog(`Recebida requisição para buscar: ${req.body.query}`, 'info');
+
   const { query } = req.body;
 
   if (!query) {
@@ -153,6 +167,8 @@ app.post('/youtube/search', async (req, res) => {
 });
 
 async function downloadYouTubeAudio(url, videoId, maxRetries = 3) {
+  addLog(`Iniciando download do vídeo ${videoId}`, 'info');
+
   const downloadsDir = path.join(__dirname, 'downloads');
   const outputPath = path.join(downloadsDir, `${videoId}.mp3`);
 
