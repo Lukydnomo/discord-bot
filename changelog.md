@@ -292,3 +292,11 @@
 - Foi decidido focar na otimização do bot devido à demora na inicialização.
 - As funções foram separadas em arquivos distintos.
 - Os arquivos foram reorganizados para melhorar a leitura e o funcionamento.
+
+## [1.7.1v3] - 2025-04-21
+
+**Refatoração e Otimização Avançada**
+
+## ⚙️ Alterado
+
+- Continuando o trabalho de otimização iniciado na última atualização, o código foi ainda mais refinado, resultando em uma redução significativa no número de linhas (de quase 1300 para 918). Isso melhora a legibilidade, organização e desempenho geral do bot.

@@ -6,11 +6,45 @@ from core.config import *
 from datetime import datetime, timezone, timedelta
 import random
 import re
+import asyncio
+import discord
 
 # Database System
 _cached_data = None  # Cache em memória
 _cached_sha = None   # SHA do arquivo no GitHub
-
+async def safe_request(coroutine_func, *args, max_retries=3, **kwargs):
+    """
+    Executa uma coroutine com tentativas seguras em caso de falhas.
+    
+    Args:
+        coroutine_func: A coroutine a ser executada.
+        *args: Argumentos posicionais para a coroutine.
+        max_retries: Número máximo de tentativas (padrão: 3).
+        **kwargs: Argumentos nomeados para a coroutine.
+    
+    Returns:
+        O resultado da coroutine, se bem-sucedido.
+    
+    Raises:
+        Exception: Repassa a exceção após exceder o número de tentativas.
+    """
+    for tentativa in range(1, max_retries + 1):
+        try:
+            return await coroutine_func(*args, **kwargs)
+        except discord.HTTPException as e:
+            if e.status == 429:  # Rate limit
+                retry_after = getattr(e, "retry_after", 10)
+                logger.warning(f"[Rate Limit] Tentativa {tentativa}/{max_retries}: Esperando {retry_after:.1f}s...")
+                await asyncio.sleep(retry_after)
+            else:
+                logger.error(f"[HTTPException] Tentativa {tentativa}/{max_retries}: {e}")
+                raise
+        except Exception as e:
+            logger.error(f"[Erro] Tentativa {tentativa}/{max_retries}: {e}")
+            if tentativa < max_retries:
+                await asyncio.sleep(5)
+            else:
+                raise
 def get_file_content():
     global _cached_data, _cached_sha
     if _cached_data is None:
@@ -31,7 +65,6 @@ def get_file_content():
             _cached_sha = None
 
     return _cached_data
-
 def update_file_content(data):
     global _cached_data, _cached_sha
     if data == _cached_data:
@@ -55,7 +88,6 @@ def update_file_content(data):
         _cached_sha = response.json().get("content", {}).get("sha")  # Atualiza o SHA
     else:
         print(f"❌ Erro ao atualizar o banco de dados: {response.status_code} {response.text}")
-
 async def save(name, value):
     data = get_file_content()
     if name in data:
@@ -66,18 +98,14 @@ async def save(name, value):
     else:
         data[name] = value
     update_file_content(data)
-
 def load(name):
     data = get_file_content()
     return data.get(name, None)
-
 # Utilitários
 def carregar_dicionario():
     with open("assets/resources/palavras.txt", "r", encoding="utf-8") as f:
         return [linha.strip() for linha in f.readlines()]
-
 dicionario = carregar_dicionario()
-
 def obter_palavra_do_dia():
     data_atual = datetime.now(timezone.utc).strftime("%m/%d/%y")
     data = get_file_content()
@@ -96,15 +124,11 @@ def obter_palavra_do_dia():
     # Atualiza o banco de dados
     update_file_content(data)
     return nova_palavra
-
 palavra_do_dia = obter_palavra_do_dia()
-
 def carregar_sarcasmResponses():
         with open("assets/resources/sarcasmResponses.txt", "r", encoding="utf-8") as f:
             return [linha.strip() for linha in f.readlines()]
-        
 SARCASM_RESPONSES = carregar_sarcasmResponses()
-
 def is_spam(text):
     # Remove espaços e ignora letras maiúsculas/minúsculas
     normalized = text.replace(" ", "").lower()
@@ -119,7 +143,6 @@ def is_spam(text):
         return True
 
     return False
-
 def rolar_dado(expressao, detalhado=True):
     if not detalhado:
         detalhes = []
@@ -190,7 +213,6 @@ def rolar_dado(expressao, detalhado=True):
             "dice_group": dice_group,
             "detalhado": True
         }
-
 def determinar_vencedor(jogada1, jogada2):
     if jogada1 == jogada2:
         return "🤝 **Empate!**"
@@ -200,7 +222,6 @@ def determinar_vencedor(jogada1, jogada2):
         return "🎉 **O primeiro jogador venceu!**"
     else:
         return "🎉 **O segundo jogador venceu!**"
-
 def calcular_compatibilidade(nome1inp, nome2inp):
         # 1. Juntar os nomes e remover espaços
         combinado = (nome1inp + nome2inp).replace(" ", "").lower()
@@ -232,3 +253,17 @@ def calcular_compatibilidade(nome1inp, nome2inp):
         # 4. Calcular e retornar o resultado final
         resultado = reduzir(contagem)
         return f"{resultado}% de compatibilidade"
+async def castigar_automatico(member: discord.Member, tempo: int):
+    """
+    Temporarily mutes a Discord member for a specified duration.
+
+    Args:
+        member (discord.Member): The member to be muted.
+        tempo (int): Duration of the mute in seconds.
+    """
+    try:
+        duration = timedelta(seconds=tempo)
+        until_time = datetime.now(timezone.utc) + duration
+        await member.timeout(until_time, reason="puta")
+    except discord.DiscordException as e:
+        print(f'Erro ao castigar {member.mention}: {e}')

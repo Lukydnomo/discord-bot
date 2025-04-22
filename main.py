@@ -2,11 +2,10 @@
 import os
 import io
 import re
-import json
 import random
 import asyncio
 from datetime import datetime, timezone, timedelta
-from base64 import b64decode, b64encode, urlsafe_b64decode, urlsafe_b64encode
+from base64 import urlsafe_b64decode, urlsafe_b64encode
 
 # Discord
 import discord
@@ -14,7 +13,6 @@ from discord import app_commands
 from discord.ext import commands
 
 # Terceiros
-import requests
 from PIL import Image, ImageEnhance, ImageDraw, ImageFont, ImageChops
 from deep_translator import GoogleTranslator
 import unidecode
@@ -32,54 +30,7 @@ intents.members = True
 intents.message_content = True
 from core.config import *
 from core.modules import *
-
-# Configuração do logger
-logger = logging.getLogger("discord_bot")
-logger.setLevel(logging.INFO)
-
-def cancel_previous_github_runs():
-    """
-    Cancela execuções anteriores no GitHub Actions, exceto a execução atual.
-    """
-    run_id = os.getenv("RUN_ID")
-    token = os.getenv("GITHUB_TOKEN")
-
-    if not run_id or not token:
-        logger.warning("⚠️ Faltando RUN_ID ou GITHUB_TOKEN — pulando cancelamento de runs antigas.")
-        return
-
-    headers = {
-        "Authorization": f"token {token}",
-        "Accept": "application/vnd.github+json"
-    }
-
-    # Lista as execuções em andamento
-    list_url = f"https://api.github.com/repos/{github_repo}/actions/runs?status=in_progress&per_page=100"
-    try:
-        response = requests.get(list_url, headers=headers)
-        response.raise_for_status()
-    except requests.RequestException as e:
-        logger.error(f"❌ Erro ao listar runs: {e}")
-        return
-
-    runs = response.json().get("workflow_runs", [])
-    if not runs:
-        logger.info("✅ Nenhuma execução em andamento encontrada.")
-        return
-
-    # Cancela execuções anteriores
-    for run in runs:
-        rid = run.get("id")
-        if str(rid) != run_id:
-            cancel_url = f"https://api.github.com/repos/{github_repo}/actions/runs/{rid}/cancel"
-            try:
-                cancel_resp = requests.post(cancel_url, headers=headers)
-                if cancel_resp.status_code == 202:
-                    logger.info(f"✅ Run antiga cancelada: {rid}")
-                else:
-                    logger.warning(f"⚠️ Falha ao cancelar run {rid}: {cancel_resp.status_code}")
-            except requests.RequestException as e:
-                logger.error(f"❌ Erro ao cancelar run {rid}: {e}")
+from core.events import *
 
 # chama antes de inicializar o bot
 cancel_previous_github_runs()
@@ -124,162 +75,15 @@ async def randomuser():
 logger = logging.getLogger("discord_bot")
 logger.setLevel(logging.INFO)
 
-async def safe_request(coroutine_func, *args, max_retries=3, **kwargs):
-    """
-    Executa uma coroutine com tentativas seguras em caso de falhas.
-    
-    Args:
-        coroutine_func: A coroutine a ser executada.
-        *args: Argumentos posicionais para a coroutine.
-        max_retries: Número máximo de tentativas (padrão: 3).
-        **kwargs: Argumentos nomeados para a coroutine.
-    
-    Returns:
-        O resultado da coroutine, se bem-sucedido.
-    
-    Raises:
-        Exception: Repassa a exceção após exceder o número de tentativas.
-    """
-    for tentativa in range(1, max_retries + 1):
-        try:
-            return await coroutine_func(*args, **kwargs)
-        except discord.HTTPException as e:
-            if e.status == 429:  # Rate limit
-                retry_after = getattr(e, "retry_after", 10)
-                logger.warning(f"[Rate Limit] Tentativa {tentativa}/{max_retries}: Esperando {retry_after:.1f}s...")
-                await asyncio.sleep(retry_after)
-            else:
-                logger.error(f"[HTTPException] Tentativa {tentativa}/{max_retries}: {e}")
-                raise
-        except Exception as e:
-            logger.error(f"[Erro] Tentativa {tentativa}/{max_retries}: {e}")
-            if tentativa < max_retries:
-                await asyncio.sleep(5)
-            else:
-                raise
-
-# Castigo
-async def castigar_automatico(member: discord.Member, tempo: int):
-    """
-    Temporarily mutes a Discord member for a specified duration.
-
-    Args:
-        member (discord.Member): The member to be muted.
-        tempo (int): Duration of the mute in seconds.
-    """
-    try:
-        duration = timedelta(seconds=tempo)
-        until_time = datetime.now(timezone.utc) + duration
-        await member.timeout(until_time, reason="puta")
-    except discord.DiscordException as e:
-        print(f'Erro ao castigar {member.mention}: {e}')
-
 # Evento de quando o bot estiver pronto
 @bot.event
 async def on_ready():
-    get_file_content()
-
-    await asyncio.sleep(3)
-
-    print(f'Bot conectado como {bot.user}')
-    for guild in bot.guilds:
-        try:
-            print(f"Sincronizando comandos para o servidor: {guild.name}")
-            await bot.tree.sync(guild=guild)
-            print(f"✅ Comandos sincronizados com sucesso para o servidor: {guild.name}")
-        except Exception as e:
-            print(f"❌ Falha ao sincronizar comandos no servidor {guild.name}: {e}")
-
-    updatechannel = bot.get_channel(1319356880627171448)
-    mention_message = "<@&1319355628195549247>"
-    full_message = f"{conteudo}"
-    message_chunks = [full_message[i:i+2000] for i in range(0, len(full_message), 2000)]
-
-    # Pega todas as mensagens do canal, mais antigas primeiro
-    existing_messages = []
-    async for msg in updatechannel.history(oldest_first=True):
-        existing_messages.append(msg)
-
-    # Compara o conteúdo atual com as mensagens existentes
-    is_same = len(existing_messages) == len(message_chunks) + 1 and all(
-        existing_messages[i].content.strip() == message_chunks[i].strip()
-        for i in range(len(message_chunks))
-    ) and existing_messages[-1].content.strip() == mention_message.strip()
-
-    if is_same:
-        print("✅ Changelog já está no canal, nenhuma mensagem enviada.")
-    else:
-        await updatechannel.purge()
-        for chunk in message_chunks:
-            await updatechannel.send(chunk)
-        await updatechannel.send(mention_message)
-        print("✅ Changelog atualizado no canal.")
-
-
-    activity = discord.Activity(
-        type=discord.ActivityType.playing,
-        name="Franciele tem robô agr? oloko",
-        details="Tenso",
-        large_image="punish",
-        large_text="Moderando",
-        small_image="punish",
-        small_text="Feito por Luky",
-    )
-    await bot.change_presence(activity=activity)
-
-# Respostas de on_message
-REACTIONS = {
-    "bem-vindo": ["👋", "🎉"],    # Reage com 👋 e 🎉 a mensagens contendo "bem-vindo"
-    "importante": ["⚠️", "📢"],   # Reage com ⚠️ e 📢 a mensagens contendo "importante"
-    "parabéns": ["🥳", "🎊"],      # Reage com 🥳 e 🎊 a mensagens contendo "parabéns"
-    "obrigado": ["🙏"],           # Reage com 🙏 a mensagens contendo "obrigado"
-}
+    await on_ready(bot, conteudo)
 
 # Evento on_message com suporte para rolagem via "$"
 @bot.event
 async def on_message(message):
-    if message.author.bot:
-        return  # Ignora mensagens de bots
-
-    # Adiciona reações pré-definidas
-    for keyword, emojis in REACTIONS.items():
-        if keyword in message.content.lower():
-            for emoji in emojis:
-                try:
-                    await message.add_reaction(emoji)
-                except discord.Forbidden:
-                    print(f"❌ Não tenho permissão para reagir a mensagens em {message.channel}")
-
-    # Detecta expressões de rolagem no formato "$..."
-    matches = re.findall(r'\$(\d*#?\d*d\d+[\+\-\*/\(\)\d]*)', message.content)
-    resultados = []
-    if matches:
-        loop = asyncio.get_running_loop()
-        resultados = []
-        for m in matches:
-            # this will run rolar_dado in a separate thread
-            res = await asyncio.to_thread(rolar_dado, m, True)
-            resultados.append(
-                f"``{res['resultado']}`` ⟵ {res['resultadoWOutEval']} {res.get('dice_group', m)}"
-            )
-        await message.channel.send("\n".join(resultados))
-        
-    # Respostas sarcasticas
-    if len(message.content) > 300 and not is_spam(message.content):
-        await asyncio.sleep(2)
-        async with message.channel.typing():  # Usa o contexto assíncrono para simular digitação
-            await asyncio.sleep(3)  # Aguarda 3 segundos (opcional)
-            await safe_request(message.channel.send, random.choice(SARCASM_RESPONSES))
-
-    # Normaliza a mensagem e a palavra do dia (remove acentos e transforma ç -> c)
-    mensagem_normalizada = unidecode.unidecode(message.content.lower())
-    palavra_normalizada = unidecode.unidecode(palavra_do_dia.lower())
-
-    if palavra_normalizada in mensagem_normalizada:
-        await message.channel.send(f'{palavra_do_dia.upper()} DETECTAD!!!! INICIANDO PROTOCOLO DE SEGURANÇA!!!!!')
-        await castigar_automatico(message.author, 60)
-
-    await bot.process_commands(message)
+    await on_message(bot, message)
 
 @bot.tree.command(name="punir", description="Pune um membro movendo-o para um canal de voz específico por um tempo determinado.")
 @app_commands.describe(
