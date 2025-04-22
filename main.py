@@ -452,11 +452,15 @@ async def tocar(interaction: discord.Interaction, arquivo: str):
                     continue
 
                 if data['type'] == 'video':
-                    queues[guild_id].append(data['url'])
+                    # Aqui está a correção: usar a URL completa em vez de apenas o ID
+                    url_completa = f"https://www.youtube.com/watch?v={data['url'].split('v=')[1]}"
+                    queues[guild_id].append(url_completa)
                     encontrados.append(data['title'])
                 elif data['type'] == 'search':
                     first_result = data['results'][0]
-                    queues[guild_id].append(first_result['url'])
+                    # Mesmo para resultados de busca
+                    url_completa = f"https://www.youtube.com/watch?v={first_result['url'].split('v=')[1]}"
+                    queues[guild_id].append(url_completa)
                     encontrados.append(first_result['title'])
             except Exception as e:
                 await interaction.channel.send(f"❌ Erro ao processar o link `{nome}`: {e}")
