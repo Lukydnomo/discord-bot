@@ -1,6 +1,6 @@
+import logging
 import os
 import requests
-import logging
 
 commandPrefix = 'foa!'
 DISCORDTOKEN = os.getenv("DISCORD_BOT_TOKEN")

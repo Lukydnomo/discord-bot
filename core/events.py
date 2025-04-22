@@ -1,7 +1,7 @@
 import asyncio
 import discord
-from core.modules import *
 import unidecode
+from core.modules import *
 
 async def on_ready(bot, conteudo):
     """

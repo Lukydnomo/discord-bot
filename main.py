@@ -1,10 +1,8 @@
 # Core Python
-import os
-import io
-import re
-import random
 import asyncio
-from datetime import datetime, timezone, timedelta
+import io
+import os
+import random
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 
 # Discord
@@ -13,24 +11,24 @@ from discord import app_commands
 from discord.ext import commands
 
 # Terceiros
-from PIL import Image, ImageEnhance, ImageDraw, ImageFont, ImageChops
-from deep_translator import GoogleTranslator
-import unidecode
 import logging
 import pyfiglet
+import unidecode
+from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFont
+from deep_translator import GoogleTranslator
 
 # Instâncias iniciais
-translate = GoogleTranslator
 cached_supported_languages = None  # Cache for supported languages
+translate = GoogleTranslator
 
 # Configuração do bot
 intents = discord.Intents.default()
-intents.voice_states = True
 intents.members = True
 intents.message_content = True
+intents.voice_states = True
 from core.config import *
-from core.modules import *
 from core.events import *
+from core.modules import *
 
 # chama antes de inicializar o bot
 cancel_previous_github_runs()
