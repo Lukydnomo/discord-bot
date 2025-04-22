@@ -354,26 +354,35 @@ def play_next(guild_id):
         if error:
             print(f"Erro ao tocar áudio: {error}")
 
-        # Se estiver em loop da música, repete o mesmo
         if loop_status.get(guild_id, 0) == 1:
             play_next(guild_id)
-        # Se estiver em loop da fila, move o atual para o final e toca o próximo
         elif loop_status.get(guild_id, 0) == 2:
             queues[guild_id].append(queues[guild_id].pop(0))
             play_next(guild_id)
         else:
-            # Loop desativado: remove a música da fila
             queues[guild_id].pop(0)
             if queues[guild_id]:
                 play_next(guild_id)
             else:
                 check_auto_disconnect(guild_id)
 
-    # Verifica se o track é um link ou um arquivo local
-    if current_track.startswith("http://") or current_track.startswith("https://"):
-        vc.play(discord.FFmpegPCMAudio(current_track), after=after_playback)
-    else:
-        vc.play(discord.FFmpegPCMAudio(current_track), after=after_playback)
+    try:
+        # Se for um link do YouTube
+        if current_track.startswith("http://") or current_track.startswith("https://"):
+            FFMPEG_OPTIONS = {
+                'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
+                'options': '-vn'
+            }
+            vc.play(discord.FFmpegPCMAudio(current_track, **FFMPEG_OPTIONS), after=after_playback)
+        else:
+            # Se for arquivo local
+            vc.play(discord.FFmpegPCMAudio(current_track), after=after_playback)
+    except Exception as e:
+        print(f"Erro ao tocar a faixa: {e}")
+        # Se der erro, tenta tocar a próxima
+        queues[guild_id].pop(0)
+        if queues[guild_id]:
+            play_next(guild_id)
 def buscar_arquivo(nome):
     nome_normalizado = unidecode.unidecode(nome).lower()
     for root, _, files in os.walk("assets/audios"):
