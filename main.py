@@ -369,7 +369,11 @@ def play_next(guild_id):
             else:
                 check_auto_disconnect(guild_id)
 
-    vc.play(discord.FFmpegPCMAudio(current_track), after=after_playback)
+    # Verifica se o track é um link ou um arquivo local
+    if current_track.startswith("http://") or current_track.startswith("https://"):
+        vc.play(discord.FFmpegPCMAudio(current_track), after=after_playback)
+    else:
+        vc.play(discord.FFmpegPCMAudio(current_track), after=after_playback)
 def buscar_arquivo(nome):
     nome_normalizado = unidecode.unidecode(nome).lower()
     for root, _, files in os.walk("assets/audios"):
@@ -389,8 +393,8 @@ async def entrar(interaction: discord.Interaction, canal: discord.VoiceChannel):
     vc = await canal.connect()
     voice_clients[interaction.guild.id] = vc
     await interaction.response.send_message(f"🔊 Entrei no canal {canal.mention}!")
-@bot.tree.command(name="tocar", description="Toca um ou mais áudios no canal de voz")
-@app_commands.describe(arquivo="Nome(s) do(s) arquivo(s) de áudio ou pasta, separados por vírgula")
+@bot.tree.command(name="tocar", description="Toca um ou mais áudios no canal de voz ou links do YouTube")
+@app_commands.describe(arquivo="Nome(s) do(s) arquivo(s) de áudio ou link(s), separados por vírgula")
 async def tocar(interaction: discord.Interaction, arquivo: str):
     guild_id = interaction.guild.id
     vc = voice_clients.get(guild_id)
@@ -409,23 +413,28 @@ async def tocar(interaction: discord.Interaction, arquivo: str):
         queues[guild_id] = []
 
     for nome in nomes:
-        if nome.startswith("*"):
-            pasta = nome[1:]
-            caminho_pasta = os.path.join("assets/audios", pasta)
-            if os.path.exists(caminho_pasta) and os.path.isdir(caminho_pasta):
-                arquivos = sorted([
-                    os.path.join(caminho_pasta, f)
-                    for f in os.listdir(caminho_pasta)
-                    if os.path.isfile(os.path.join(caminho_pasta, f))
-                ])
-                if arquivos:
-                    queues[guild_id].extend(arquivos)
-                    encontrados.append(f"[{len(arquivos)} de {pasta}]")
-                else:
-                    await interaction.channel.send(f"⚠️ A pasta `{pasta}` está vazia!")
-            else:
-                await interaction.channel.send(f"❌ Pasta `{pasta}` não encontrada!")
+        # Verifica se é um link do YouTube
+        if nome.startswith("http://") or nome.startswith("https://"):
+            try:
+                # Envia requisição ao servidor Node.js para processar o link
+                response = requests.post("http://localhost:3000/youtube/search", json={"query": nome})
+                data = response.json()
+
+                if response.status_code != 200 or "error" in data:
+                    await interaction.channel.send(f"❌ Erro ao processar o link `{nome}`: {data.get('error', 'Erro desconhecido')}")
+                    continue
+
+                if data['type'] == 'video':
+                    queues[guild_id].append(data['url'])
+                    encontrados.append(data['title'])
+                elif data['type'] == 'search':
+                    first_result = data['results'][0]
+                    queues[guild_id].append(first_result['url'])
+                    encontrados.append(first_result['title'])
+            except Exception as e:
+                await interaction.channel.send(f"❌ Erro ao processar o link `{nome}`: {e}")
         else:
+            # Trata como arquivo local
             audio_file = buscar_arquivo(nome)
             if audio_file:
                 queues[guild_id].append(audio_file)
@@ -434,7 +443,7 @@ async def tocar(interaction: discord.Interaction, arquivo: str):
                 await interaction.channel.send(f"⚠️ Arquivo `{nome}` não encontrado!")
 
     if not encontrados:
-        return await interaction.response.send_message("❌ Nenhum dos áudios ou pastas foi encontrado!", ephemeral=True)
+        return await interaction.response.send_message("❌ Nenhum dos áudios ou links foi encontrado!", ephemeral=True)
 
     if not vc.is_playing():
         play_next(guild_id)

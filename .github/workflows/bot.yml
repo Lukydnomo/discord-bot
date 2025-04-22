@@ -22,12 +22,29 @@ jobs:
         with:
           python-version: "3.13"
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+
+      - name: Instalar dependências do servidor Node.js
+        run: |
+          while read package; do
+            npm install "$package"
+          done < requirements/requirementsJS.txt
+
+      - name: Iniciar servidor Node.js
+        run: |
+          node server.js &
+        env:
+          PORT: 3000
+
       - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install ffmpeg
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirementsPY.txt
 
       - name: Run Bot
         run: python main.py
