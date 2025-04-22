@@ -68,7 +68,9 @@ app.post('/youtube/search', async (req, res) => {
     if (ytdl.validateURL(query)) {
       const cleanUrl = query.split('&')[0];
       try {
-        videoInfo = await ytdl.getInfo(cleanUrl); // Substituído por getInfo
+        videoInfo = await ytdl.getInfo(cleanUrl, {
+          requestOptions: YTDL_OPTIONS.requestOptions, // Passa os requestOptions aqui
+        });
       } catch (err) {
         console.warn(
           'getInfo falhou, tentando buscar via yt-search:',
@@ -76,14 +78,18 @@ app.post('/youtube/search', async (req, res) => {
         );
         const results = await ytSearch(query);
         if (!results.videos.length) throw err;
-        videoInfo = await ytdl.getInfo(results.videos[0].url); // Substituído por getInfo
+        videoInfo = await ytdl.getInfo(results.videos[0].url, {
+          requestOptions: YTDL_OPTIONS.requestOptions, // Passa os requestOptions aqui também
+        });
       }
     } else {
       const results = await ytSearch(query);
       if (!results.videos.length) {
         return res.status(404).json({ error: 'Nenhum vídeo encontrado' });
       }
-      videoInfo = await ytdl.getInfo(results.videos[0].url); // Substituído por getInfo
+      videoInfo = await ytdl.getInfo(results.videos[0].url, {
+        requestOptions: YTDL_OPTIONS.requestOptions, // Passa os requestOptions aqui também
+      });
     }
   } catch (err) {
     console.error('Erro ao obter informações do vídeo:', err);
