@@ -27,16 +27,14 @@ jobs:
         with:
           node-version: "18"
 
+      - name: Atualizar dependências no package.json
+        run: node updateDependencies.js
+
       - name: Instalar dependências do servidor Node.js
-        run: |
-          echo '{}' > package.json
-          while read package; do
-            npm install "$package"
-          done < requirements/requirementsJS.txt
+        run: npm install
 
       - name: Iniciar servidor Node.js
-        run: |
-          node server.js &
+        run: npm start &
         env:
           PORT: 3000
 

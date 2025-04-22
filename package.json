@@ -1,0 +1,9 @@
+{
+    "name": "discord-bot-server",
+    "version": "1.0.0",
+    "description": "Servidor Node.js para integração com o bot Discord",
+    "main": "server.js",
+    "scripts": {
+      "start": "node server.js"
+    }
+}
