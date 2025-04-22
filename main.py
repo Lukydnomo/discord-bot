@@ -380,30 +380,36 @@ def play_next(guild_id):
                 check_auto_disconnect(guild_id)
 
     try:
-        # Configura opções do FFmpeg para melhor qualidade
-        ffmpeg_options = {
-            'options': '-vn -b:a 128k',  # Apenas áudio, bitrate 128k
+        # Configura opções do FFmpeg
+        common_opts = {
+            'options': '-vn -b:a 128k'  # Apenas áudio, bitrate 128k
+        }
+        reconnect_opts = {
             'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'  # Opções de reconexão
         }
 
         # Verifica o tipo de faixa e obtém o caminho correto
         audio_path = current_track.get('path', current_track) if isinstance(current_track, dict) else current_track
-
-        # Se for URL, pula a verificação de disco
         is_remote = isinstance(audio_path, str) and audio_path.startswith("http")
+
+        # Erro se local e não existe
         if not is_remote and not os.path.exists(audio_path):
             print(f"Arquivo não encontrado: {audio_path}")
             after_playback(Exception("Arquivo não encontrado"))
             return
 
-        # Escolhe a fonte para tocar
-        source = discord.FFmpegPCMAudio(
-            audio_path,
-            **ffmpeg_options
-        )
+        # Para URLs, aplica reconnect; para locais, só o básico
+        opts = common_opts.copy()
+        if is_remote:
+            opts.update(reconnect_opts)
 
-        # Inicia a reprodução
-        vc.play(source, after=after_playback)
+        vc.play(
+            discord.FFmpegPCMAudio(
+                audio_path,
+                **opts
+            ),
+            after=after_playback
+        )
 
     except Exception as e:
         print(f"Erro ao tocar a faixa: {e}")
