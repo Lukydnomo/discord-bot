@@ -109,19 +109,42 @@ app.post('/youtube/search', async (req, res) => {
     try {
         let videoUrl = query;
         if (ytdl.validateURL(query)) {
-            // Removemos os parâmetros extras da URL
+            // Removemos parâmetros extras
             videoUrl = query.split('&')[0];
-            
-            const info = await ytdl.getBasicInfo(videoUrl, {
-                requestOptions: {
-                    headers: {
-                        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36'
+
+            let info;
+            try {
+                info = await ytdl.getBasicInfo(videoUrl, {
+                    requestOptions: {
+                        headers: {
+                            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36'
+                        }
+                    }
+                });
+            } catch (error) {
+                // Se o erro indicar status 410, tenta fallback com ytSearch
+                if (error.message && error.message.includes("410")) {
+                    console.log("Fallback: erro 410 detectado, tentando buscar vídeo alternativo via ytSearch...");
+                    const searchResults = await ytSearch(query);
+                    if (searchResults.videos && searchResults.videos.length > 0) {
+                        const firstVideo = searchResults.videos[0];
+                        const videoId = firstVideo.videoId;
+                        const audioPath = await downloadYouTubeAudio(firstVideo.url, videoId);
+                        return res.json({
+                            type: 'video',
+                            title: firstVideo.title,
+                            filePath: audioPath,
+                            duration: firstVideo.duration.seconds,
+                            author: firstVideo.author.name
+                        });
+                    } else {
+                        return res.status(500).json({ error: 'Vídeo não disponível (fallback falhou).' });
                     }
                 }
-            });
+                throw error;
+            }
             
             const videoId = info.videoDetails.videoId;
-            
             // Baixa o áudio
             const audioPath = await downloadYouTubeAudio(videoUrl, videoId);
 
@@ -134,14 +157,13 @@ app.post('/youtube/search', async (req, res) => {
             });
         }
 
-        // Caso seja uma busca
+        // Caso query não seja link
         const searchResults = await ytSearch(query);
         const firstVideo = searchResults.videos[0];
         if (!firstVideo) {
             return res.status(404).json({ error: 'Nenhum vídeo encontrado.' });
         }
 
-        // Baixa o primeiro resultado
         const videoId = firstVideo.videoId;
         const audioPath = await downloadYouTubeAudio(firstVideo.url, videoId);
 
@@ -152,7 +174,6 @@ app.post('/youtube/search', async (req, res) => {
             duration: firstVideo.duration.seconds,
             author: firstVideo.author.name
         });
-
     } catch (error) {
         console.error('Erro ao buscar vídeos no YouTube:', error);
         res.status(500).json({ error: 'Erro ao buscar vídeos no YouTube.', details: error.message });
