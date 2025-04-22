@@ -34,6 +34,25 @@ from core.modules import *
 # chama antes de inicializar o bot
 cancel_previous_github_runs()
 
+# ... após as importações ...
+
+async def poll_js_logs():
+    """Busca e exibe logs do servidor Node.js"""
+    while True:
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"{YT_BACKEND_URL}/logs") as response:
+                    if response.status == 200:
+                        logs = await response.json()
+                        for log in logs:
+                            # Formata e exibe os logs
+                            timestamp = log['timestamp'].split('T')[1].split('.')[0]
+                            print(f"[JSTerminal] [{timestamp}] [{log['type'].upper()}] {log['message']}")
+        except Exception as e:
+            print(f"[JSTerminal] Erro ao buscar logs: {e}")
+        
+        await asyncio.sleep(1)  # Espera 1 segundo antes de buscar novamente
+
 class MyBot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix=commandPrefix, intents=intents)
@@ -42,6 +61,9 @@ class MyBot(commands.Bot):
     async def setup_hook(self):
         await self.tree.sync()  # Sincroniza comandos globalmente
         print("✅ Comandos sincronizados globalmente!")
+
+        # Inicia o polling de logs em background
+        self.loop.create_task(poll_js_logs())
 
 bot = MyBot()
 

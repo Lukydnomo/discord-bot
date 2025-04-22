@@ -6,6 +6,27 @@ const path = require('path');
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Fila de logs para o Python consumir
+const logQueue = [];
+
+// Função para adicionar logs
+function addLog(message, type = 'info') {
+  const log = {
+    timestamp: new Date().toISOString(),
+    type: type,
+    message: message,
+  };
+  logQueue.push(log);
+  console.log(`[${type.toUpperCase()}] ${message}`); // Mantém o log no console do Node
+}
+
+// Novo endpoint para buscar logs
+app.get('/logs', (req, res) => {
+  const logs = [...logQueue]; // Copia os logs
+  logQueue.length = 0; // Limpa a fila
+  res.json(logs);
+});
+
 app.use(express.json());
 
 // Serve a pasta de downloads via URL
@@ -45,9 +66,9 @@ function cleanupDownloads() {
     if (now - stats.mtimeMs > MAX_AGE) {
       try {
         fs.unlinkSync(filePath);
-        console.log(`Arquivo antigo removido: ${file}`);
+        addLog(`Arquivo antigo removido: ${file}`, 'info');
       } catch (err) {
-        console.error(`Erro ao remover arquivo antigo ${file}:`, err);
+        addLog(`Erro ao remover arquivo antigo ${file}: ${err}`, 'error');
       }
     }
   });
@@ -60,6 +81,7 @@ app.post('/youtube/search', async (req, res) => {
   const { query } = req.body;
 
   if (!query) {
+    addLog('Query é obrigatória', 'error');
     return res.status(400).json({ error: 'Query é obrigatória' });
   }
 
@@ -68,13 +90,14 @@ app.post('/youtube/search', async (req, res) => {
     if (ytdl.validateURL(query)) {
       const cleanUrl = query.split('&')[0];
       try {
+        addLog(`Buscando info do vídeo: ${cleanUrl}`, 'info');
         videoInfo = await ytdl.getInfo(cleanUrl, {
           requestOptions: YTDL_OPTIONS.requestOptions, // Passa os requestOptions aqui
         });
       } catch (err) {
-        console.warn(
-          'getInfo falhou, tentando buscar via yt-search:',
-          err.message
+        addLog(
+          `getInfo falhou, tentando buscar via yt-search: ${err.message}`,
+          'warn'
         );
         const results = await ytSearch(query);
         if (!results.videos.length) throw err;
@@ -92,7 +115,7 @@ app.post('/youtube/search', async (req, res) => {
       });
     }
   } catch (err) {
-    console.error('Erro ao obter informações do vídeo:', err);
+    addLog(`Erro ao obter informações do vídeo: ${err}`, 'error');
     return res.status(500).json({
       error: 'Erro ao obter informações do vídeo',
       details: err.message.includes('Status code:')
@@ -111,7 +134,7 @@ app.post('/youtube/search', async (req, res) => {
   try {
     audioPath = await downloadYouTubeAudio(audioUrl, videoId);
   } catch (err) {
-    console.error('Erro ao baixar áudio:', err);
+    addLog(`Erro ao baixar áudio: ${err}`, 'error');
     return res
       .status(502)
       .json({ error: 'Erro ao baixar áudio', details: err.message });
@@ -165,13 +188,13 @@ async function downloadYouTubeAudio(url, videoId, maxRetries = 3) {
 
       return outputPath;
     } catch (error) {
-      console.warn(`Tentativa ${attempt} falhou:`, error.message);
+      addLog(`Tentativa ${attempt} falhou: ${error.message}`, 'warn');
       if (attempt === maxRetries) throw error;
     }
   }
 }
 
 app.listen(port, () => {
-  console.log(`Servidor Node.js rodando na porta ${port}`);
+  addLog(`Servidor Node.js rodando na porta ${port}`, 'info');
   cleanupDownloads(); // Limpa downloads antigos ao iniciar
 });
