@@ -60,35 +60,55 @@ app.post('/youtube/search', async (req, res) => {
   }
 
   let videoInfo;
-  if (ytdl.validateURL(query)) {
-    const cleanUrl = query.split('&')[0];
-    try {
-      videoInfo = await ytdl.getBasicInfo(cleanUrl);
-    } catch (err) {
-      console.warn(
-        'getBasicInfo falhou, tentando buscar via yt-search:',
-        err.message
-      );
+  try {
+    if (ytdl.validateURL(query)) {
+      const cleanUrl = query.split('&')[0];
+      try {
+        videoInfo = await ytdl.getBasicInfo(cleanUrl);
+      } catch (err) {
+        console.warn(
+          'getBasicInfo falhou, tentando buscar via yt-search:',
+          err.message
+        );
+        const results = await ytSearch(query);
+        if (!results.videos.length) throw err;
+        videoInfo = await ytdl.getBasicInfo(results.videos[0].url);
+      }
+    } else {
       const results = await ytSearch(query);
-      if (!results.videos.length) throw err;
+      if (!results.videos.length) {
+        return res.status(404).json({ error: 'Nenhum vídeo encontrado' });
+      }
       videoInfo = await ytdl.getBasicInfo(results.videos[0].url);
     }
-  } else {
-    const results = await ytSearch(query);
-    if (!results.videos.length) {
-      return res.status(404).json({ error: 'Nenhum vídeo encontrado' });
-    }
-    videoInfo = await ytdl.getBasicInfo(results.videos[0].url);
+  } catch (err) {
+    console.error('Erro ao obter informações do vídeo:', err);
+    return res
+      .status(500)
+      .json({
+        error: 'Erro ao obter informações do vídeo',
+        details: err.message,
+      });
   }
 
   const videoId = videoInfo.videoDetails.videoId;
-  // Usa sempre a URL original (ou limpa) para download
   const audioUrl = ytdl.validateURL(query)
     ? query.split('&')[0]
     : videoInfo.videoDetails.video_url;
-  const audioPath = await downloadYouTubeAudio(audioUrl, videoId);
 
-  res.json({
+  // Trata erro de download
+  let audioPath;
+  try {
+    audioPath = await downloadYouTubeAudio(audioUrl, videoId);
+  } catch (err) {
+    console.error('Erro ao baixar áudio:', err);
+    return res
+      .status(502)
+      .json({ error: 'Erro ao baixar áudio', details: err.message });
+  }
+
+  // Se tudo deu certo, retorna o JSON normal
+  return res.json({
     type: 'video',
     title: videoInfo.videoDetails.title,
     filePath: audioPath,
