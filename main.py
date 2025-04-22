@@ -389,19 +389,21 @@ def play_next(guild_id):
         # Verifica o tipo de faixa e obtém o caminho correto
         audio_path = current_track.get('path', current_track) if isinstance(current_track, dict) else current_track
 
-        if not os.path.exists(audio_path):
+        # Se for URL, pula a verificação de disco
+        is_remote = isinstance(audio_path, str) and audio_path.startswith("http")
+        if not is_remote and not os.path.exists(audio_path):
             print(f"Arquivo não encontrado: {audio_path}")
             after_playback(Exception("Arquivo não encontrado"))
             return
 
-        # Inicia a reprodução
-        vc.play(
-            discord.FFmpegPCMAudio(
-                audio_path,
-                **ffmpeg_options
-            ),
-            after=after_playback
+        # Escolhe a fonte para tocar
+        source = discord.FFmpegPCMAudio(
+            audio_path,
+            **ffmpeg_options
         )
+
+        # Inicia a reprodução
+        vc.play(source, after=after_playback)
 
     except Exception as e:
         print(f"Erro ao tocar a faixa: {e}")
@@ -425,61 +427,79 @@ async def entrar(interaction: discord.Interaction, canal: discord.VoiceChannel):
     vc = await canal.connect()
     voice_clients[interaction.guild.id] = vc
     await interaction.response.send_message(f"🔊 Entrei no canal {canal.mention}!")
-@bot.tree.command(name="tocar", description="Toca um ou mais áudios no canal de voz ou links do YouTube")
-@app_commands.describe(arquivo="Nome(s) do(s) arquivo(s) de áudio ou link(s), separados por vírgula")
+YOUTUBE_REGEX = r'^(https?://)?(www\.)?(youtube\.com|youtu\.?be)/.+$'
+@bot.tree.command(name="tocar", description="Toca um ou mais áudios no canal de voz")
+@app_commands.describe(arquivo="Nome(s) do(s) arquivo(s) de áudio ou pasta, separados por vírgula")
 async def tocar(interaction: discord.Interaction, arquivo: str):
-    await interaction.response.defer()  # Defer the response to avoid timeout
-
-    # Check if user is in a voice channel
-    if not interaction.user.voice:
-        return await interaction.followup.send("❌ Você precisa estar em um canal de voz!", ephemeral=True)
-
     guild_id = interaction.guild.id
-    
-    # Connect to voice if not already connected
-    if guild_id not in voice_clients:
-        try:
-            voice_clients[guild_id] = await interaction.user.voice.channel.connect()
-        except Exception as e:
-            return await interaction.followup.send(f"❌ Erro ao conectar ao canal de voz: {str(e)}", ephemeral=True)
+    vc = voice_clients.get(guild_id)
 
+    # Se ainda não estiver conectado, conecta
+    if not vc:
+        canal = interaction.user.voice.channel if interaction.user.voice else None
+        if not canal:
+            return await interaction.response.send_message(
+                "❌ Você não está em um canal de voz e o bot também não está!",
+                ephemeral=True
+            )
+        vc = await canal.connect()
+        voice_clients[guild_id] = vc
+
+    # Divide a string em nomes/pastas
+    nomes = [nome.strip() for nome in arquivo.split(",")]
+    encontrados = []
+
+    # Inicializa a fila se necessário
     if guild_id not in queues:
         queues[guild_id] = []
 
-    encontrados = []
-    nomes = [nome.strip() for nome in arquivo.split(",")]
-
+    # Para cada entrada
     for nome in nomes:
-        # 1) Detecta link do YouTube
-        if re.match(r'https?://(www\.)?(youtube\.com|youtu\.be)/', nome):
-            try:
-                async with aiohttp.ClientSession() as session:
-                    async with session.post(
-                        "http://localhost:3000/youtube/search",
+        # 1) Se for link do YouTube
+        if re.match(YOUTUBE_REGEX, nome):
+            async with aiohttp.ClientSession() as session:
+                try:
+                    resp = await session.post(
+                        f"{YT_BACKEND_URL}/youtube/search",
                         json={"query": nome},
-                        headers={"Content-Type": "application/json"},
-                        timeout=aiohttp.ClientTimeout(total=30)
-                    ) as response:
-                        if response.status != 200:
-                            error_text = await response.text()
-                            await interaction.followup.send(f"❌ Erro ao processar link: {error_text}", ephemeral=True)
-                            continue
-                        
-                        data = await response.json()
-                        queues[guild_id].append({
-                            "type": "youtube",
-                            "path": data["filePath"],
-                            "title": data["title"]
-                        })
-                        encontrados.append(f"▶️ {data.get('title', 'YouTube')}")
-            except Exception as e:
-                await interaction.followup.send(f"❌ Erro ao processar link: {str(e)}", ephemeral=True)
-            continue
+                        timeout=60
+                    )
+                    if resp.status != 200:
+                        text = await resp.text()
+                        await interaction.channel.send(f"❌ Erro no backend YouTube: `{resp.status}` {text}")
+                        continue
+                    data = await resp.json()
+                except Exception as e:
+                    await interaction.channel.send(f"❌ Falha ao conectar com o backend: {e}")
+                    continue
 
-        # 2) Continua tratando pastas locais e arquivos
-        if nome.startswith("*"):
+            # Enfileira o URL remoto
+            queues[guild_id].append({
+                "type": "youtube",
+                "path": data["downloadUrl"],  # URL retornada pelo backend
+                "title": data["title"]
+            })
+            encontrados.append(data["title"])
+
+        # 2) Se for pasta local (prefixo "*")
+        elif nome.startswith("*"):
             pasta = nome[1:]
-            # ... seu código existente para pastas ...
+            caminho_pasta = os.path.join("assets/audios", pasta)
+            if os.path.exists(caminho_pasta) and os.path.isdir(caminho_pasta):
+                arquivos = sorted([
+                    os.path.join(caminho_pasta, f)
+                    for f in os.listdir(caminho_pasta)
+                    if os.path.isfile(os.path.join(caminho_pasta, f))
+                ])
+                if arquivos:
+                    queues[guild_id].extend(arquivos)
+                    encontrados.append(f"[{len(arquivos)} de {pasta}]")
+                else:
+                    await interaction.channel.send(f"⚠️ A pasta `{pasta}` está vazia!")
+            else:
+                await interaction.channel.send(f"❌ Pasta `{pasta}` não encontrada!")
+
+        # 3) Se for arquivo local
         else:
             audio_file = buscar_arquivo(nome)
             if audio_file:
@@ -492,14 +512,23 @@ async def tocar(interaction: discord.Interaction, arquivo: str):
             else:
                 await interaction.channel.send(f"⚠️ Arquivo `{nome}` não encontrado!")
 
-    if encontrados:
-        if not voice_clients[guild_id].is_playing():
-            await interaction.followup.send(f"🎵 Tocando: {encontrados[0]}")
-            play_next(guild_id)
-        else:
-            await interaction.followup.send(f"🎶 Adicionado(s) à fila: {', '.join(encontrados)}")
+    # Se nada foi encontrado, retorna erro
+    if not encontrados:
+        return await interaction.response.send_message(
+            "❌ Nenhum dos áudios ou pastas foi encontrado!",
+            ephemeral=True
+        )
+
+    # Toca ou adiciona à fila
+    if not vc.is_playing():
+        play_next(guild_id)
+        await interaction.response.send_message(
+            f"🎵 Tocando `{encontrados[0]}` e adicionando o resto à fila!"
+        )
     else:
-        await interaction.followup.send("❌ Nenhum áudio encontrado ou válido!", ephemeral=True)
+        await interaction.response.send_message(
+            f"🎶 Adicionado(s) à fila: {', '.join(encontrados)}"
+        )
 @bot.tree.command(name="listar", description="Lista todos os áudios")
 async def listar(interaction: discord.Interaction):
     diretorio = "assets/audios"

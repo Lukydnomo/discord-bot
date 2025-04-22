@@ -16,6 +16,8 @@ MAX_DICE_GROUP = 100
 MAX_FACES = 10000
 logger = logging.getLogger("discord_bot")
 logger.setLevel(logging.INFO)
+# URL do seu server.js
+YT_BACKEND_URL = os.getenv("YT_BACKEND_URL", "http://localhost:3000")
 
 def cancel_previous_github_runs():
     """

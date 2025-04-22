@@ -8,6 +8,10 @@ const port = process.env.PORT || 3000;
 
 app.use(express.json());
 
+// Serve a pasta de downloads via URL
+const downloadsDir = path.join(__dirname, 'downloads');
+app.use('/downloads', express.static(downloadsDir));
+
 // Configurações do ytdl
 const YTDL_OPTIONS = {
   filter: 'audioonly',
@@ -83,12 +87,10 @@ app.post('/youtube/search', async (req, res) => {
     }
   } catch (err) {
     console.error('Erro ao obter informações do vídeo:', err);
-    return res
-      .status(500)
-      .json({
-        error: 'Erro ao obter informações do vídeo',
-        details: err.message,
-      });
+    return res.status(500).json({
+      error: 'Erro ao obter informações do vídeo',
+      details: err.message,
+    });
   }
 
   const videoId = videoInfo.videoDetails.videoId;
@@ -112,6 +114,7 @@ app.post('/youtube/search', async (req, res) => {
     type: 'video',
     title: videoInfo.videoDetails.title,
     filePath: audioPath,
+    downloadUrl: `http://localhost:${port}/downloads/${videoId}.mp3`,
     duration: videoInfo.videoDetails.lengthSeconds,
     author: videoInfo.videoDetails.author.name,
     url: videoInfo.videoDetails.video_url,
