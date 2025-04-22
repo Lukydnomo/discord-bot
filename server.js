@@ -13,6 +13,13 @@ function cleanUrl(url) {
     return urlObject.toString();
 }
 
+// Função para extrair o ID do vídeo da URL
+function getVideoId(url) {
+    const urlObject = new URL(url);
+    const videoId = urlObject.searchParams.get('v');
+    return videoId;
+}
+
 // Endpoint para obter informações de um vídeo do YouTube
 app.post('/youtube/info', async (req, res) => {
     const { url } = req.body;
@@ -47,7 +54,22 @@ app.post('/youtube/search', async (req, res) => {
             // Limpa a URL removendo parâmetros extras
             videoUrl = cleanUrl(query);
             console.log(`Processando link do YouTube: ${videoUrl}`);
-            const info = await ytdl.getInfo(videoUrl);
+
+            // Extrai o ID do vídeo
+            const videoId = getVideoId(videoUrl);
+            if (!videoId) {
+                return res.status(400).json({ error: 'ID do vídeo não encontrado na URL.' });
+            }
+
+            // Verifica se o vídeo está disponível
+            try {
+                await ytdl.getInfo(videoId);
+            } catch (error) {
+                console.error('Erro ao obter informações do vídeo:', error);
+                return res.status(500).json({ error: 'Vídeo não disponível.', details: error.message });
+            }
+
+            const info = await ytdl.getInfo(videoId);
             return res.json({
                 type: 'video',
                 title: info.videoDetails.title,
