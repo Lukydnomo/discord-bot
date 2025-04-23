@@ -991,7 +991,6 @@ async def lapide(interaction: discord.Interaction, usuario: discord.Member = Non
 FONTES_DISPONIVEIS = [
     "5lineoblique", "standard", "slant", "3-d", "alphabet", "doh", "isometric1", "block", "bubble", "digital"
 ]
-
 @bot.tree.command(name="ascii", description="Gera uma arte ASCII com o texto e fonte escolhidos.")
 @app_commands.describe(
     texto="Texto para converter em arte ASCII",
@@ -1018,5 +1017,6 @@ async def ascii(interaction: discord.Interaction, texto: str, fonte: app_command
         await interaction.response.send_message(f"```\n{arte}\n```")
     except Exception as e:
         await interaction.response.send_message(f"❌ Erro ao gerar a arte ASCII: {e}", ephemeral=True)
+
 # Inicia o bot
 bot.run(DISCORDTOKEN)

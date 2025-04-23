@@ -2,8 +2,6 @@ discord.py
 pynacl
 requests
 unidecode
-pytz
 pillow
 deep_translator
-langdetect
 pyfiglet
