@@ -22,19 +22,6 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-
-      - name: Instalar dependências do servidor Node.js
-        run: npm install
-
-      - name: Iniciar servidor Node.js
-        run: npm start &
-        env:
-          PORT: 3000
-
       - name: Install Dependencies
         run: |
           sudo apt-get update
