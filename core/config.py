@@ -23,7 +23,7 @@ def cancel_previous_github_runs():
     Cancela execuções anteriores no GitHub Actions, exceto a execução atual.
     """
     run_id = os.getenv("RUN_ID")
-    token = os.getenv("GHUB_TOKEN")
+    token = GITHUBTOKEN
 
     if not run_id or not token:
         logger.warning(
