@@ -17,7 +17,7 @@ class Moderation(commands.Cog):
         punish_channel="Canal de voz onde o membro será movido",
         duration="Duração da punição em minutos (opcional, padrão: 1 minuto)"
     )
-    async def punir(interaction: discord.Interaction, member: discord.Member, punish_channel: discord.VoiceChannel, duration: int = 1):
+    async def punir(self, interaction: discord.Interaction, member: discord.Member, punish_channel: discord.VoiceChannel, duration: int = 1):
         try:
             # Verifica permissões do autor
             if interaction.user.top_role <= interaction.guild.me.top_role:
@@ -65,7 +65,7 @@ class Moderation(commands.Cog):
     @app_commands.describe(origem="Canal de onde os usuários serão movidos",
                             destino="Canal para onde os usuários serão movidos",
                             cargo="(Opcional) Apenas move membros com um cargo específico")
-    async def mover(interaction: discord.Interaction, origem: discord.VoiceChannel, destino: discord.VoiceChannel, cargo: discord.Role = None):
+    async def mover(self, interaction: discord.Interaction, origem: discord.VoiceChannel, destino: discord.VoiceChannel, cargo: discord.Role = None):
         if not interaction.user.guild_permissions.move_members:
             return await interaction.response.send_message("🚫 Você não tem permissão para mover membros!", ephemeral=True)
 
@@ -91,6 +91,7 @@ class Moderation(commands.Cog):
         apenas_cargo="(Opcional) Mutar SOMENTE este cargo"
     )
     async def mutar(
+        self,
         interaction: discord.Interaction,
         canal: discord.VoiceChannel,
         excecao_usuario: discord.Member = None,
@@ -142,6 +143,7 @@ class Moderation(commands.Cog):
         apenas_cargo="(Opcional) Desmutar SOMENTE membros desse cargo"
     )
     async def desmutar(
+        self,
         interaction: discord.Interaction,
         canal: discord.VoiceChannel,
         apenas_usuario: discord.Member = None,
@@ -176,7 +178,7 @@ class Moderation(commands.Cog):
 
     @app_commands.command(name="db_test", description="Testa o banco de dados")
     @app_commands.describe(action="Escolha entre save ou load", name="Nome da chave", value="Valor a ser salvo (apenas para save)")
-    async def db_test(interaction: discord.Interaction, action: str, name: str, value: str = None):
+    async def db_test(self, interaction: discord.Interaction, action: str, name: str, value: str = None):
         # Defer a resposta para garantir mais tempo para processamento
         await interaction.response.defer()
 
