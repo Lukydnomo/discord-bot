@@ -5,7 +5,7 @@ import requests
 
 commandPrefix = "foa!"
 DISCORDTOKEN = os.getenv("DISCORD_BOT_TOKEN")
-GITHUBTOKEN = os.getenv("GHUB_TOKEN", None)
+GITHUBTOKEN = os.getenv("GHUB_TOKEN")
 luky = 767015394648915978
 logChannel = 1317580138262695967
 usuarios_autorizados = [luky]

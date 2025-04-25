@@ -5,4 +5,3 @@ unidecode
 pillow
 deep_translator
 pyfiglet
-python-dotenv
