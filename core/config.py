@@ -5,7 +5,7 @@ import requests
 
 commandPrefix = "foa!"
 DISCORDTOKEN = os.getenv("DISCORD_BOT_TOKEN")
-GITHUBTOKEN = os.getenv("GHUB_TOKEN")
+GITHUBTOKEN = os.getenv("GHUB_TOKEN", None)
 luky = 767015394648915978
 logChannel = 1317580138262695967
 usuarios_autorizados = [luky]
@@ -23,7 +23,7 @@ def cancel_previous_github_runs():
     Cancela execuções anteriores no GitHub Actions, exceto a execução atual.
     """
     run_id = os.getenv("RUN_ID")
-    token = GITHUBTOKEN
+    token = os.getenv("GITHUB_TOKEN")
 
     if not run_id or not token:
         logger.warning(
