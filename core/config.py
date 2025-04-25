@@ -1,10 +1,14 @@
 import logging
 import os
-import requests
 
-commandPrefix = 'foa!'
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+commandPrefix = "foa!"
 DISCORDTOKEN = os.getenv("DISCORD_BOT_TOKEN")
-GITHUBTOKEN = os.getenv("DATABASE_TOKEN")
+GITHUBTOKEN = os.getenv("GHUB_TOKEN")
 luky = 767015394648915978
 logChannel = 1317580138262695967
 usuarios_autorizados = [luky]
@@ -16,8 +20,6 @@ MAX_DICE_GROUP = 100
 MAX_FACES = 10000
 logger = logging.getLogger("discord_bot")
 logger.setLevel(logging.INFO)
-# URL do seu server.js
-YT_BACKEND_URL = os.getenv("YT_BACKEND_URL", "http://localhost:3000")
 
 def cancel_previous_github_runs():
     """
@@ -27,12 +29,14 @@ def cancel_previous_github_runs():
     token = os.getenv("GITHUB_TOKEN")
 
     if not run_id or not token:
-        logger.warning("⚠️ Faltando RUN_ID ou GITHUB_TOKEN — pulando cancelamento de runs antigas.")
+        logger.warning(
+            "⚠️ Faltando RUN_ID ou GITHUB_TOKEN — pulando cancelamento de runs antigas."
+        )
         return
 
     headers = {
         "Authorization": f"token {token}",
-        "Accept": "application/vnd.github+json"
+        "Accept": "application/vnd.github+json",
     }
 
     # Lista as execuções em andamento
@@ -53,12 +57,16 @@ def cancel_previous_github_runs():
     for run in runs:
         rid = run.get("id")
         if str(rid) != run_id:
-            cancel_url = f"https://api.github.com/repos/{github_repo}/actions/runs/{rid}/cancel"
+            cancel_url = (
+                f"https://api.github.com/repos/{github_repo}/actions/runs/{rid}/cancel"
+            )
             try:
                 cancel_resp = requests.post(cancel_url, headers=headers)
                 if cancel_resp.status_code == 202:
                     logger.info(f"✅ Run antiga cancelada: {rid}")
                 else:
-                    logger.warning(f"⚠️ Falha ao cancelar run {rid}: {cancel_resp.status_code}")
+                    logger.warning(
+                        f"⚠️ Falha ao cancelar run {rid}: {cancel_resp.status_code}"
+                    )
             except requests.RequestException as e:
                 logger.error(f"❌ Erro ao cancelar run {rid}: {e}")

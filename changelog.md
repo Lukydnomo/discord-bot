@@ -300,3 +300,19 @@
 ## ⚙️ Alterado
 
 - Continuando o trabalho de otimização iniciado na última atualização, o código foi ainda mais refinado, resultando em uma redução significativa no número de linhas (de quase 1300 para 918). Isso melhora a legibilidade, organização e desempenho geral do bot.
+
+## [1.8.0] - 2025-04-25
+
+**SUPER OPTIMIZATION UPDATE**
+
+## ⚙️ Alterações Técnicas
+
+- **`Refatoração massiva de código`** - O main.py foi desmontado em módulos menores e reorganizado — antes com mais de 400 linhas, agora concentra só a inicialização e o carregamento de Cogs, deixando o fluxo muito mais limpo e fácil de entender.
+
+- **`Adoção do sistema de Cogs`** - Cada grupo de comandos (moderação, música, diversão, etc.) foi movido para seu próprio Cog, melhorando a separação de responsabilidades, acelerando o carregamento de extensões e evitando gargalos de performance na inicialização do bot.
+
+- **`Timers de desconexão mais precisos`** - A contagem regressiva de inatividade agora só começa quando realmente não há mais nada na fila de reprodução, e foi reduzida para 60s com asyncio.create_task, garantindo que o bot saia rápido de canais vazios sem disparar desconexões prematuras.
+
+## 📝 Observação
+
+- Cuidem do dev, ele nunca esteve em um estado de cansaço tão grande só pra deixar o nosso bot pessoal bom...

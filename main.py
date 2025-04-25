@@ -1,22 +1,18 @@
 # Core Python
 import asyncio
 import io
+
+# Terceiros
 import os
 import random
-from base64 import urlsafe_b64decode, urlsafe_b64encode
 
 # Discord
 import discord
+import pyfiglet
+from deep_translator import GoogleTranslator
 from discord import app_commands
 from discord.ext import commands
-
-# Terceiros
-import logging
-import pyfiglet
-import unidecode
 from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFont
-from deep_translator import GoogleTranslator
-import aiohttp
 
 # Instâncias iniciais
 cached_supported_languages = None  # Cache for supported languages
@@ -38,12 +34,18 @@ cancel_previous_github_runs()
 
 class MyBot(commands.Bot):
     def __init__(self):
-        super().__init__(command_prefix=commandPrefix, intents=intents)
+        super().__init__(
+            command_prefix="foa!",
+            intents=discord.Intents.default()
+        )
 
-    # Sincroniza comandos quando o bot inicia
     async def setup_hook(self):
-        await self.tree.sync()  # Sincroniza comandos globalmente
-        print("✅ Comandos sincronizados globalmente!")
+        # Carrega cada arquivo .py dentro de cogs/
+        for filename in os.listdir("./cogs"):
+            if filename.endswith(".py"):
+                await self.load_extension(f"cogs.{filename[:-3]}")
+        # Sincroniza seus slash commands
+        await self.tree.sync()
 
 bot = MyBot()
 
@@ -72,10 +74,6 @@ async def randomuser():
     
     return "No valid members found"  # Retorno caso não haja membros válidos
 
-# Configuração do logger
-logger = logging.getLogger("discord_bot")
-logger.setLevel(logging.INFO)
-
 # Evento de quando o bot estiver pronto
 @bot.event
 async def on_ready():
@@ -85,168 +83,6 @@ async def on_ready():
 @bot.event
 async def on_message(message):
     await on_message_custom(bot, message)
-
-@bot.tree.command(name="punir", description="Pune um membro movendo-o para um canal de voz específico por um tempo determinado.")
-@app_commands.describe(
-    member="Membro a ser punido",
-    punish_channel="Canal de voz onde o membro será movido",
-    duration="Duração da punição em minutos (opcional, padrão: 1 minuto)"
-)
-async def punir(interaction: discord.Interaction, member: discord.Member, punish_channel: discord.VoiceChannel, duration: int = 1):
-    try:
-        # Verifica permissões do autor
-        if interaction.user.top_role <= interaction.guild.me.top_role:
-            await interaction.response.send_message("❌ **Você precisa ter um cargo superior ao meu para usar este comando!**", ephemeral=True)
-            return
-
-        # Verifica se o autor está em um canal de voz
-        if not interaction.user.voice:
-            await interaction.response.send_message("❌ **Você precisa estar em um canal de voz para usar este comando!**", ephemeral=True)
-            return
-
-        # Salva o canal original e move o membro para o canal de punição
-        original_channel = member.voice.channel if member.voice else None
-        await member.move_to(punish_channel)
-        await interaction.response.send_message(f'✅ **{member.mention} foi punido e movido para {punish_channel.name} por {duration} minutos**')
-
-        # Desabilita a permissão de conectar aos outros canais
-        for channel in interaction.guild.voice_channels:
-            if channel != punish_channel:
-                await channel.set_permissions(member, connect=False)
-
-        # Aguarda a duração da punição
-        await asyncio.sleep(duration * 60)
-
-        # Restaura as permissões de conexão
-        for channel in interaction.guild.voice_channels:
-            if channel != punish_channel:
-                await channel.set_permissions(member, overwrite=None)
-
-        # Move o membro de volta para o canal original
-        if original_channel:
-            await member.move_to(original_channel)
-            await interaction.followup.send(f'✅ **{member.mention} foi movido de volta para {original_channel.name}**')
-        else:
-            await interaction.followup.send(f'✅ **{member.mention} foi liberado, mas não havia um canal original para movê-lo.**')
-
-    except discord.Forbidden:
-        await interaction.followup.send("❌ **Eu não tenho permissão suficiente para executar essa ação!**", ephemeral=True)
-    except discord.HTTPException as e:
-        await interaction.followup.send(f"❌ **Ocorreu um erro ao mover o membro: {e}**", ephemeral=True)
-    except Exception as e:
-        await interaction.followup.send(f"❌ **Algo deu errado: {e}**", ephemeral=True)
-
-@bot.tree.command(name="mover", description="Move todos os membros de um canal de voz para outro")
-@app_commands.describe(origem="Canal de onde os usuários serão movidos",
-                        destino="Canal para onde os usuários serão movidos",
-                        cargo="(Opcional) Apenas move membros com um cargo específico")
-async def mover(interaction: discord.Interaction, origem: discord.VoiceChannel, destino: discord.VoiceChannel, cargo: discord.Role = None):
-    if not interaction.user.guild_permissions.move_members:
-        return await interaction.response.send_message("🚫 Você não tem permissão para mover membros!", ephemeral=True)
-
-    membros_movidos = 0
-
-    for membro in origem.members:
-        if cargo and cargo not in membro.roles:
-            continue  # Se um cargo foi especificado, ignora membros que não o possuem
-        try:
-            await membro.move_to(destino)
-            membros_movidos += 1
-        except discord.Forbidden:
-            await interaction.response.send_message(f"🚨 Não tenho permissão para mover {membro.mention}!", ephemeral=True)
-
-    await interaction.response.send_message(f"✅ **{membros_movidos}** membros movidos de {origem.mention} para {destino.mention}!")
-
-@bot.tree.command(name="mutar", description="Muta todos em um canal de voz, um usuário ou um cargo específico")
-@app_commands.describe(
-    canal="Canal de voz onde os membros serão mutados",
-    excecao_usuario="(Opcional) Usuário que NÃO será mutado",
-    excecao_cargo="(Opcional) Cargo cujos membros NÃO serão mutados",
-    apenas_usuario="(Opcional) Mutar SOMENTE este usuário",
-    apenas_cargo="(Opcional) Mutar SOMENTE este cargo"
-)
-async def mutar(
-    interaction: discord.Interaction,
-    canal: discord.VoiceChannel,
-    excecao_usuario: discord.Member = None,
-    excecao_cargo: discord.Role = None,
-    apenas_usuario: discord.Member = None,
-    apenas_cargo: discord.Role = None
-):
-    if not interaction.user.guild_permissions.mute_members:
-        return await interaction.response.send_message("🚫 Você não tem permissão para mutar membros!", ephemeral=True)
-
-    # Mutar apenas um usuário
-    if apenas_usuario:
-        try:
-            await apenas_usuario.edit(mute=True)
-            return await interaction.response.send_message(f"🔇 {apenas_usuario.mention} foi mutado em {canal.mention}!")
-        except discord.Forbidden:
-            return await interaction.response.send_message(f"🚨 Não tenho permissão para mutar {apenas_usuario.mention}!", ephemeral=True)
-
-    # Mutar apenas um cargo
-    if apenas_cargo:
-        membros_mutados = 0
-        for membro in canal.members:
-            if apenas_cargo in membro.roles:
-                try:
-                    await membro.edit(mute=True)
-                    membros_mutados += 1
-                except discord.Forbidden:
-                    await interaction.response.send_message(f"🚨 Não tenho permissão para mutar {membro.mention}!", ephemeral=True)
-        return await interaction.response.send_message(f"🔇 **{membros_mutados}** membros do cargo {apenas_cargo.mention} foram mutados em {canal.mention}!")
-
-    # Mutar todo mundo (exceto quem for exceção)
-    membros_mutados = 0
-    for membro in canal.members:
-        if membro == excecao_usuario or (excecao_cargo and excecao_cargo in membro.roles):
-            continue  # Pula quem deve ser ignorado
-
-        try:
-            await membro.edit(mute=True)
-            membros_mutados += 1
-        except discord.Forbidden:
-            await interaction.response.send_message(f"🚨 Não tenho permissão para mutar {membro.mention}!", ephemeral=True)
-
-    await interaction.response.send_message(f"🔇 **{membros_mutados}** membros foram mutados em {canal.mention}!")
-@bot.tree.command(name="desmutar", description="Desmuta todos em um canal de voz ou apenas um membro específico")
-@app_commands.describe(
-    canal="Canal de voz onde os membros serão desmutados",
-    apenas_usuario="(Opcional) Desmutar SOMENTE este usuário",
-    apenas_cargo="(Opcional) Desmutar SOMENTE membros desse cargo"
-)
-async def desmutar(
-    interaction: discord.Interaction,
-    canal: discord.VoiceChannel,
-    apenas_usuario: discord.Member = None,
-    apenas_cargo: discord.Role = None
-):
-    if not interaction.user.guild_permissions.mute_members:
-        return await interaction.response.send_message("🚫 Você não tem permissão para desmutar membros!", ephemeral=True)
-
-    if apenas_usuario:
-        try:
-            await apenas_usuario.edit(mute=False)
-            return await interaction.response.send_message(f"🔊 {apenas_usuario.mention} foi desmutado em {canal.mention}!")
-        except discord.Forbidden:
-            return await interaction.response.send_message(f"🚨 Não tenho permissão para desmutar {apenas_usuario.mention}!", ephemeral=True)
-
-    membros_desmutados = 0
-
-    for membro in canal.members:
-        if apenas_cargo and apenas_cargo not in membro.roles:
-            continue  # Pula quem não faz parte do cargo especificado
-
-        try:
-            await membro.edit(mute=False)
-            membros_desmutados += 1
-        except discord.Forbidden:
-            await interaction.response.send_message(f"🚨 Não tenho permissão para desmutar {membro.mention}!", ephemeral=True)
-
-    if apenas_cargo:
-        await interaction.response.send_message(f"🔊 **{membros_desmutados}** membros com o cargo {apenas_cargo.mention} foram desmutados em {canal.mention}!")
-    else:
-        await interaction.response.send_message(f"🔊 **{membros_desmutados}** membros foram desmutados em {canal.mention}!")
 
 JOKENPO_OPCOES = {
     "🪨": "Pedra",
@@ -307,351 +143,6 @@ async def jokenpo(interaction: discord.Interaction):
                                f"{resultado}")
     except discord.errors.NotFound:
         print("⚠️ Mensagem não encontrada. Provavelmente foi deletada ou expirou.")
-
-@bot.tree.command(name="db_test", description="Testa o banco de dados")
-@app_commands.describe(action="Escolha entre save ou load", name="Nome da chave", value="Valor a ser salvo (apenas para save)")
-async def db_test(interaction: discord.Interaction, action: str, name: str, value: str = None):
-    # Defer a resposta para garantir mais tempo para processamento
-    await interaction.response.defer()
-
-    if action == "save":
-        if value is None:
-            await interaction.followup.send("Você precisa fornecer um valor para salvar!", ephemeral=True)
-            return
-        await save(name, value)
-        await interaction.followup.send(f"Salvo: `{name}` = `{value}`")
-    elif action == "load":
-        result = load(name)
-        if result is None:
-            await interaction.followup.send(f"Nenhum dado encontrado para `{name}`.", ephemeral=True)
-        else:
-            await interaction.followup.send(f"Valor de `{name}`: `{result}`")
-    else:
-        await interaction.followup.send("Ação inválida! Use 'save' ou 'load'.", ephemeral=True)
-
-# Tocador
-voice_clients = {}
-queues = {}
-loop_status = {}  # 0 = off, 1 = loop música atual, 2 = loop fila
-def check_auto_disconnect(guild_id):
-    async def task():
-        await asyncio.sleep(60)  # Aguarda 1 minuto
-        vc = voice_clients.get(guild_id)
-        if vc and not vc.is_playing() and not queues.get(guild_id):
-            await vc.disconnect()
-            del voice_clients[guild_id]
-            del queues[guild_id]  # Limpa também a fila
-
-    # Certifica-se de que o loop de eventos correto está sendo utilizado
-    loop = bot.loop # Obtém o loop de eventos do discord client
-    asyncio.run_coroutine_threadsafe(task(), loop)  # Executa a tarefa de forma segura no loop principal
-def play_next(guild_id):
-    if guild_id not in queues or not queues[guild_id]:
-        check_auto_disconnect(guild_id)
-        return
-
-    vc = voice_clients.get(guild_id)
-    if not vc:
-        return
-
-    current_track = queues[guild_id][0]
-
-    def after_playback(error):
-        if error:
-            print(f"Erro ao tocar áudio: {error}")
-            # Se houver erro, tenta a próxima faixa
-            if loop_status.get(guild_id, 0) != 1:  # Se não estiver em loop de música
-                queues[guild_id].pop(0)
-            if queues[guild_id]:
-                play_next(guild_id)
-            else:
-                check_auto_disconnect(guild_id)
-            return
-
-        # Gerencia o loop após reprodução bem-sucedida
-        if loop_status.get(guild_id, 0) == 1:  # Loop música atual
-            play_next(guild_id)
-        elif loop_status.get(guild_id, 0) == 2:  # Loop fila inteira
-            queues[guild_id].append(queues[guild_id].pop(0))
-            play_next(guild_id)
-        else:  # Sem loop
-            queues[guild_id].pop(0)
-            if queues[guild_id]:
-                play_next(guild_id)
-            else:
-                check_auto_disconnect(guild_id)
-
-    try:
-        # Configura opções do FFmpeg
-        common_opts = {
-            'options': '-vn -b:a 128k'  # Apenas áudio, bitrate 128k
-        }
-        reconnect_opts = {
-            'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'  # Opções de reconexão
-        }
-
-        # Verifica o tipo de faixa e obtém o caminho correto
-        audio_path = current_track.get('path', current_track) if isinstance(current_track, dict) else current_track
-        is_remote = isinstance(audio_path, str) and audio_path.startswith("http")
-
-        # Erro se local e não existe
-        if not is_remote and not os.path.exists(audio_path):
-            print(f"Arquivo não encontrado: {audio_path}")
-            after_playback(Exception("Arquivo não encontrado"))
-            return
-
-        # Para URLs, aplica reconnect; para locais, só o básico
-        opts = common_opts.copy()
-        if is_remote:
-            opts.update(reconnect_opts)
-
-        vc.play(
-            discord.FFmpegPCMAudio(
-                audio_path,
-                **opts
-            ),
-            after=after_playback
-        )
-
-    except Exception as e:
-        print(f"Erro ao tocar a faixa: {e}")
-        after_playback(e)
-def buscar_arquivo(nome):
-    nome_normalizado = unidecode.unidecode(nome).lower()
-    for root, _, files in os.walk("assets/audios"):
-        for file in files:
-            if unidecode.unidecode(file).lower().startswith(nome_normalizado):
-                return os.path.join(root, file)
-    return None
-@bot.tree.command(name="entrar", description="Faz o bot entrar no canal de voz e permanecer lá")
-@app_commands.describe(canal="Canal de voz onde o bot entrará")
-async def entrar(interaction: discord.Interaction, canal: discord.VoiceChannel):
-    if not interaction.user.guild_permissions.connect:
-        return await interaction.response.send_message("🚫 Você não tem permissão para usar este comando!", ephemeral=True)
-    
-    if interaction.guild.id in voice_clients:
-        return await interaction.response.send_message("⚠️ Já estou em um canal de voz!", ephemeral=True)
-    
-    vc = await canal.connect()
-    voice_clients[interaction.guild.id] = vc
-    await interaction.response.send_message(f"🔊 Entrei no canal {canal.mention}!")
-@bot.tree.command(name="tocar", description="Toca um ou mais áudios no canal de voz")
-@app_commands.describe(arquivo="Nome(s) do(s) arquivo(s) de áudio ou pasta, separados por vírgula")
-async def tocar(interaction: discord.Interaction, arquivo: str):
-    guild_id = interaction.guild.id
-    vc = voice_clients.get(guild_id)
-
-    if not vc:
-        canal = interaction.user.voice.channel if interaction.user.voice else None
-        if not canal:
-            return await interaction.response.send_message("❌ Você não está em um canal de voz e o bot também não está!", ephemeral=True)
-        vc = await canal.connect()
-        voice_clients[guild_id] = vc
-
-    nomes = [nome.strip() for nome in arquivo.split(",")]
-    encontrados = []
-
-    if guild_id not in queues:
-        queues[guild_id] = []
-
-    for nome in nomes:
-        if nome.startswith("*"):
-            pasta = nome[1:]
-            caminho_pasta = os.path.join("assets/audios", pasta)
-            if os.path.exists(caminho_pasta) and os.path.isdir(caminho_pasta):
-                arquivos = sorted([
-                    os.path.join(caminho_pasta, f)
-                    for f in os.listdir(caminho_pasta)
-                    if os.path.isfile(os.path.join(caminho_pasta, f))
-                ])
-                if arquivos:
-                    queues[guild_id].extend(arquivos)
-                    encontrados.append(f"[{len(arquivos)} de {pasta}]")
-                else:
-                    await interaction.channel.send(f"⚠️ A pasta `{pasta}` está vazia!")
-            else:
-                await interaction.channel.send(f"❌ Pasta `{pasta}` não encontrada!")
-        else:
-            audio_file = buscar_arquivo(nome)
-            if audio_file:
-                queues[guild_id].append(audio_file)
-                encontrados.append(nome)
-            else:
-                await interaction.channel.send(f"⚠️ Arquivo `{nome}` não encontrado!")
-
-    if not encontrados:
-        return await interaction.response.send_message("❌ Nenhum dos áudios ou pastas foi encontrado!", ephemeral=True)
-
-    if not vc.is_playing():
-        play_next(guild_id)
-        await interaction.response.send_message(f"🎵 Tocando `{encontrados[0]}` e adicionando o resto à fila!")
-    else:
-        await interaction.response.send_message(f"🎶 Adicionado(s) à fila: {', '.join(encontrados)}")
-@bot.tree.command(name="listar", description="Lista todos os áudios")
-async def listar(interaction: discord.Interaction):
-    diretorio = "assets/audios"
-    if not os.path.exists(diretorio):
-        return await interaction.response.send_message("❌ Diretório não encontrado!", ephemeral=True)
-
-    def build_tree(path, prefix):
-        itens = os.listdir(path)
-        dirs = [item for item in itens if os.path.isdir(os.path.join(path, item))]
-        files = [item for item in itens if os.path.isfile(os.path.join(path, item))]
-        combinados = dirs + files
-
-        linhas = []
-        for idx, item in enumerate(combinados):
-            is_last = (idx == len(combinados) - 1)
-            branch = "└──" if is_last else "├──"
-            item_path = os.path.join(path, item)
-            if os.path.isdir(item_path):
-                linhas.append(f"{prefix}{branch} 📁 {item}/")
-                novo_prefix = prefix + ("    " if is_last else "│   ")
-                linhas.extend(build_tree(item_path, novo_prefix))
-            else:
-                linhas.append(f"{prefix}{branch} 📄 {item}")
-        return linhas
-
-    tree_lines = build_tree(diretorio, "│   ")
-    lista_arquivos = f"📂 {os.path.basename(diretorio)}/\n" + "\n".join(tree_lines) if tree_lines else "📂 Diretório vazio."
-
-    if len(lista_arquivos) > 2000:
-        with open("lista_arquivos.txt", "w", encoding="utf-8") as f:
-            f.write(lista_arquivos)
-        await interaction.response.send_message("📜 Lista de arquivos:", file=discord.File("lista_arquivos.txt"))
-        os.remove("lista_arquivos.txt")
-    else:
-        await interaction.response.send_message(f"**Arquivos e pastas em `{diretorio}`:**\n```\n{lista_arquivos}\n```")
-@bot.tree.command(name="parar", description="Para a reprodução e limpa a fila")
-async def parar(interaction: discord.Interaction):
-    guild_id = interaction.guild.id
-    vc = voice_clients.get(guild_id)
-    
-    if not vc or not vc.is_playing():
-        return await interaction.response.send_message("❌ Não há áudio tocando!", ephemeral=True)
-    
-    queues[guild_id] = []  # Limpa a fila
-    vc.stop()
-    await interaction.response.send_message("⏹️ Reprodução interrompida e fila limpa!")
-@bot.tree.command(name="sair", description="Faz o bot sair do canal de voz e limpa a fila de reprodução")
-async def sair(interaction: discord.Interaction):
-    vc = voice_clients.pop(interaction.guild.id, None)
-    if not vc:
-        return await interaction.response.send_message("❌ Não estou em um canal de voz!", ephemeral=True)
-    
-    queues.pop(interaction.guild.id, None)  # Limpa a fila de reprodução
-    await vc.disconnect()
-    await interaction.response.send_message("👋 Saí do canal de voz e limpei a fila de reprodução!")
-@bot.tree.command(name="pular", description="Pula para o próximo áudio na fila")
-async def pular(interaction: discord.Interaction):
-    guild_id = interaction.guild.id
-    vc = voice_clients.get(guild_id)
-    
-    if not vc or not vc.is_playing():
-        return await interaction.response.send_message("❌ Nenhum áudio está tocando!", ephemeral=True)
-    
-    vc.stop()
-    await interaction.response.send_message("⏭️ Pulando para o próximo áudio...")
-    
-    play_next(guild_id)
-@bot.tree.command(name="fila", description="Mostra a fila de áudios")
-async def fila(interaction: discord.Interaction):
-    guild_id = interaction.guild.id
-    queue = queues.get(guild_id, [])
-    
-    if not queue:
-        return await interaction.response.send_message("🎶 A fila está vazia!", ephemeral=True)
-    
-    lista = "\n".join([f"{idx+1}. {track['title']}" for idx, track in enumerate(queue)])
-    await interaction.response.send_message(f"📜 **Fila de reprodução:**\n```\n{lista}\n```")
-@bot.tree.command(name="loop")
-@app_commands.describe(modo="0: Desativado, 1: Música Atual, 2: Fila Inteira (opcional)")
-async def loop(interaction: discord.Interaction, modo: int = None):
-    # Alterna o loop entre 0 (desativado), 1 (música atual) e 2 (fila inteira), ou define um modo específico
-    guild_id = interaction.guild.id
-    estado_atual = loop_status.get(guild_id, 0)
-
-    if modo is None:
-        # Alterna entre 0 → 1 → 2 → 0...
-        novo_estado = (estado_atual + 1) % 3
-    else:
-        # Se um valor for fornecido, define diretamente (garantindo que esteja entre 0 e 2)
-        novo_estado = max(0, min(2, modo))
-
-    loop_status[guild_id] = novo_estado
-
-    mensagens = {
-        0: "🔁 Loop desativado!",
-        1: "🔂 Loop da música atual ativado!",
-        2: "🔁 Loop da fila inteira ativado!",
-    }
-
-    await interaction.response.send_message(mensagens[novo_estado])
-@bot.tree.command(name="shuffle", description="Embaralha a fila de áudios")
-async def shuffle(interaction: discord.Interaction):
-    guild_id = interaction.guild.id
-    fila = queues.get(guild_id)
-
-    if not fila or len(fila) <= 1:
-        return await interaction.response.send_message("🎶 A fila está vazia ou tem apenas um item!", ephemeral=True)
-
-    # Se a música atual tá tocando, deixa ela no topo e embaralha o resto
-    tocando_agora = fila[0]
-    restante = fila[1:]
-    random.shuffle(restante)
-    queues[guild_id] = [tocando_agora] + restante
-
-    await interaction.response.send_message("🔀 Fila embaralhada com sucesso!")
-@bot.tree.command(name="salvar_fila", description="Salva a fila atual em um ID único")
-async def salvar_fila(interaction: discord.Interaction):
-    guild_id = interaction.guild.id
-    queue = queues.get(guild_id, [])
-
-    if not queue:
-        return await interaction.response.send_message("❌ A fila está vazia, nada para salvar!", ephemeral=True)
-
-    # Gera um ID único baseado nos nomes dos arquivos na fila
-    nomes_arquivos = [track["title"] for track in queue]
-    fila_serializada = ",".join(nomes_arquivos)
-    fila_codificada = urlsafe_b64encode(fila_serializada.encode()).decode()
-
-    await interaction.response.send_message(f"✅ Fila salva com sucesso! Use este ID para carregar: `{fila_codificada}`", ephemeral=True)
-@bot.tree.command(name="carregar_fila", description="Carrega uma fila salva usando um ID")
-@app_commands.describe(fila_id="ID da fila a ser carregada")
-async def carregar_fila(interaction: discord.Interaction, fila_id: str):
-    try:
-        # Decodifica o ID para obter os nomes dos arquivos
-        fila_decodificada = urlsafe_b64decode(fila_id.encode()).decode()
-        nomes_arquivos = fila_decodificada.split(",")
-
-        guild_id = interaction.guild.id
-        if guild_id not in queues:
-            queues[guild_id] = []
-
-        encontrados = []
-        for nome in nomes_arquivos:
-            audio_file = buscar_arquivo(nome)
-            if audio_file:
-                queues[guild_id].append({
-                    "type": "local",
-                    "path": audio_file,
-                    "title": nome
-                })
-                encontrados.append(nome)
-            else:
-                await interaction.channel.send(f"⚠️ Arquivo `{nome}` não encontrado!")
-
-        if not encontrados:
-            return await interaction.response.send_message("❌ Nenhum dos áudios foi encontrado!", ephemeral=True)
-
-        vc = voice_clients.get(guild_id)
-        if not vc or not vc.is_playing():
-            play_next(guild_id)
-            await interaction.response.send_message(f"🎵 Fila carregada e tocando `{encontrados[0]}`!")
-        else:
-            await interaction.response.send_message(f"🎶 Fila carregada! Adicionado(s) à fila: {', '.join(encontrados)}")
-    except Exception as e:
-        await interaction.response.send_message(f"❌ Erro ao carregar a fila: {e}", ephemeral=True)
 
 @bot.tree.command(name="roletarussa", description="Vida ou morte.")
 async def roletarussa(interaction: discord.Interaction):

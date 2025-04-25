@@ -1,7 +1,10 @@
 import asyncio
+
 import discord
 import unidecode
+
 from core.modules import *
+
 
 async def on_ready_custom(bot, conteudo):
     """
@@ -11,12 +14,14 @@ async def on_ready_custom(bot, conteudo):
     get_file_content()
     await asyncio.sleep(3)
 
-    print(f'Bot conectado como {bot.user}')
+    print(f"Bot conectado como {bot.user}")
     for guild in bot.guilds:
         try:
             print(f"Sincronizando comandos para o servidor: {guild.name}")
             await bot.tree.sync(guild=guild)
-            print(f"✅ Comandos sincronizados com sucesso para o servidor: {guild.name}")
+            print(
+                f"✅ Comandos sincronizados com sucesso para o servidor: {guild.name}"
+            )
         except Exception as e:
             print(f"❌ Falha ao sincronizar comandos no servidor {guild.name}: {e}")
 
@@ -24,7 +29,9 @@ async def on_ready_custom(bot, conteudo):
     updatechannel = bot.get_channel(1319356880627171448)
     mention_message = "<@&1319355628195549247>"
     full_message = f"{conteudo}"
-    message_chunks = [full_message[i:i+2000] for i in range(0, len(full_message), 2000)]
+    message_chunks = [
+        full_message[i : i + 2000] for i in range(0, len(full_message), 2000)
+    ]
 
     # Pega todas as mensagens do canal, mais antigas primeiro
     existing_messages = []
@@ -32,10 +39,14 @@ async def on_ready_custom(bot, conteudo):
         existing_messages.append(msg)
 
     # Compara o conteúdo atual com as mensagens existentes
-    is_same = len(existing_messages) == len(message_chunks) + 1 and all(
-        existing_messages[i].content.strip() == message_chunks[i].strip()
-        for i in range(len(message_chunks))
-    ) and existing_messages[-1].content.strip() == mention_message.strip()
+    is_same = (
+        len(existing_messages) == len(message_chunks) + 1
+        and all(
+            existing_messages[i].content.strip() == message_chunks[i].strip()
+            for i in range(len(message_chunks))
+        )
+        and existing_messages[-1].content.strip() == mention_message.strip()
+    )
 
     if is_same:
         print("✅ Changelog já está no canal, nenhuma mensagem enviada.")
@@ -59,25 +70,6 @@ async def on_ready_custom(bot, conteudo):
     await bot.change_presence(activity=activity)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # Reações pré-definidas
 REACTIONS = {
     "bem-vindo": ["👋", "🎉"],
@@ -99,10 +91,12 @@ async def on_message_custom(bot, message):
                 try:
                     await message.add_reaction(emoji)
                 except discord.Forbidden:
-                    print(f"❌ Não tenho permissão para reagir a mensagens em {message.channel}")
+                    print(
+                        f"❌ Não tenho permissão para reagir a mensagens em {message.channel}"
+                    )
 
     # Detecta expressões de rolagem no formato "$..."
-    matches = re.findall(r'\$(\d*#?\d*d\d+[\+\-\*/\(\)\d]*)', message.content)
+    matches = re.findall(r"\$(\d*#?\d*d\d+[\+\-\*/\(\)\d]*)", message.content)
     if matches:
         resultados = []
         for m in matches:
@@ -123,7 +117,9 @@ async def on_message_custom(bot, message):
     mensagem_normalizada = unidecode.unidecode(message.content.lower())
     palavra_normalizada = unidecode.unidecode(palavra_do_dia.lower())
     if palavra_normalizada in mensagem_normalizada:
-        await message.channel.send(f'{palavra_do_dia.upper()} DETECTADA! INICIANDO PROTOCOLO DE SEGURANÇA!')
+        await message.channel.send(
+            f"{palavra_do_dia.upper()} DETECTADA! INICIANDO PROTOCOLO DE SEGURANÇA!"
+        )
         await castigar_automatico(message.author, 60)
 
     await bot.process_commands(message)
