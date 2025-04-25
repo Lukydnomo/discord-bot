@@ -36,7 +36,7 @@ class MyBot(commands.Bot):
     def __init__(self):
         super().__init__(
             command_prefix="foa!",
-            intents=discord.Intents.default()
+            intents=intents    # <<< use o intents que você configurou em cima
         )
 
     async def setup_hook(self):
