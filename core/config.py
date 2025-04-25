@@ -2,9 +2,6 @@ import logging
 import os
 
 import requests
-from dotenv import load_dotenv
-
-load_dotenv()
 
 commandPrefix = "foa!"
 DISCORDTOKEN = os.getenv("DISCORD_BOT_TOKEN")
