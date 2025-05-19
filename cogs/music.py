@@ -183,26 +183,34 @@ class Music(commands.Cog):
             # ───  A) URL do YouTube  ──────────────────────────────────────────
 
             if nome.startswith(("http://", "https://")):
-                # extrai o vídeo via Invidious: troca domínio
-                m = re.search(r"(?:v=|youtu\\.be/)([A-Za-z0-9_-]{11})", nome)
-                if not m:
-                    continue  # URL mal formada
-                vid = m.group(1)
-                mirror = f"https://yewtu.be/watch?v={vid}"
+                try:
+                    # extrai o vídeo ID
+                    m = re.search(r"(?:v=|youtu\\.be/)([A-Za-z0-9_-]{11})", nome)
+                    if not m:
+                        raise ValueError("URL do YouTube malformada")
+                    vid = m.group(1)
+                    # usa o mirror Invidious
+                    invidious_url = f"https://yewtu.be/watch?v={vid}"
 
-                # mescla credenciais (se você ainda quiser login)
-                opts = dict(self.YDL_OPTS)
-                if self.yt_username and self.yt_password:
-                    opts.update({"username": self.yt_username, "password": self.yt_password})
+                    opts = dict(self.YDL_OPTS)
+                    # adiciona login, caso configure (opcional)
+                    if self.yt_username and self.yt_password:
+                        opts.update({
+                            "username": self.yt_username,
+                            "password": self.yt_password
+                        })
 
-                # chama o extractor apontando para Invidious
-                info = await asyncio.to_thread(
-                    YoutubeDL(opts).extract_info, mirror, False
-                )
-                audio_url = info["url"]
-                title = info.get("title", vid)
-                self.queues[guild_id].append({"path": audio_url, "title": title})
-                encontrados.append(title)
+                    # roda a extração **no mirror**, nunca na API oficial
+                    info = await asyncio.to_thread(
+                        YoutubeDL(opts).extract_info, invidious_url, False
+                    )
+                    audio_url = info["url"]
+                    title = info.get("title", vid)
+
+                    self.queues[guild_id].append({"path": audio_url, "title": title})
+                    encontrados.append(title)
+                except Exception as e:
+                    await interaction.followup.send(f"[Music] ERRO ao extrair YouTube via Invidious: {e}")
 
 
             # ───  B) Pasta local (*pasta)  ────────────────────────────────────
