@@ -6,6 +6,8 @@ import unidecode
 from base64 import urlsafe_b64encode, urlsafe_b64decode
 from typing import Optional
 from yt_dlp import YoutubeDL
+import requests
+from http.cookiejar import MozillaCookieJar
 
 import discord
 from discord import app_commands
@@ -149,9 +151,28 @@ class Music(commands.Cog):
     "nocheckcertificate": True,
 }
 
+    def fetch_cookies(self, url: str, cookie_path: str) -> str:
+        """
+        Faz uma requisição GET simples para capturar os cookies iniciais do YouTube
+        e salva em cookie_path (formato Netscape/Mozilla).
+        Retorna o caminho do arquivo de cookie.
+        """
+        sess = requests.Session()
+        # roda o GET para popular sess.cookies
+        sess.get(url, headers={"User-Agent": self.YDL_OPTS["user_agent"]})
+        # força consentimento
+        sess.cookies.set("CONSENT", "YES+")
+        # salva em cookiejar
+        jar = MozillaCookieJar(cookie_path)
+        for c in sess.cookies:
+            jar.set_cookie(c)
+        jar.save(ignore_discard=True, ignore_expires=True)
+        return cookie_path
+
     @app_commands.command(name="tocar", description="Toca um ou mais áudios no canal de voz")
     @app_commands.describe(arquivo="Nome(s) do(s) arquivo(s) ou URL(s) do YouTube, separados por vírgula")
     async def tocar(self, interaction: discord.Interaction, arquivo: str):
+        # 1) defer para não estourar o timeout de 3s
         await interaction.response.defer(thinking=True)
 
         guild_id = interaction.guild.id
@@ -175,17 +196,30 @@ class Music(commands.Cog):
             # 1) URL do YouTube?
             if nome.startswith(("http://", "https://")):
                 try:
+                    # pré-carrega cookies mínimos via requests
+                    cookie_file = await asyncio.to_thread(self.fetch_cookies, nome, f"cookies_{guild_id}.txt")
+                    # mescla opções do yt-dlp com cookiefile
+                    opts = dict(self.YDL_OPTS, cookiefile=cookie_file)
+                    print(f"[Music] usando cookiefile {cookie_file} para {nome}")
+
                     # extrai info sem baixar
-                    info = await asyncio.to_thread(YoutubeDL(self.YDL_OPTS).extract_info, nome, False)
+                    info = await asyncio.to_thread(YoutubeDL(opts).extract_info, nome, False)
                     audio_url = info["url"]
                     title = info.get("title", nome)
+
                     # enfileira dict para que play_next pegue path e title
                     self.queues[guild_id].append({'path': audio_url, 'title': title})
                     encontrados.append(title)
                 except Exception as e:
-                    print(f"[Music] erro ao extrair YouTube: {e}")
-                    # opcional: você pode notificar o usuário aqui
-            # 2) pasta (*) e arquivos locais (mesma lógica que você já tinha)…
+                    print(f"[Music] ERRO ao extrair YouTube: {e}")
+                finally:
+                    # limpa o arquivo de cookies
+                    try:
+                        os.remove(cookie_file)
+                    except OSError:
+                        pass
+
+            # 2) pasta (*) e arquivos locais
             elif nome.startswith("*"):
                 pasta = nome[1:]
                 caminho_pasta = os.path.join("assets/audios", pasta)
@@ -198,6 +232,8 @@ class Music(commands.Cog):
                     for arq in arquivos:
                         self.queues[guild_id].append(arq)
                         encontrados.append(os.path.basename(arq))
+
+            # 3) arquivo local direto
             else:
                 caminho = os.path.join("assets/audios", nome)
                 if os.path.isfile(caminho):
