@@ -36,3 +36,5 @@ jobs:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN_ID: ${{ github.run_id }}
+          YT_USERNAME: ${{ secrets.YT_USERNAME }}
+          YT_PASSWORD: ${{ secrets.YT_PASSWORD }}
