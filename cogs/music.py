@@ -132,15 +132,21 @@ class Music(commands.Cog):
         await interaction.response.send_message(f"🔊 Entrei no canal {canal.mention}!")
 
     YDL_OPTS = {
-        "format": "bestaudio/best",
-        "quiet": True,
-        "no_warnings": True,
-        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
-    }
+    "format": "bestaudio/best",
+    "quiet": True,
+    "no_warnings": True,
+    "user_agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/136.0.0.0 Safari/537.36"
+    ),
+}
 
     @app_commands.command(name="tocar", description="Toca um ou mais áudios no canal de voz")
     @app_commands.describe(arquivo="Nome(s) do(s) arquivo(s) ou URL(s) do YouTube, separados por vírgula")
     async def tocar(self, interaction: discord.Interaction, arquivo: str):
+        await interaction.response.defer(thinking=True)
+
         guild_id = interaction.guild.id
         vc = self.voice_clients.get(guild_id)
 
@@ -148,7 +154,7 @@ class Music(commands.Cog):
         if not vc:
             canal = interaction.user.voice.channel if interaction.user.voice else None
             if not canal:
-                return await interaction.response.send_message(
+                return await interaction.followup.send(
                     "❌ Você precisa estar em um canal de voz e o bot também não está!", ephemeral=True
                 )
             vc = await canal.connect()
@@ -163,7 +169,7 @@ class Music(commands.Cog):
             if nome.startswith(("http://", "https://")):
                 try:
                     # extrai info sem baixar
-                    info = await asyncio.to_thread(YoutubeDL(YDL_OPTS).extract_info, nome, False)
+                    info = await asyncio.to_thread(YoutubeDL(self.YDL_OPTS).extract_info, nome, False)
                     audio_url = info["url"]
                     title = info.get("title", nome)
                     # enfileira dict para que play_next pegue path e title
@@ -193,15 +199,15 @@ class Music(commands.Cog):
 
         # responde e dispara a reprodução
         if not encontrados:
-            return await interaction.response.send_message(
+            return await interaction.followup.send(
                 "❌ Nenhum dos áudios/URLs foi encontrado!", ephemeral=True
             )
 
         if not vc.is_playing():
             self.play_next(guild_id)
-            await interaction.response.send_message(f"🎵 Tocado: **{encontrados[0]}**")
+            await interaction.followup.send(f"🎵 Tocado: **{encontrados[0]}**")
         else:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"🎶 Adicionado à fila: {', '.join(encontrados)}"
             )
 
