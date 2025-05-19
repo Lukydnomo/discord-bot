@@ -5,10 +5,17 @@ import asyncio
 import unidecode
 from base64 import urlsafe_b64encode, urlsafe_b64decode
 from typing import Optional
+from yt_dlp import YoutubeDL
 
 import discord
 from discord import app_commands
 from discord.ext import commands
+
+YDL_OPTS = {
+    'format': 'bestaudio/best',
+    'quiet': True,
+    'no_warnings': True,
+}
 
 class Music(commands.Cog):
     """
@@ -131,57 +138,72 @@ class Music(commands.Cog):
         await interaction.response.send_message(f"🔊 Entrei no canal {canal.mention}!")
 
     @app_commands.command(name="tocar", description="Toca um ou mais áudios no canal de voz")
-    @app_commands.describe(arquivo="Nome(s) do(s) arquivo(s) de áudio ou pasta, separados por vírgula")
+    @app_commands.describe(arquivo="Nome(s) do(s) arquivo(s) ou URL(s) do YouTube, separados por vírgula")
     async def tocar(self, interaction: discord.Interaction, arquivo: str):
         guild_id = interaction.guild.id
         vc = self.voice_clients.get(guild_id)
 
+        # conecta se ainda não estiver no canal
         if not vc:
             canal = interaction.user.voice.channel if interaction.user.voice else None
             if not canal:
-                return await interaction.response.send_message("❌ Você não está em um canal de voz e o bot também não está!", ephemeral=True)
+                return await interaction.response.send_message(
+                    "❌ Você precisa estar em um canal de voz e o bot também não está!", ephemeral=True
+                )
             vc = await canal.connect()
             self.voice_clients[guild_id] = vc
 
-        nomes = [nome.strip() for nome in arquivo.split(",")]
+        nomes = [n.strip() for n in arquivo.split(",")]
         encontrados = []
-
-        if guild_id not in self.queues:
-            self.queues[guild_id] = []
+        self.queues.setdefault(guild_id, [])
 
         for nome in nomes:
-            if nome.startswith("*"):
+            # 1) URL do YouTube?
+            if nome.startswith(("http://", "https://")):
+                try:
+                    # extrai info sem baixar
+                    info = await asyncio.to_thread(YoutubeDL(YDL_OPTS).extract_info, nome, False)
+                    audio_url = info["url"]
+                    title = info.get("title", nome)
+                    # enfileira dict para que play_next pegue path e title
+                    self.queues[guild_id].append({'path': audio_url, 'title': title})
+                    encontrados.append(title)
+                except Exception as e:
+                    print(f"[Music] erro ao extrair YouTube: {e}")
+                    # opcional: você pode notificar o usuário aqui
+            # 2) pasta (*) e arquivos locais (mesma lógica que você já tinha)…
+            elif nome.startswith("*"):
                 pasta = nome[1:]
                 caminho_pasta = os.path.join("assets/audios", pasta)
-                if os.path.exists(caminho_pasta) and os.path.isdir(caminho_pasta):
-                    arquivos = sorted([
+                if os.path.isdir(caminho_pasta):
+                    arquivos = sorted(
                         os.path.join(caminho_pasta, f)
                         for f in os.listdir(caminho_pasta)
                         if os.path.isfile(os.path.join(caminho_pasta, f))
-                    ])
-                    if arquivos:
-                        self.queues[guild_id].extend(arquivos)
-                        encontrados.append(f"[{len(arquivos)} de {pasta}]")
-                    else:
-                        await interaction.channel.send(f"⚠️ A pasta `{pasta}` está vazia!")
-                else:
-                    await interaction.channel.send(f"❌ Pasta `{pasta}` não encontrada!")
+                    )
+                    for arq in arquivos:
+                        self.queues[guild_id].append(arq)
+                        encontrados.append(os.path.basename(arq))
             else:
-                audio_file = self.buscar_arquivo(nome)
-                if audio_file:
-                    self.queues[guild_id].append(audio_file)
+                caminho = os.path.join("assets/audios", nome)
+                if os.path.isfile(caminho):
+                    self.queues[guild_id].append(caminho)
                     encontrados.append(nome)
-                else:
-                    await interaction.channel.send(f"⚠️ Arquivo `{nome}` não encontrado!")
 
+        # responde e dispara a reprodução
         if not encontrados:
-            return await interaction.response.send_message("❌ Nenhum dos áudios ou pastas foi encontrado!", ephemeral=True)
+            return await interaction.response.send_message(
+                "❌ Nenhum dos áudios/URLs foi encontrado!", ephemeral=True
+            )
 
         if not vc.is_playing():
             self.play_next(guild_id)
-            await interaction.response.send_message(f"🎵 Tocando `{encontrados[0]}` e adicionando o resto à fila!")
+            await interaction.response.send_message(f"🎵 Tocado: **{encontrados[0]}**")
         else:
-            await interaction.response.send_message(f"🎶 Adicionado(s) à fila: {', '.join(encontrados)}")
+            await interaction.response.send_message(
+                f"🎶 Adicionado à fila: {', '.join(encontrados)}"
+            )
+
 
     @app_commands.command(name="listar", description="Lista todos os áudios")
     async def listar(self, interaction: discord.Interaction):
