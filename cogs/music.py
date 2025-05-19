@@ -6,8 +6,7 @@ import unidecode
 from base64 import urlsafe_b64encode, urlsafe_b64decode
 from typing import Optional
 from yt_dlp import YoutubeDL
-import requests
-from http.cookiejar import MozillaCookieJar
+import re
 
 import discord
 from discord import app_commands
@@ -24,6 +23,26 @@ class Music(commands.Cog):
         self.loop_status: dict[int, int] = {}  # 0=off,1=track loop,2=queue loop
         self.yt_username = os.getenv("YT_USERNAME")
         self.yt_password = os.getenv("YT_PASSWORD")
+
+    YDL_OPTS = {
+        "format": "bestaudio/best",
+        "quiet": True,
+        "no_warnings": True,
+        "user_agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/136.0.0.0 Safari/537.36"
+        ),
+        # força usar um front-end Invidious que não exige cookies
+        "extractor_args": {
+            "youtube": {
+                "base_url": "https://yewtu.be",
+                "api_url":  "https://yewtu.be"
+            }
+        },
+        "geo_bypass": True,
+        "nocheckcertificate": True,
+    }
 
     # Tocador
     def check_auto_disconnect(self, guild_id):
@@ -135,27 +154,6 @@ class Music(commands.Cog):
         self.voice_clients[interaction.guild.id] = vc
         await interaction.response.send_message(f"🔊 Entrei no canal {canal.mention}!")
 
-    YDL_OPTS = {
-         "format": "bestaudio/best",
-         "quiet": True,
-         "no_warnings": True,
-         "user_agent": (
-             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-             "AppleWebKit/537.36 (KHTML, like Gecko) "
-             "Chrome/136.0.0.0 Safari/537.36"
-         ),
-        # força o extractor do YouTube a usar um front-end Invidious
-        "extractor_args": {
-            "youtube": {
-                "base_url": "https://yewtu.be",
-                "api_url":  "https://yewtu.be"
-            }
-        },
-         # você pode manter geo_bypass etc se quiser
-         "geo_bypass": True,
-         "nocheckcertificate": True,
-     }
-
     @app_commands.command(name="tocar", description="Toca um ou mais áudios no canal de voz")
     @app_commands.describe(
         arquivo="Nome(s) de arquivo(s), pasta(s) (*nome) ou URL(s) do YouTube, separados por vírgula"
@@ -183,30 +181,29 @@ class Music(commands.Cog):
 
         for nome in nomes:
             # ───  A) URL do YouTube  ──────────────────────────────────────────
+
             if nome.startswith(("http://", "https://")):
-                try:
-                    # mescla login (se definido) ao YDL_OPTS
-                    opts = dict(self.YDL_OPTS)
-                    if self.yt_username and self.yt_password:
-                        opts.update({
-                            "username": self.yt_username,
-                            "password": self.yt_password
-                        })
+                # extrai o vídeo via Invidious: troca domínio
+                m = re.search(r"(?:v=|youtu\\.be/)([A-Za-z0-9_-]{11})", nome)
+                if not m:
+                    continue  # URL mal formada
+                vid = m.group(1)
+                mirror = f"https://yewtu.be/watch?v={vid}"
 
-                    # extrai info sem baixar vídeo completo
-                    info = await asyncio.to_thread(
-                        YoutubeDL(opts).extract_info, nome, False
-                    )
-                    audio_url = info["url"]
-                    title = info.get("title", nome)
+                # mescla credenciais (se você ainda quiser login)
+                opts = dict(self.YDL_OPTS)
+                if self.yt_username and self.yt_password:
+                    opts.update({"username": self.yt_username, "password": self.yt_password})
 
-                    # adiciona à fila como dict remoto
-                    self.queues[guild_id].append({"path": audio_url, "title": title})
-                    encontrados.append(title)
+                # chama o extractor apontando para Invidious
+                info = await asyncio.to_thread(
+                    YoutubeDL(opts).extract_info, mirror, False
+                )
+                audio_url = info["url"]
+                title = info.get("title", vid)
+                self.queues[guild_id].append({"path": audio_url, "title": title})
+                encontrados.append(title)
 
-                except Exception as e:
-                    print(f"[Music] ERRO ao extrair YouTube: {e}")
-                    # opcional: await interaction.followup.send(f"❌ Falha no link {nome}", ephemeral=True)
 
             # ───  B) Pasta local (*pasta)  ────────────────────────────────────
             elif nome.startswith("*"):
