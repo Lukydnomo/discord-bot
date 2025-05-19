@@ -6,7 +6,7 @@ import unidecode
 from base64 import urlsafe_b64encode, urlsafe_b64decode
 from typing import Optional
 from yt_dlp import YoutubeDL
-import re
+import re, requests
 
 import discord
 from discord import app_commands
@@ -43,6 +43,40 @@ class Music(commands.Cog):
         "geo_bypass": True,
         "nocheckcertificate": True,
     }
+
+    def fetch_invidious_audio(self, vid: str, instances=None) -> tuple[str,str]:
+        """
+        Tenta instâncias Invidious para pegar o melhor formato de áudio.
+        Retorna (audio_url, title) ou lança Exception.
+        """
+        if instances is None:
+            instances = [
+                "https://yewtu.eu.org",
+                "https://yewtu.be",
+                "https://yewtu.snopyta.org",
+            ]
+
+        for base in instances:
+            api = f"{base}/api/v1/videos/{vid}"
+            resp = requests.get(api, timeout=10)
+            if resp.status_code != 200:
+                continue
+            data = resp.json()
+            title = data.get("videoDetails", {}).get("title", vid)
+            # filtra só áudio
+            adaptive = data.get("adaptiveFormats", [])
+            audios = [
+                f for f in adaptive
+                if f.get("mimeType", "").startswith("audio/")
+                and "url" in f
+            ]
+            if not audios:
+                continue
+            # escolhe a maior bitrate
+            best = max(audios, key=lambda a: a.get("bitrate", 0))
+            return best["url"], title
+
+        raise RuntimeError("Não foi possível obter áudio via Invidious")
 
     # Tocador
     def check_auto_disconnect(self, guild_id):
@@ -184,33 +218,23 @@ class Music(commands.Cog):
 
             if nome.startswith(("http://", "https://")):
                 try:
-                    # extrai o vídeo ID
                     m = re.search(r"(?:v=|youtu\\.be/)([A-Za-z0-9_-]{11})", nome)
                     if not m:
-                        raise ValueError("URL do YouTube malformada")
+                        raise ValueError("URL de YouTube malformada")
                     vid = m.group(1)
-                    # usa o mirror Invidious
-                    invidious_url = f"https://yewtu.be/watch?v={vid}"
 
-                    opts = dict(self.YDL_OPTS)
-                    # adiciona login, caso configure (opcional)
-                    if self.yt_username and self.yt_password:
-                        opts.update({
-                            "username": self.yt_username,
-                            "password": self.yt_password
-                        })
-
-                    # roda a extração **no mirror**, nunca na API oficial
-                    info = await asyncio.to_thread(
-                        YoutubeDL(opts).extract_info, invidious_url, False
+                    # 1) busca invidious em thread para não bloquear o event-loop
+                    audio_url, title = await asyncio.to_thread(
+                        Music.fetch_invidious_audio, vid
                     )
-                    audio_url = info["url"]
-                    title = info.get("title", vid)
 
-                    self.queues[guild_id].append({"path": audio_url, "title": title})
+                    # 2) enfileira stream remoto
+                    self.queues[guild_id].append({"path": audio_url, "t itle": title})
                     encontrados.append(title)
+                    print(f"[Music] extraído Invidious: {title}")
+
                 except Exception as e:
-                    await interaction.followup.send(f"[Music] ERRO ao extrair YouTube via Invidious: {e}")
+                    print(f"[Music] ERRO ao obter áudio Invidious: {e}")
 
 
             # ───  B) Pasta local (*pasta)  ────────────────────────────────────
