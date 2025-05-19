@@ -132,11 +132,22 @@ class Music(commands.Cog):
         await interaction.response.send_message(f"🔊 Entrei no canal {canal.mention}!")
 
     YDL_OPTS = {
-        "format": "bestaudio/best",
-        "quiet": True,
-        "no_warnings": True,
-        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
-    }
+    "format": "bestaudio/best",
+    "quiet": True,
+    "no_warnings": True,
+    "user_agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/136.0.0.0 Safari/537.36"
+    ),
+    "http_headers": {
+        # força o YouTube a pensar que já aceitou o banner
+        "Cookie": "CONSENT=YES+"
+    },
+    # opcionalmente:
+    "geo_bypass": True,
+    "nocheckcertificate": True,
+}
 
     @app_commands.command(name="tocar", description="Toca um ou mais áudios no canal de voz")
     @app_commands.describe(arquivo="Nome(s) do(s) arquivo(s) ou URL(s) do YouTube, separados por vírgula")
