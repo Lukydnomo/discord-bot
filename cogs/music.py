@@ -126,11 +126,11 @@ class Music(commands.Cog):
         if not interaction.user.guild_permissions.connect:
             return await interaction.response.send_message("🚫 Você não tem permissão para usar este comando!", ephemeral=True)
 
-        if interaction.guild.id in self.self.voice_clients:
+        if interaction.guild.id in self.voice_clients:
             return await interaction.response.send_message("⚠️ Já estou em um canal de voz!", ephemeral=True)
 
         vc = await canal.connect()
-        self.self.voice_clients[interaction.guild.id] = vc
+        self.voice_clients[interaction.guild.id] = vc
         await interaction.response.send_message(f"🔊 Entrei no canal {canal.mention}!")
 
     YDL_OPTS = {
@@ -213,11 +213,8 @@ class Music(commands.Cog):
                 except Exception as e:
                     print(f"[Music] ERRO ao extrair YouTube: {e}")
                 finally:
-                    # limpa o arquivo de cookies
-                    try:
+                    if os.path.exists(cookie_file):
                         os.remove(cookie_file)
-                    except OSError:
-                        pass
 
             # 2) pasta (*) e arquivos locais
             elif nome.startswith("*"):
