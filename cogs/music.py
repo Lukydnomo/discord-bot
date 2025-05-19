@@ -147,7 +147,7 @@ class Music(commands.Cog):
         # credenciais serão mescladas dinamicamente
     }
 
-        @app_commands.command(name="tocar", description="Toca um ou mais áudios no canal de voz")
+    @app_commands.command(name="tocar", description="Toca um ou mais áudios no canal de voz")
     @app_commands.describe(arquivo="Nome(s) do(s) arquivo(s), URL(s) do YouTube ou pastas (*nome), separados por vírgula")
     async def tocar(self, interaction: discord.Interaction, arquivo: str):
         # defer para dar até 15 minutos de processamento
