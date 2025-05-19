@@ -148,57 +148,58 @@ class Music(commands.Cog):
     }
 
     @app_commands.command(name="tocar", description="Toca um ou mais áudios no canal de voz")
-    @app_commands.describe(arquivo="Nome(s) do(s) arquivo(s), URL(s) do YouTube ou pastas (*nome), separados por vírgula")
+    @app_commands.describe(
+        arquivo="Nome(s) de arquivo(s), pasta(s) (*nome) ou URL(s) do YouTube, separados por vírgula"
+    )
     async def tocar(self, interaction: discord.Interaction, arquivo: str):
-        # defer para dar até 15 minutos de processamento
+        # 1) defer para dar tempo suficiente à extração/stream
         await interaction.response.defer(thinking=True)
 
         guild_id = interaction.guild.id
         vc = self.voice_clients.get(guild_id)
 
-        # conecta se ainda não estiver em um canal de voz
+        # 2) conecta se não estiver em canal
         if not vc:
             canal = interaction.user.voice.channel if interaction.user.voice else None
             if not canal:
                 return await interaction.followup.send(
-                    "❌ Você precisa estar em um canal de voz e o bot não está!", ephemeral=True
+                    "❌ Você precisa estar em um canal de voz!", ephemeral=True
                 )
             vc = await canal.connect()
             self.voice_clients[guild_id] = vc
 
         nomes = [n.strip() for n in arquivo.split(",")]
-        encontrados = []
+        encontrados: list[str] = []
         self.queues.setdefault(guild_id, [])
 
         for nome in nomes:
-            # 1) URL do YouTube?
+            # ───  A) URL do YouTube  ──────────────────────────────────────────
             if nome.startswith(("http://", "https://")):
                 try:
-                    # pré-carrega cookies mínimos
-                    cookie_file = await asyncio.to_thread(
-                        self.fetch_cookies, nome, f"cookies_{guild_id}.txt"
-                    )
-                    opts = dict(self.YDL_OPTS, cookiefile=cookie_file)
-                    print(f"[Music] usando cookiefile {cookie_file} para {nome}")
+                    # mescla login (se definido) ao YDL_OPTS
+                    opts = dict(self.YDL_OPTS)
+                    if self.yt_username and self.yt_password:
+                        opts.update({
+                            "username": self.yt_username,
+                            "password": self.yt_password
+                        })
 
-                    # extrai info sem baixar conteúdo completo
+                    # extrai info sem baixar vídeo completo
                     info = await asyncio.to_thread(
                         YoutubeDL(opts).extract_info, nome, False
                     )
                     audio_url = info["url"]
                     title = info.get("title", nome)
 
-                    # adiciona à fila como dict (remote)
+                    # adiciona à fila como dict remoto
                     self.queues[guild_id].append({"path": audio_url, "title": title})
                     encontrados.append(title)
+
                 except Exception as e:
                     print(f"[Music] ERRO ao extrair YouTube: {e}")
-                finally:
-                    # limpa cookiefile
-                    try: os.remove(cookie_file)
-                    except OSError: pass
+                    # opcional: await interaction.followup.send(f"❌ Falha no link {nome}", ephemeral=True)
 
-            # 2) pasta local: *pasta
+            # ───  B) Pasta local (*pasta)  ────────────────────────────────────
             elif nome.startswith("*"):
                 pasta = nome[1:]
                 caminho_pasta = os.path.join("assets/audios", pasta)
@@ -220,7 +221,7 @@ class Music(commands.Cog):
                         f"❌ Pasta `{pasta}` não encontrada!", ephemeral=True
                     )
 
-            # 3) arquivo local via buscar_arquivo
+            # ───  C) Arquivo local simples  ───────────────────────────────────
             else:
                 audio_file = self.buscar_arquivo(nome)
                 if audio_file:
@@ -231,13 +232,13 @@ class Music(commands.Cog):
                         f"⚠️ Arquivo `{nome}` não encontrado!", ephemeral=True
                     )
 
-        # sem nada para tocar?
+        # ─── Sem nada válido? retorna ──────────────────────────────────────
         if not encontrados:
             return await interaction.followup.send(
                 "❌ Nenhum áudio, pasta ou URL válido foi encontrado!", ephemeral=True
             )
 
-        # inicia ou acrescenta à fila
+        # ─── Inicia reprodução ou adiciona à fila ─────────────────────────
         if not vc.is_playing():
             self.play_next(guild_id)
             await interaction.followup.send(f"🎵 Tocando agora: **{encontrados[0]}**")
