@@ -5,8 +5,8 @@ import io
 # Terceiros
 import os
 import random
-from pytz import timezone
-from datetime import datetime
+import pytz
+import datetime
 
 # Discord
 import discord
@@ -77,14 +77,14 @@ async def randomuser():
     return "No valid members found"  # Retorno caso não haja membros válidos
 
 DORMINHOCOS_ID = 1401356866797174814  # Substitua pelo ID real do cargo Dorminhocos
-TIMEZONE = timezone("America/Sao_Paulo")  # Define o fuso horário
+TIMEZONE = pytz.timezone("America/Sao_Paulo")  # Define o fuso horário para São Paulo
 
 # Evento de quando o bot estiver pronto
 @bot.event
 async def on_ready():
     print(f"Bot conectado como {bot.user}")
     await on_ready_custom(bot, conteudo)  # Chama a função personalizada
-    agora = datetime.now(TIMEZONE)  # Obtém a hora atual no fuso horário definido
+    agora = datetime.now(TIMEZONE)
     if agora.hour == 4:
         await remover_das_calls()
 
