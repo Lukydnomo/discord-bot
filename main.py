@@ -5,6 +5,7 @@ import io
 # Terceiros
 import os
 import random
+from pytz import timezone
 
 # Discord
 import discord
@@ -74,11 +75,31 @@ async def randomuser():
     
     return "No valid members found"  # Retorno caso não haja membros válidos
 
+DORMINHOCOS_ID = 1401356866797174814  # Substitua pelo ID real do cargo Dorminhocos
+TIMEZONE = timezone("America/Sao_Paulo")  # Define o fuso horário
+
 # Evento de quando o bot estiver pronto
 @bot.event
 async def on_ready():
     print(f"Bot conectado como {bot.user}")
     await on_ready_custom(bot, conteudo)  # Chama a função personalizada
+    agora = datetime.now(TIMEZONE)  # Obtém a hora atual no fuso horário definido
+    if agora.hour == 4:
+        await remover_das_calls()
+
+async def remover_das_calls():
+    for guild in bot.guilds:
+        role = guild.get_role(DORMINHOCOS_ID)
+        if not role:
+            continue
+        for vc in guild.voice_channels:
+            for member in vc.members:
+                if role in member.roles:
+                    try:
+                        await member.move_to(None)
+                        print(f"{member.display_name} removido da call.")
+                    except Exception as e:
+                        print(f"Erro ao remover {member.display_name}: {e}")
 
 @bot.event
 async def on_message(message):

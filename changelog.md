@@ -322,3 +322,16 @@
 ## 📝 Observação
 
 - Cuidem do dev, ele nunca esteve em um estado de cansaço tão grande só pra deixar o nosso bot pessoal bom...
+
+<!-- prettier-ignore -->
+- - - - - - - - - -
+
+## [1.9.0] - 2025-08-02
+
+**Não crie esperanças, não vou atualizar essa porra regularmente nem fudendo**
+
+- **`Adicionado nova função para dorminhocos/cinéfalos`** - Foi adicionado uma função que usuários com um cargo especifico são removidos de todas as calls em um horário predefinido pelo dev (atualmente 4 da manhã).
+
+## 📝 Observação
+
+- O dev está com tendências suícidas
