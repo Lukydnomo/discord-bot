@@ -77,7 +77,7 @@ REACTIONS = {
     "parabéns": ["🥳", "🎊"],
     "obrigado": ["🙏"],
 }
-with open("respostasia.json", "r", encoding="utf-8") as f:
+with open("./resources/respostasia.json", "r", encoding="utf-8") as f:
     AUTO_RESPONSES = json.load(f)
 async def on_message_custom(bot, message):
     if message.author.bot:
