@@ -335,3 +335,16 @@
 ## 📝 Observação
 
 - O dev está com tendências suícidas
+
+<!-- prettier-ignore -->
+- - - - - - - - - -
+
+## [2.0.0] - 2025-08-28
+
+**TALVEZ ATUALIZAREMOS COM CERTA FREQUENCIA**
+
+- **`Adicionado sistema de IA manual ao bot (beta)`** - Foi adicionado um sistema em que o bot detecta se uma pergunta está em uma lista de respostas, bem preguiçoso e mal feito, mas vai ser legal quando a lista estiver longa. Para ativar use o prefixo "Ei bot, "
+
+## 📝 Observação
+
+- Cuidem do dev, ele tá no ponto de recorrer a programar pra se distrair.

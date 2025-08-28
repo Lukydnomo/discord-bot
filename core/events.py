@@ -1,7 +1,7 @@
 import asyncio
-
 import discord
 import unidecode
+import json
 
 from core.modules import *
 
@@ -77,10 +77,12 @@ REACTIONS = {
     "parabéns": ["🥳", "🎊"],
     "obrigado": ["🙏"],
 }
+# Prefixos que ativam o bot
 TRIGGERS = [
-    "ei bot,", "ei bot, ", 
+    "ei bot,", "ei bot, ",
     "ei franbot,", "ei franbot, "
 ]
+# Carregar respostas automáticas
 with open("./assets/resources/respostasia.json", "r", encoding="utf-8") as f:
     AUTO_RESPONSES = json.load(f)
 async def on_message_custom(bot, message):
@@ -102,9 +104,14 @@ async def on_message_custom(bot, message):
 
         # Procura no JSON
         if pergunta in AUTO_RESPONSES:
+            resposta = AUTO_RESPONSES[pergunta]
+
+            # Calcula tempo de espera: 160ms * nº de caracteres
+            delay = len(resposta) * 0.160
+
             async with message.channel.typing():
-                await asyncio.sleep(1)
-                await safe_request(message.channel.send, AUTO_RESPONSES[pergunta])
+                await asyncio.sleep(delay)
+                await safe_request(message.channel.send, resposta)
             return
 
     # Reações pré-definidas
