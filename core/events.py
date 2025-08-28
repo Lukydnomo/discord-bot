@@ -77,17 +77,35 @@ REACTIONS = {
     "parabéns": ["🥳", "🎊"],
     "obrigado": ["🙏"],
 }
+TRIGGERS = [
+    "ei bot,", "ei bot, ", 
+    "ei franbot,", "ei franbot, "
+]
 with open("./assets/resources/respostasia.json", "r", encoding="utf-8") as f:
     AUTO_RESPONSES = json.load(f)
 async def on_message_custom(bot, message):
     if message.author.bot:
         return  # Ignora mensagens de bots
 
-    # --- Sistema de respostas automáticas ---
-    conteudo = message.content.strip()
-    if conteudo in AUTO_RESPONSES:  # se a msg exata estiver no JSON
-        await message.channel.send(AUTO_RESPONSES[conteudo])
-        return  # evita rodar o resto (se quiser pode remover)
+    conteudo = message.content.lower().strip()
+
+    # --- Verifica se começa com algum prefixo ---
+    prefixo_usado = None
+    for trigger in TRIGGERS:
+        if conteudo.startswith(trigger):
+            prefixo_usado = trigger
+            break
+
+    if prefixo_usado:
+        # Remove o prefixo da mensagem
+        pergunta = message.content[len(prefixo_usado):].strip()
+
+        # Procura no JSON
+        if pergunta in AUTO_RESPONSES:
+            async with message.channel.typing():
+                await asyncio.sleep(1)
+                await safe_request(message.channel.send, AUTO_RESPONSES[pergunta])
+            return
 
     # Reações pré-definidas
     for keyword, emojis in REACTIONS.items():
