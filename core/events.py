@@ -77,14 +77,19 @@ REACTIONS = {
     "parabéns": ["🥳", "🎊"],
     "obrigado": ["🙏"],
 }
+with open("respostasia.json", "r", encoding="utf-8") as f:
+    AUTO_RESPONSES = json.load(f)
 async def on_message_custom(bot, message):
-    """
-    Evento executado quando uma mensagem é enviada em um canal.
-    """
     if message.author.bot:
         return  # Ignora mensagens de bots
 
-    # Adiciona reações pré-definidas
+    # --- Sistema de respostas automáticas ---
+    conteudo = message.content.strip()
+    if conteudo in AUTO_RESPONSES:  # se a msg exata estiver no JSON
+        await message.channel.send(AUTO_RESPONSES[conteudo])
+        return  # evita rodar o resto (se quiser pode remover)
+
+    # Reações pré-definidas
     for keyword, emojis in REACTIONS.items():
         if keyword in message.content.lower():
             for emoji in emojis:
