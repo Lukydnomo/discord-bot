@@ -348,3 +348,16 @@
 ## 📝 Observação
 
 - Cuidem do dev, ele tá no ponto de recorrer a programar pra se distrair.
+
+<!-- prettier-ignore -->
+- - - - - - - - - -
+
+## [2.0.1] - 2025-09-22
+
+**okay, talvez não com tanta frequencia quanto eu gostaria, mas sabe como é né**
+
+- **`Adicionado painel de mute utilzando embed (/mutecall)`** - Basicamente um painel embed que serve pra mutar e desmutar todos presentes na call de forma rápida, mais utilizado para jogar Among Us, Suspects, GGD (se não utilizar o in-game), dentre outros jogos que precisam do silêncio de todos.
+
+## 📝 Observação
+
+- ta

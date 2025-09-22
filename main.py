@@ -448,8 +448,6 @@ async def ascii(interaction: discord.Interaction, texto: str, fonte: app_command
     except Exception as e:
         await interaction.response.send_message(f"❌ Erro ao gerar a arte ASCII: {e}", ephemeral=True)
 
-# --- A PARTIR DAQUI, FORA DO COMANDO ASCII! ---
-
 class MuteUnmuteView(View):
     def __init__(self, channel):
         super().__init__(timeout=60)
@@ -484,7 +482,6 @@ class MuteUnmuteView(View):
                 except Exception:
                     pass
         await interaction.response.send_message(f"🔊 Desmutados: {count} membros.", ephemeral=True)
-
 @bot.tree.command(name="mutecall", description="Cria botões para mutar/desmutar todos na call atual.")
 async def mutecall(interaction: discord.Interaction):
     if not interaction.user.voice or not interaction.user.voice.channel:
