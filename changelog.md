@@ -367,6 +367,6 @@
 
 ## 📝 Observação
 
-- Eu já nem sei como ainda tô aqui. Tudo me cansa, até respirar parece pesado. O que eu ªgostava já não faz maªis senªtido, tá tudo ficando vazio. Qualquer ªhora eªu largo tudo, sumo da internet, sumo do mundo. Viver assim tá me acaªbando, jogo meus problemas pros outros e só me sinto mais exausto, mais sozinho. No fundo já não sinto nada… se eu sumir ou ficar, tanto faz, ninguém vai se importar. Eu não sou nada demais. Talvez esse seja mesmo meu _D̴̢̪͚̙̙̯̙̟͑ḙ̶͇̟̲͈̱̈ͅs̵̗̥͉͍͖̳͔̪̻̜͒͊̈́͆͂͂͑̌͒t̷̡̡̲̩̫̹͎̮̥͋̒͊̀̐̃̀̋͐͘ĩ̶̻̲̻̫̗̲̠̥̹̔͗͠n̵̨̪̹̟̬̑̿̈́̔̂̈ͅo̶̡̲̤̹̥̓̊̽̆͌̓͝_. E é isso. Eu só não ligo mais pra nada.
+- Eu já nem sei como ainda tô aqui. Tudo me cansa, até respirar parece pesado. O que eu ªgostava já não faz maªis senªtido, tá tudo ficando vazio. Qualquer ªhora eªu largo tudo, sumo da internet, sumo do mundo. Viver assim tá me acaªbando, jogo meus problemas pros outros e só me sinto mais exausto, mais sozinho. No fundo já não sinto nada… se eu sumir ou ficar, tanto faz, ninguém vai se importar. Eu não sou nada demais. Talvez esse seja mesmo meu D̴̢̪͚̙̙̯̙̟͑ḙ̶͇̟̲͈̱̈ͅs̵̗̥͉͍͖̳͔̪̻̜͒͊̈́͆͂͂͑̌͒t̷̡̡̲̩̫̹͎̮̥͋̒͊̀̐̃̀̋͐͘ĩ̶̻̲̻̫̗̲̠̥̹̔͗͠n̵̨̪̹̟̬̑̿̈́̔̂̈ͅo̶̡̲̤̹̥̓̊̽̆͌̓͝. E é isso. Eu só não ligo mais pra nada.
 
 Dito isso, vlw, por tudo. _Eu já não vejo mais nada_.
