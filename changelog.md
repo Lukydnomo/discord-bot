@@ -330,7 +330,7 @@
 
 ## 📝 Observação
 
-- O dev está com tendências suícidas
+- O dev está com tendências suícidas extremas, tá tudo dando errado nessa porra.
 
 <!-- prettier-ignore -->
 - - - - - - - - - -
