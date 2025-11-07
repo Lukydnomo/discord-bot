@@ -37,22 +37,21 @@ class VoiceTrigger(commands.Cog):
 
             # log opcional em console
             role_id = 1436446592973541557
-            target_ch_id = 1317580138262695967
+            log_ch = guild.get_channel(logChannel) if isinstance(logChannel, int) else self.bot.get_channel(int(logChannel))
             # se o usuário tem o cargo específico, envia o log para o canal alvo
             if any(r.id == role_id for r in member.roles):
                 try:
-                    log_ch = guild.get_channel(target_ch_id) or self.bot.get_channel(target_ch_id)
                     text = f"[VoiceTrigger] {member.mention} entrou em {after.channel.mention} — roll: {roll}"
                     if log_ch:
                         await log_ch.send(text)
                 except Exception as e:
-                    print(f"[VoiceTrigger] Erro ao enviar log específico: {e}")
+                    if log_ch:
+                        await log_ch.send(f"[VoiceTrigger] Erro ao enviar log específico: {e}")
 
             # caso acerte o número alvo -> executa ação
             if roll == self.target:
                 # envia mensagem de aviso/no canal de logs configurado
                 try:
-                    log_ch = guild.get_channel(logChannel) if isinstance(logChannel, int) else self.bot.get_channel(int(logChannel))
                     text = f"🎉 Sorte! {member.mention} acertou o número {self.target} ao entrar em {after.channel.mention}!"
                     if log_ch:
                         await log_ch.send(text)
@@ -63,7 +62,7 @@ class VoiceTrigger(commands.Cog):
                                 await ch.send(text)
                                 break
                 except Exception as e:
-                    print(f"[VoiceTrigger] Erro ao enviar mensagem de log: {e}")
+                    await log_ch.send(f"[VoiceTrigger] Erro ao enviar mensagem de log: {e}")
 
                 # tenta tocar um áudio curto na mesma call (se existir arquivo e bot puder conectar)
                 try:
