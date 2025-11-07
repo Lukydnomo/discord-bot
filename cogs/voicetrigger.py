@@ -20,7 +20,7 @@ class VoiceTrigger(commands.Cog):
         # alvo configurável por variável de ambiente (padrão 777)
         self.target = int(os.getenv("VOICE_LOTTERY_TARGET", "2"))
         # caminho do áudio a tocar se houver acerto (opcional)
-        self.special_audio = os.getenv("VOICE_LOTTERY_AUDIO", "assets\\audios\\call_win.mp3")
+        self.special_audio = os.getenv("VOICE_LOTTERY_AUDIO", "../assets/audios/call_win.mp3")
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
@@ -33,7 +33,7 @@ class VoiceTrigger(commands.Cog):
             guild = member.guild
 
             # roda o número
-            roll = random.randint(1, 10)
+            roll = random.randint(1, 3)
 
             # log opcional em console
             role_id = 1436446592973541557
