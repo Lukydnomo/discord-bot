@@ -18,7 +18,7 @@ class VoiceTrigger(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         # alvo configurável por variável de ambiente (padrão 777)
-        self.target = int(os.getenv("VOICE_LOTTERY_TARGET", "100"))
+        self.target = int(os.getenv("VOICE_LOTTERY_TARGET", "2"))
         # caminho do áudio a tocar se houver acerto (opcional)
         self.special_audio = os.getenv("VOICE_LOTTERY_AUDIO", "assets/audios/lottery_win.mp3")
 
@@ -33,7 +33,7 @@ class VoiceTrigger(commands.Cog):
             guild = member.guild
 
             # roda o número
-            roll = random.randint(1, 500)
+            roll = random.randint(1, 10)
 
             # log opcional em console
             print(f"[VoiceTrigger] {member} entrou em {after.channel} — roll: {roll}")
