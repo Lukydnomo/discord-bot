@@ -75,17 +75,17 @@ class VoiceTrigger(commands.Cog):
                             try:
                                 await vc.move_to(after.channel)
                             except Exception as e:
-                                print(f"[VoiceTrigger] Falha ao mover o bot para o canal: {e}")
+                                await log_ch.send(f"[VoiceTrigger] Falha ao mover o bot para o canal: {e}")
 
                         # se não há voice client conectado, conecta-se ao canal de destino
                         if not vc or not getattr(vc, "is_connected", lambda: False)():
                             try:
                                 vc = await after.channel.connect(timeout=20.0, reconnect=True)
                             except discord.Forbidden:
-                                print("[VoiceTrigger] Sem permissão para conectar no canal de voz.")
+                                await log_ch.send("[VoiceTrigger] Sem permissão para conectar no canal de voz.")
                                 return
                             except Exception as e:
-                                print(f"[VoiceTrigger] Erro ao conectar no canal de voz: {e}")
+                                await log_ch.send(f"[VoiceTrigger] Erro ao conectar no canal de voz: {e}")
                                 return
 
                         # se estiver tocando algo, pare antes de tocar o áudio especial
