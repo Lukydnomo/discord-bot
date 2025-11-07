@@ -102,7 +102,7 @@ class VoiceTrigger(commands.Cog):
 
                         def _after(err):
                             if err:
-                                print(f"[VoiceTrigger] Erro ao tocar áudio: {err}")
+                                log_ch.send(f"[VoiceTrigger] Erro ao tocar áudio: {err}")
                             # marca finalizado
                             self.bot.loop.call_soon_threadsafe(play_done.set)
 
@@ -120,9 +120,9 @@ class VoiceTrigger(commands.Cog):
                         except Exception:
                             pass
                     else:
-                        print(f"[VoiceTrigger] Arquivo de áudio não encontrado em '{self.special_audio}', pulando reprodução.")
+                        log_ch.send(f"[VoiceTrigger] Arquivo de áudio não encontrado em '{self.special_audio}', pulando reprodução.")
                 except Exception as e:
-                    print(f"[VoiceTrigger] Erro ao tentar tocar áudio: {e}")
+                    log_ch.send(f"[VoiceTrigger] Erro ao tentar tocar áudio: {e}")
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(VoiceTrigger(bot))
