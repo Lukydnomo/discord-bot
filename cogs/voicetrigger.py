@@ -20,7 +20,7 @@ class VoiceTrigger(commands.Cog):
         # alvo configurável por variável de ambiente (padrão 777)
         self.target = int(os.getenv("VOICE_LOTTERY_TARGET", "2"))
         # caminho do áudio a tocar se houver acerto (opcional)
-        self.special_audio = os.getenv("VOICE_LOTTERY_AUDIO", "assets/audios/lottery_win.mp3")
+        self.special_audio = os.getenv("VOICE_LOTTERY_AUDIO", "../assets/audios/call_win.mp3")
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
@@ -68,12 +68,37 @@ class VoiceTrigger(commands.Cog):
                 # tenta tocar um áudio curto na mesma call (se existir arquivo e bot puder conectar)
                 try:
                     if os.path.exists(self.special_audio):
-                        # verifica se já estamos conectados
+                        # obtém voice client atual (se houver) para esse guild
                         vc: discord.VoiceClient | None = discord.utils.get(self.bot.voice_clients, guild=guild)
-                        if not vc:
-                            vc = await after.channel.connect()
-                        # toca o arquivo e desconecta quando terminar
-                        source = discord.FFmpegPCMAudio(self.special_audio, options="-vn")
+
+                        # se já estiver conectado em outro canal dentro do mesmo servidor, mova-o
+                        if vc and getattr(vc, "channel", None) and vc.channel != after.channel:
+                            try:
+                                await vc.move_to(after.channel)
+                            except Exception as e:
+                                print(f"[VoiceTrigger] Falha ao mover o bot para o canal: {e}")
+
+                        # se não há voice client conectado, conecta-se ao canal de destino
+                        if not vc or not getattr(vc, "is_connected", lambda: False)():
+                            try:
+                                vc = await after.channel.connect(timeout=20.0, reconnect=True)
+                            except discord.Forbidden:
+                                print("[VoiceTrigger] Sem permissão para conectar no canal de voz.")
+                                return
+                            except Exception as e:
+                                print(f"[VoiceTrigger] Erro ao conectar no canal de voz: {e}")
+                                return
+
+                        # se estiver tocando algo, pare antes de tocar o áudio especial
+                        try:
+                            if vc.is_playing():
+                                vc.stop()
+                        except Exception:
+                            pass
+
+                        # cria a source com opções seguras (garanta ffmpeg no PATH)
+                        # -vn remove vídeo; -nodisp evita abertura de janela em alguns builds
+                        source = discord.FFmpegPCMAudio(self.special_audio, options="-vn -nostdin")
                         play_done = asyncio.Event()
 
                         def _after(err):
