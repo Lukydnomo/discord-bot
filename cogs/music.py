@@ -333,15 +333,31 @@ class Music(commands.Cog):
         vc.stop()
         await interaction.response.send_message("⏹️ Reprodução interrompida e fila limpa!")
 
-    @app_commands.command(name="sair", description="Faz o bot sair do canal de voz e limpa a fila de reprodução")
+    @app_commands.command(name="sair", description="Faz o bot sair de todos os canais de voz e limpa todas as filas de reprodução")
     async def sair(self, interaction: discord.Interaction):
-        vc = self.voice_clients.pop(interaction.guild.id, None)
-        if not vc:
-            return await interaction.response.send_message("❌ Não estou em um canal de voz!", ephemeral=True)
+        # Desconecta de todas as instâncias registradas, sem checar se está em call no guild invocador
+        desconectados = 0
+        erros = []
 
-        self.queues.pop(interaction.guild.id, None)  # Limpa a fila de reprodução
-        await vc.disconnect()
-        await interaction.response.send_message("👋 Saí do canal de voz e limpei a fila de reprodução!")
+        # Itera sobre uma cópia para poder remover entradas enquanto desconecta
+        for guild_id, vc in list(self.voice_clients.items()):
+            try:
+                if vc:
+                    await vc.disconnect()
+                desconectados += 1
+            except Exception as e:
+                erros.append(f"{guild_id}: {e}")
+            finally:
+                # Remove qualquer estado referente a esse guild
+                self.voice_clients.pop(guild_id, None)
+                self.queues.pop(guild_id, None)
+                self.loop_status.pop(guild_id, None)
+
+        resumo = f"👋 Desconectado de {desconectados} canal(is) de voz e limpei as filas correspondentes."
+        if erros:
+            resumo += f" Porém ocorreram erros ao desconectar de alguns guilds: {'; '.join(erros)}"
+
+        await interaction.response.send_message(resumo)
 
     @app_commands.command(name="pular", description="Pula para o próximo áudio na fila")
     async def pular(self, interaction: discord.Interaction):
