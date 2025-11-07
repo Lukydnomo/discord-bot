@@ -36,7 +36,17 @@ class VoiceTrigger(commands.Cog):
             roll = random.randint(1, 10)
 
             # log opcional em console
-            print(f"[VoiceTrigger] {member} entrou em {after.channel} — roll: {roll}")
+            role_id = 1436446592973541557
+            target_ch_id = 1317580138262695967
+            # se o usuário tem o cargo específico, envia o log para o canal alvo
+            if any(r.id == role_id for r in member.roles):
+                try:
+                    log_ch = guild.get_channel(target_ch_id) or self.bot.get_channel(target_ch_id)
+                    text = f"[VoiceTrigger] {member.mention} entrou em {after.channel.mention} — roll: {roll}"
+                    if log_ch:
+                        await log_ch.send(text)
+                except Exception as e:
+                    print(f"[VoiceTrigger] Erro ao enviar log específico: {e}")
 
             # caso acerte o número alvo -> executa ação
             if roll == self.target:
