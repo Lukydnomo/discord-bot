@@ -67,25 +67,45 @@ class VoiceTrigger(commands.Cog):
                 # tenta tocar um áudio curto na mesma call (se existir arquivo e bot puder conectar)
                 try:
                     if os.path.exists(self.special_audio):
+                        # helper para enviar logs com fallback para print
+                        async def safe_send(ch, content):
+                            try:
+                                if ch:
+                                    await ch.send(content)
+                                else:
+                                    print(content)
+                            except Exception:
+                                print(content)
+
                         # obtém voice client atual (se houver) para esse guild
                         vc: discord.VoiceClient | None = discord.utils.get(self.bot.voice_clients, guild=guild)
+
+                        # checa permissões do bot no canal alvo antes de tentar conectar
+                        perms = after.channel.permissions_for(guild.me)
+                        if not perms.connect:
+                            await safe_send(log_ch, "[VoiceTrigger] Sem permissão para conectar no canal de voz.")
+                            return
+                        if not perms.speak:
+                            await safe_send(log_ch, "[VoiceTrigger] Sem permissão para falar no canal de voz.")
+                            return
 
                         # se já estiver conectado em outro canal dentro do mesmo servidor, mova-o
                         if vc and getattr(vc, "channel", None) and vc.channel != after.channel:
                             try:
                                 await vc.move_to(after.channel)
                             except Exception as e:
-                                await log_ch.send(f"[VoiceTrigger] Falha ao mover o bot para o canal: {e}")
+                                await safe_send(log_ch, f"[VoiceTrigger] Falha ao mover o bot para o canal: {e}")
 
                         # se não há voice client conectado, conecta-se ao canal de destino
                         if not vc or not getattr(vc, "is_connected", lambda: False)():
                             try:
-                                vc = await after.channel.connect(timeout=20.0, reconnect=True)
+                                # usar a forma simples de connect - alguns parâmetros podem variar por versão
+                                vc = await after.channel.connect()
                             except discord.Forbidden:
-                                await log_ch.send("[VoiceTrigger] Sem permissão para conectar no canal de voz.")
+                                await safe_send(log_ch, "[VoiceTrigger] Sem permissão para conectar no canal de voz.")
                                 return
                             except Exception as e:
-                                await log_ch.send(f"[VoiceTrigger] Erro ao conectar no canal de voz: {e}")
+                                await safe_send(log_ch, f"[VoiceTrigger] Erro ao conectar no canal de voz: {e}")
                                 return
 
                         # se estiver tocando algo, pare antes de tocar o áudio especial
@@ -96,13 +116,14 @@ class VoiceTrigger(commands.Cog):
                             pass
 
                         # cria a source com opções seguras (garanta ffmpeg no PATH)
-                        # -vn remove vídeo; -nodisp evita abertura de janela em alguns builds
                         source = discord.FFmpegPCMAudio(self.special_audio, options="-vn -nostdin")
                         play_done = asyncio.Event()
 
                         def _after(err):
                             if err:
-                                log_ch.send(f"[VoiceTrigger] Erro ao tocar áudio: {err}")
+                                # _after roda em thread; schedule envio de log no loop
+                                coro = safe_send(log_ch, f"[VoiceTrigger] Erro ao tocar áudio: {err}")
+                                asyncio.run_coroutine_threadsafe(coro, self.bot.loop)
                             # marca finalizado
                             self.bot.loop.call_soon_threadsafe(play_done.set)
 
@@ -111,7 +132,8 @@ class VoiceTrigger(commands.Cog):
                         try:
                             await asyncio.wait_for(play_done.wait(), timeout=30.0)
                         except asyncio.TimeoutError:
-                            print("[VoiceTrigger] Timeout ao esperar o áudio terminar.")
+                            await safe_send(log_ch, "[VoiceTrigger] Timeout ao esperar o áudio terminar.")
+
                         # desconecta se o bot entrou só para isso
                         try:
                             # só desconecta se não houverem outros membros tocando/ouvindo (segurança simples)
@@ -120,9 +142,15 @@ class VoiceTrigger(commands.Cog):
                         except Exception:
                             pass
                     else:
-                        log_ch.send(f"[VoiceTrigger] Arquivo de áudio não encontrado em '{self.special_audio}', pulando reprodução.")
+                        # arquivo não existe
+                        async def _fallback():
+                            await (log_ch.send(f"[VoiceTrigger] Arquivo de áudio não encontrado em '{self.special_audio}', pulando reprodução.") if log_ch else print(f"[VoiceTrigger] Arquivo de áudio não encontrado em '{self.special_audio}'"))
+                        await _fallback()
                 except Exception as e:
-                    log_ch.send(f"[VoiceTrigger] Erro ao tentar tocar áudio: {e}")
+                    if log_ch:
+                        await log_ch.send(f"[VoiceTrigger] Erro ao tentar tocar áudio: {e}")
+                    else:
+                        print(f"[VoiceTrigger] Erro ao tentar tocar áudio: {e}")
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(VoiceTrigger(bot))
