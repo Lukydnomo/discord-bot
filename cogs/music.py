@@ -380,8 +380,46 @@ class Music(commands.Cog):
         if not queue:
             return await interaction.response.send_message("🎶 A fila está vazia!", ephemeral=True)
 
-        lista = "\n".join([f"{idx+1}. {track['title']}" for idx, track in enumerate(queue)])
-        await interaction.response.send_message(f"📜 **Fila de reprodução:**\n```\n{lista}\n```")
+        # Helper para extrair título de diferentes formatos de track
+        def get_title(track):
+            try:
+                if isinstance(track, dict):
+                    for key in ("title", "t itle", "name", "titulo", "fileName"):
+                        if key in track and track[key]:
+                            return str(track[key])
+                    # tenta pegar de campos comuns
+                    for key in ("path", "filePath", "url"):
+                        if key in track and track[key]:
+                            return os.path.basename(str(track[key]))
+                    return str(track)
+                else:
+                    return os.path.basename(str(track))
+            except Exception:
+                return str(track)
+
+        vc = self.voice_clients.get(guild_id)
+        is_playing = bool(vc and getattr(vc, "is_playing", lambda: False)())
+
+        current_label = "Tocando agora" if is_playing else "Próximo a tocar"
+        current = get_title(queue[0])
+
+        upcoming = [get_title(t) for t in queue[1:]]
+        if not upcoming:
+            text = f"🎵 **{current_label}:** {current}\n\n📜 A fila não tem outras faixas."
+            return await interaction.response.send_message(text)
+
+        # limita a exibição para evitar ultrapassar o limite do Discord
+        MAX_DISPLAY = 15
+        display_list = "\n".join([f"{idx+1}. {title}" for idx, title in enumerate(upcoming[:MAX_DISPLAY])])
+        more_count = len(upcoming) - MAX_DISPLAY
+        more_text = f"\n...e mais {more_count} faixa(s)..." if more_count > 0 else ""
+
+        mensagem = (
+            f"🎵 **{current_label}:** {current}\n\n"
+            f"📜 **Próximas na fila:**\n```\n{display_list}{more_text}\n```"
+        )
+
+        await interaction.response.send_message(mensagem)
 
     @app_commands.command(name="loop")
     @app_commands.describe(modo="0: Desativado, 1: Música Atual, 2: Fila Inteira (opcional)")
@@ -425,55 +463,168 @@ class Music(commands.Cog):
 
     @app_commands.command(name="salvar_fila", description="Salva a fila atual em um ID único")
     async def salvar_fila(self, interaction: discord.Interaction):
+        import json
+        from datetime import datetime
+
         guild_id = interaction.guild.id
         queue = self.queues.get(guild_id, [])
 
         if not queue:
             return await interaction.response.send_message("❌ A fila está vazia, nada para salvar!", ephemeral=True)
 
-        # Gera um ID único baseado nos nomes dos arquivos na fila
-        nomes_arquivos = [track["title"] for track in queue]
-        fila_serializada = ",".join(nomes_arquivos)
-        fila_codificada = urlsafe_b64encode(fila_serializada.encode()).decode()
+        # helper para extrair path/title de um track (dict ou str)
+        def normalize_track(track):
+            if isinstance(track, dict):
+                # possíveis chaves
+                path = None
+                for k in ("path", "filePath", "url"):
+                    if k in track and track[k]:
+                        path = track[k]
+                        break
+                title = None
+                for k in ("title", "t itle", "name", "titulo", "fileName"):
+                    if k in track and track[k]:
+                        title = str(track[k])
+                        break
+                if not path:
+                    # fallback para serialização segura
+                    path = title or str(track)
+                if not title:
+                    title = os.path.basename(str(path))
+                ttype = "remote" if isinstance(path, str) and str(path).startswith("http") else "local"
+                return {"type": ttype, "path": str(path), "title": title}
+            else:
+                s = str(track)
+                ttype = "remote" if s.startswith("http") else "local"
+                title = os.path.basename(s)
+                return {"type": ttype, "path": s, "title": title}
 
-        await interaction.response.send_message(f"✅ Fila salva com sucesso! Use este ID para carregar: `{fila_codificada}`", ephemeral=True)
+        serialized_queue = [normalize_track(t) for t in queue]
+
+        vc = self.voice_clients.get(guild_id)
+        is_playing = bool(vc and getattr(vc, "is_playing", lambda: False)())
+
+        payload = {
+            "version": 1,
+            "created_at": datetime.utcnow().isoformat() + "Z",
+            "loop": int(self.loop_status.get(guild_id, 0)),
+            "is_playing": bool(is_playing),
+            "queue": serialized_queue
+        }
+
+        try:
+            raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            token = urlsafe_b64encode(raw).decode("ascii")
+            await interaction.response.send_message(f"✅ Fila salva com sucesso! Use este ID para carregar:\n`{token}`", ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(f"❌ Erro ao serializar a fila: {e}", ephemeral=True)
 
     @app_commands.command(name="carregar_fila", description="Carrega uma fila salva usando um ID")
     @app_commands.describe(fila_id="ID da fila a ser carregada")
     async def carregar_fila(self, interaction: discord.Interaction, fila_id: str):
+        import json
+
+        guild_id = interaction.guild.id
         try:
-            # Decodifica o ID para obter os nomes dos arquivos
-            fila_decodificada = urlsafe_b64decode(fila_id.encode()).decode()
-            nomes_arquivos = fila_decodificada.split(",")
-
-            guild_id = interaction.guild.id
-            if guild_id not in self.queues:
-                self.queues[guild_id] = []
-
-            encontrados = []
-            for nome in nomes_arquivos:
-                audio_file = self.buscar_arquivo(nome)
-                if audio_file:
-                    self.queues[guild_id].append({
-                        "type": "local",
-                        "path": audio_file,
-                        "title": nome
-                    })
-                    encontrados.append(nome)
-                else:
-                    await interaction.channel.send(f"⚠️ Arquivo `{nome}` não encontrado!")
-
-            if not encontrados:
-                return await interaction.response.send_message("❌ Nenhum dos áudios foi encontrado!", ephemeral=True)
-
-            vc = self.voice_clients.get(guild_id)
-            if not vc or not vc.is_playing():
-                self.play_next(guild_id)
-                await interaction.response.send_message(f"🎵 Fila carregada e tocando `{encontrados[0]}`!")
-            else:
-                await interaction.response.send_message(f"🎶 Fila carregada! Adicionado(s) à fila: {', '.join(encontrados)}")
+            raw = urlsafe_b64decode(fila_id.encode())
+            data = json.loads(raw.decode("utf-8"))
         except Exception as e:
-            await interaction.response.send_message(f"❌ Erro ao carregar a fila: {e}", ephemeral=True)
+            return await interaction.response.send_message(f"❌ ID inválido ou corrompido: {e}", ephemeral=True)
+
+        if not isinstance(data, dict) or "queue" not in data:
+            return await interaction.response.send_message("❌ Estrutura de fila inválida.", ephemeral=True)
+
+        loaded = []
+        not_found = []
+        self.queues.setdefault(guild_id, [])
+        # Substitui a fila atual pela carregada (mantendo forma de dados usada pelo cog)
+        new_queue = []
+        for item in data["queue"]:
+            try:
+                path = item.get("path") if isinstance(item, dict) else str(item)
+                title = item.get("title") if isinstance(item, dict) else os.path.basename(path)
+                if item.get("type") == "local" or (isinstance(path, str) and not path.startswith("http")):
+                    # verifica existência; se não existir, tenta buscar pelo título
+                    if not os.path.exists(path):
+                        found = self.buscar_arquivo(title)
+                        if found:
+                            path = found
+                        else:
+                            not_found.append(title)
+                            continue
+                    new_queue.append({"path": path, "title": title})
+                    loaded.append(title)
+                else:
+                    # remote URL - mantêm como caminho para streaming ffmpeg/invidious
+                    new_queue.append({"path": path, "title": title})
+                    loaded.append(title)
+            except Exception:
+                not_found.append(str(item))
+
+        if not new_queue:
+            return await interaction.response.send_message("❌ Nenhuma faixa válida encontrada ao carregar a fila.", ephemeral=True)
+
+        # aplica loop se informado
+        try:
+            self.loop_status[guild_id] = int(data.get("loop", 0))
+        except Exception:
+            self.loop_status[guild_id] = 0
+
+        # substitui a fila
+        self.queues[guild_id] = new_queue
+
+        # tenta conectar / iniciar reprodução se necessário
+        vc = self.voice_clients.get(guild_id)
+        if not vc or not getattr(vc, "is_playing", lambda: False)():
+            # conecta ao canal do usuário, se possível
+            canal = interaction.user.voice.channel if interaction.user and interaction.user.voice else None
+            if not canal and (not vc or not getattr(vc, "is_connected", lambda: False)()):
+                return await interaction.response.send_message("❌ Você precisa estar em um canal de voz para eu tocar a fila.", ephemeral=True)
+            try:
+                if not vc or not getattr(vc, "is_connected", lambda: False)():
+                    vc = await canal.connect()
+                    self.voice_clients[guild_id] = vc
+            except Exception as e:
+                return await interaction.response.send_message(f"❌ Erro ao conectar no canal de voz: {e}", ephemeral=True)
+
+            # inicia reprodução
+            try:
+                self.play_next(guild_id)
+            except Exception as e:
+                return await interaction.response.send_message(f"❌ Erro ao iniciar reprodução: {e}", ephemeral=True)
+
+            msg = f"🎵 Fila carregada e iniciada: **{loaded[0]}**"
+        else:
+            msg = f"🎶 Fila carregada! Adicionado(s) à fila: {', '.join(loaded)}"
+
+        if not_found:
+            msg += f"\n⚠️ Não encontrados/ignorados: {', '.join(not_found)}"
+
+        await interaction.response.send_message(msg)
     
+    @app_commands.command(name="pausar", description="Pausa ou resume a reprodução (toggle)")
+    async def pausar(self, interaction: discord.Interaction):
+        guild_id = interaction.guild.id
+        vc = self.voice_clients.get(guild_id)
+
+        if not vc:
+            return await interaction.response.send_message("❌ Não estou conectado em nenhum canal de voz neste servidor.", ephemeral=True)
+
+        try:
+            # Se estiver pausado, resume; se estiver tocando, pausa; caso contrário, informa que não há nada tocando
+            is_paused = getattr(vc, "is_paused", lambda: False)()
+            is_playing = bool(getattr(vc, "is_playing", lambda: False)())
+
+            if is_paused:
+                vc.resume()
+                await interaction.response.send_message("▶️ Reprodução retomada.", ephemeral=True)
+            elif is_playing:
+                vc.pause()
+                await interaction.response.send_message("⏸️ Reprodução pausada.", ephemeral=True)
+            else:
+                await interaction.response.send_message("❌ Não há áudio tocando no momento.", ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(f"❌ Erro ao alterar o estado de reprodução: {e}", ephemeral=True)
+            
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(Music(bot))
