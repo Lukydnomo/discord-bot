@@ -2,6 +2,8 @@ import asyncio
 import discord
 import unidecode
 import json
+import unicodedata
+import re
 
 from core.modules import *
 
@@ -29,24 +31,40 @@ async def on_ready_custom(bot, conteudo):
     updatechannel = bot.get_channel(1319356880627171448)
     mention_message = "<@&1319355628195549247>"
     full_message = f"{conteudo}"
-    message_chunks = [
-        full_message[i : i + 2000] for i in range(0, len(full_message), 2000)
-    ]
 
-    # Pega todas as mensagens do canal, mais antigas primeiro
-    existing_messages = []
-    async for msg in updatechannel.history(oldest_first=True):
-        existing_messages.append(msg)
+    def normalize_text(s: str) -> str:
+        """Normalize texto para comparação robusta (NFC), remove caracteres invisíveis e colapsa espaços."""
+        if s is None:
+            return ""
+        # canonical composition
+        s = unicodedata.normalize("NFC", s)
+        # remove zero-width / directionality / BOM / invisible markers (ajuste conforme necessário)
+        s = re.sub(r"[\u200B-\u200F\u202A-\u202E\u2060\uFEFF]", "", s)
+        # collapse whitespace (inclui newlines) and strip
+        s = re.sub(r"\s+", " ", s).strip()
+        return s
 
-    # Compara o conteúdo atual com as mensagens existentes
-    is_same = (
-        len(existing_messages) == len(message_chunks) + 1
-        and all(
-            existing_messages[i].content.strip() == message_chunks[i].strip()
-            for i in range(len(message_chunks))
-        )
-        and existing_messages[-1].content.strip() == mention_message.strip()
-    )
+    # quebra em chunks de 2000 chars (limite do Discord)
+    message_chunks = [full_message[i : i + 2000] for i in range(0, len(full_message), 2000)]
+    normalized_chunks = [normalize_text(ch) for ch in message_chunks]
+    normalized_mention = normalize_text(mention_message)
+
+    # pega apenas um número limitado de mensagens (esperado + margem)
+    expected_count = len(message_chunks) + 1  # +1 pelo mention final
+    existing_messages = [msg async for msg in updatechannel.history(limit=expected_count + 5, oldest_first=True)]
+
+    # extrai e normaliza apenas os conteúdos textuais, preservando ordem
+    existing_texts = [normalize_text(m.content) for m in existing_messages if m.content is not None]
+
+    # tenta localizar um trecho onde os chunks correspondem e o último é a mention
+    is_same = False
+    if len(existing_texts) >= expected_count:
+        # slide window para permitir que existam mensagens extras antes
+        for i in range(0, len(existing_texts) - expected_count + 1):
+            window = existing_texts[i : i + expected_count]
+            if window[-1] == normalized_mention and window[:-1] == normalized_chunks:
+                is_same = True
+                break
 
     if is_same:
         print("✅ Changelog já está no canal, nenhuma mensagem enviada.")

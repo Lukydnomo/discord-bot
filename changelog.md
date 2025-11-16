@@ -370,3 +370,24 @@
 - Eu já nem sei como ainda tô aqui. Tudo me cansa, até respirar parece pesado. O que eu ªgostava já não faz maªis senªtido, tá tudo ficando vazio. Qualquer ªhora eªu largo tudo, sumo da internet, sumo do mundo. Viver assim tá me acaªbando, jogo meus problemas pros outros e só me sinto mais exausto, mais sozinho. No fundo já não sinto nada… se eu sumir ou ficar, tanto faz, ninguém vai se importar. Eu não sou nada demais. Talvez esse seja mesmo meu D̴̢̪͚̙̙̯̙̟͑ḙ̶͇̟̲͈̱̈ͅs̵̗̥͉͍͖̳͔̪̻̜͒͊̈́͆͂͂͑̌͒t̷̡̡̲̩̫̹͎̮̥͋̒͊̀̐̃̀̋͐͘ĩ̶̻̲̻̫̗̲̠̥̹̔͗͠n̵̨̪̹̟̬̑̿̈́̔̂̈ͅo̶̡̲̤̹̥̓̊̽̆͌̓͝. E é isso. Eu só não ligo mais pra nada.
 
 Dito isso, vlw, por tudo. _Eu já não vejo mais nada_.
+
+<!-- prettier-ignore -->
+- - - - - - - - - -
+
+## [2.1.0] - 2025-11-15
+
+**atualização foda tá**
+
+## 🆕 Improved
+
+- **`Melhora no player de áudio`** - Umas melhorinhas nas informações de loop. Os comandos `Salvar Fila` e `Carregar Fila` agora estão completamente funcionais.
+
+## ⚙️ Adjustments
+
+- **`Bugs com o comando Sair e Tocar`** - Ocorria certos bugs com estes comandos, fazendo com que eles não funcionassem quando o bot reiniciasse sua instância.
+
+- **`Changelog`** - Havia um bug no código que fazia com que o changelog fosse reenviado no <#1319356880627171448> sem checar se realmente tivesse um update.
+
+## ⚙️ Testing
+
+- **`Compatibilidade com YouTube`** - A nossa equipe está testando a funcionaldiade de tocar vídeos do youtube no player de áudio.

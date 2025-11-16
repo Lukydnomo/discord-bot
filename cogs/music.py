@@ -78,6 +78,51 @@ class Music(commands.Cog):
 
         raise RuntimeError("Não foi possível obter áudio via Invidious")
 
+    # --- NOVO: extrai URL direto via yt_dlp (assíncrono via to_thread) ---
+    def extract_youtube_stream(self, url: str) -> tuple[str, str]:
+        """
+        Extrai a melhor URL de áudio utilizável pelo ffmpeg a partir de um link do YouTube
+        usando yt_dlp (não faz download). Retorna (direct_media_url, title).
+        """
+        ydl_opts = dict(self.YDL_OPTS)  # cópia das opções de classe
+        # garante que não faça download e retorne formatos
+        ydl_opts.update({"quiet": True, "skip_download": True, "forcejson": True})
+
+        with YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+
+        title = info.get("title") or info.get("videoDetails", {}).get("title") or str(url)
+
+        formats = info.get("formats") or [info]
+
+        # filtra formatos que contenham áudio e tenham URL
+        audios = []
+        for f in formats:
+            if not f.get("url"):
+                continue
+            # seleciona preferencialmente audio-only ou com vcodec == 'none'
+            vcodec = f.get("vcodec")
+            acodec = f.get("acodec")
+            format_note = (f.get("format_note") or "").lower()
+            if acodec and acodec != "none":
+                audios.append(f)
+            elif vcodec == "none" or "audio" in format_note:
+                audios.append(f)
+
+        if not audios:
+            # fallback para qualquer formato com url
+            audios = [f for f in formats if f.get("url")]
+            if not audios:
+                raise RuntimeError("Nenhum formato de áudio encontrado via yt_dlp")
+
+        # escolhe o melhor por taxa de bits (abr, tbr ou bitrate)
+        def quality_score(f):
+            return f.get("abr") or f.get("tbr") or f.get("bitrate") or 0
+
+        best = max(audios, key=quality_score)
+        media_url = best["url"]
+        return media_url, title
+
     # Tocador
     def check_auto_disconnect(self, guild_id):
         async def task():
@@ -218,23 +263,19 @@ class Music(commands.Cog):
 
             if nome.startswith(("http://", "https://")):
                 try:
-                    m = re.search(r"(?:v=|youtu\\.be/)([A-Za-z0-9_-]{11})", nome)
-                    if not m:
-                        raise ValueError("URL de YouTube malformada")
-                    vid = m.group(1)
+                    # aceita qualquer URL do youtube / youtu.be
+                    # extrai stream direto via yt_dlp em thread para não bloquear o event-loop
+                    audio_url, title = await asyncio.to_thread(self.extract_youtube_stream, nome)
 
-                    # 1) busca invidious em thread para não bloquear o event-loop
-                    audio_url, title = await asyncio.to_thread(
-                        Music.fetch_invidious_audio, vid
-                    )
-
-                    # 2) enfileira stream remoto
-                    self.queues[guild_id].append({"path": audio_url, "t itle": title})
+                    # enfileira stream remoto com chave consistente ("path" e "title")
+                    self.queues[guild_id].append({"path": audio_url, "title": title})
                     encontrados.append(title)
-                    print(f"[Music] extraído Invidious: {title}")
+                    print(f"[Music] extraído yt_dlp: {title}")
 
                 except Exception as e:
-                    print(f"[Music] ERRO ao obter áudio Invidious: {e}")
+                    print(f"[Music] ERRO ao obter áudio via yt_dlp: {e}")
+                    await interaction.followup.send(f"❌ Erro ao processar link `{nome}`: {e}", ephemeral=True)
+                    continue
 
 
             # ───  B) Pasta local (*pasta)  ────────────────────────────────────
@@ -353,6 +394,24 @@ class Music(commands.Cog):
                 self.queues.pop(guild_id, None)
                 self.loop_status.pop(guild_id, None)
 
+        # Tentativa adicional: remover diretamente uma instância problemática pelo ID conhecido
+        try:
+            problematic_id = 1317632778505814046  # ID fornecido
+            if problematic_id in self.voice_clients:
+                try:
+                    vc = self.voice_clients.get(problematic_id)
+                    if vc:
+                        await vc.disconnect()
+                    desconectados += 1
+                except Exception as e:
+                    erros.append(f"force-{problematic_id}: {e}")
+                finally:
+                    self.voice_clients.pop(problematic_id, None)
+                    self.queues.pop(problematic_id, None)
+                    self.loop_status.pop(problematic_id, None)
+        except Exception as e:
+            erros.append(f"cleanup-force-{problematic_id}-error: {e}")
+
         resumo = f"👋 Desconectado de {desconectados} canal(is) de voz e limpei as filas correspondentes."
         if erros:
             resumo += f" Porém ocorreram erros ao desconectar de alguns guilds: {'; '.join(erros)}"
@@ -422,19 +481,28 @@ class Music(commands.Cog):
         await interaction.response.send_message(mensagem)
 
     @app_commands.command(name="loop")
-    @app_commands.describe(modo="0: Desativado, 1: Música Atual, 2: Fila Inteira (opcional)")
-    async def loop(self, interaction: discord.Interaction, modo: int = None):
-        # Alterna o loop entre 0 (desativado), 1 (música atual) e 2 (fila inteira), ou define um modo específico
+    @app_commands.describe(modo="Escolha o modo de loop (opcional). Se deixar vazio, mostra o status atual.")
+    @app_commands.choices(modo=[
+        app_commands.Choice(name="Desativado", value=0),
+        app_commands.Choice(name="Música atual", value=1),
+        app_commands.Choice(name="Fila inteira", value=2),
+    ])
+    async def loop(self, interaction: discord.Interaction, modo: Optional[app_commands.Choice[int]] = None):
         guild_id = interaction.guild.id
-        estado_atual = self.loop_status.get(guild_id, 0)
+        estado_atual = int(self.loop_status.get(guild_id, 0))
 
         if modo is None:
-            # Alterna entre 0 → 1 → 2 → 0...
-            novo_estado = (estado_atual + 1) % 3
-        else:
-            # Se um valor for fornecido, define diretamente (garantindo que esteja entre 0 e 2)
-            novo_estado = max(0, min(2, modo))
+            mensagens_status = {
+                0: "🔁 Loop desativado",
+                1: "🔂 Loop da música atual",
+                2: "🔁 Loop da fila inteira",
+            }
+            return await interaction.response.send_message(
+                f"📌 Estado atual do loop: **{estado_atual}** — {mensagens_status.get(estado_atual, 'Desconhecido')}",
+                ephemeral=True
+            )
 
+        novo_estado = int(modo.value)
         self.loop_status[guild_id] = novo_estado
 
         mensagens = {
@@ -443,7 +511,7 @@ class Music(commands.Cog):
             2: "🔁 Loop da fila inteira ativado!",
         }
 
-        await interaction.response.send_message(mensagens[novo_estado])
+        await interaction.response.send_message(mensagens.get(novo_estado, "Modo de loop definido."))
 
     @app_commands.command(name="shuffle", description="Embaralha a fila de áudios")
     async def shuffle(self, interaction: discord.Interaction):
