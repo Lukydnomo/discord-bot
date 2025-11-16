@@ -6,7 +6,7 @@ on:
       - main
   workflow_dispatch:
   schedule:
-    - cron: '0 */5 * * *'
+    - cron: "0 */5 * * *"
 
 jobs:
   run-bot:
@@ -20,7 +20,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v3
         with:
-          python-version: '3.13'
+          python-version: "3.13"
 
       - name: Install Dependencies
         run: |
@@ -29,6 +29,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements/requirementsPY.txt
 
+      - name: Criar cookies.txt
+        run: |
+          echo "${{ secrets.YOUTUBE_COOKIES }}" > cookies.txt
+
       - name: Run Bot
         run: python main.py
         env:
@@ -36,5 +40,3 @@ jobs:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN_ID: ${{ github.run_id }}
-          YT_USERNAME: ${{ secrets.YT_USERNAME }}
-          YT_PASSWORD: ${{ secrets.YT_PASSWORD }}

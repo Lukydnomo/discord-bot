@@ -21,8 +21,6 @@ class Music(commands.Cog):
         self.voice_clients: dict[int, discord.VoiceClient] = {}
         self.queues: dict[int, list] = {}
         self.loop_status: dict[int, int] = {}  # 0=off,1=track loop,2=queue loop
-        self.yt_username = os.getenv("YT_USERNAME")
-        self.yt_password = os.getenv("YT_PASSWORD")
 
     YDL_OPTS = {
         "format": "bestaudio/best",
@@ -83,11 +81,25 @@ class Music(commands.Cog):
         """
         Extrai a melhor URL de áudio utilizável pelo ffmpeg a partir de um link do YouTube
         usando yt_dlp (não faz download). Retorna (direct_media_url, title).
+        Usa cookies.txt se existir (gerado pelo GitHub Actions via secret).
+        Se cookies.txt não existir, usa a configuração padrão (Invidious) como fallback.
         """
-        ydl_opts = dict(self.YDL_OPTS)  # cópia das opções de classe
+        # copia as opções padrão
+        ydl_opts = dict(self.YDL_OPTS)
+
         # garante que não faça download e retorne formatos
         ydl_opts.update({"quiet": True, "skip_download": True, "forcejson": True})
 
+        # Se houver cookies.txt, usa-o e remove extractor_args (para usar o extractor oficial do YouTube)
+        if os.path.exists("cookies.txt"):
+            print("[Music] cookies.txt encontrado — usando cookies para yt_dlp (YouTube login).")
+            ydl_opts["cookies"] = "cookies.txt"
+            # remover extractor_args para permitir o extractor oficial do youtube usar os cookies
+            ydl_opts.pop("extractor_args", None)
+        else:
+            print("[Music] cookies.txt não encontrado — usando Invidious como fallback (sem login).")
+
+        # Extrai info com yt_dlp
         with YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
 
