@@ -4,7 +4,7 @@ import asyncio
 from discord.ext import commands
 import discord
 
-class Server(commands.Cog):
+class Fran_Server(commands.Cog):
     """Comandos para controlar o servidor Minecraft na Codespace"""
     
     def __init__(self, bot: commands.Bot):
@@ -151,4 +151,4 @@ class Server(commands.Cog):
         await ctx.send(embed=embed)
 
 async def setup(bot: commands.Bot) -> None:
-    await bot.add_cog(Server(bot))
+    await bot.add_cog(Fran_Server(bot))
