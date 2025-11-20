@@ -1,77 +1,68 @@
 # cogs/fran_minecraft_server.py
-import subprocess
 import asyncio
 import os
+import requests
 from discord.ext import commands
 import discord
 
 class Fran_Server(commands.Cog):
-    """Comandos para controlar o servidor Minecraft na Codespace"""
+    """Comandos para controlar o servidor Minecraft via GitHub Actions"""
     
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        # Credenciais da Codespace (SSH)
-        self.CODESPACE_HOST = "didactic-goggles-v6qjj4gvq954f667w-vxr5qxv5x9ch7-0.githubpreview.dev"
-        self.CODESPACE_USER = "codespace"  # Padrão do GitHub Codespaces
+        self.GITHUB_OWNER = "Lukydnomo"
+        self.GITHUB_REPO = "fran-server"
+        self.GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
     
-    def run_ssh_command(self, cmd: str) -> tuple[str, str]:
-        """Executa comando via SSH na Codespace"""
+    def trigger_server_action(self, action: str) -> tuple[int, str]:
+        """
+        Dispara um workflow no repo fran-server via repository_dispatch
+        action: 'start' ou 'stop'
+        """
+        if not self.GITHUB_TOKEN:
+            return 400, "❌ GITHUB_TOKEN não configurado"
+        
         try:
-            # Tenta conectar via SSH direto
-            ssh_cmd = [
-                "ssh",
-                "-o", "StrictHostKeyChecking=no",
-                "-o", "UserKnownHostsFile=/dev/null",
-                f"{self.CODESPACE_USER}@{self.CODESPACE_HOST}",
-                cmd
-            ]
-            result = subprocess.run(ssh_cmd, capture_output=True, text=True, timeout=60)
-            return result.stdout, result.stderr
-        except subprocess.TimeoutExpired:
-            return "", "❌ Timeout ao conectar à Codespace"
+            url = f"https://api.github.com/repos/{self.GITHUB_OWNER}/{self.GITHUB_REPO}/dispatches"
+            headers = {
+                "Accept": "application/vnd.github+json",
+                "Authorization": f"Bearer {self.GITHUB_TOKEN}",
+                "X-GitHub-Api-Version": "2022-11-28",
+            }
+            payload = {
+                "event_type": "fran-control",
+                "client_payload": {"action": action}
+            }
+            r = requests.post(url, json=payload, headers=headers, timeout=15)
+            return r.status_code, r.text
         except Exception as e:
-            return "", f"❌ Erro ao executar comando: {e}"
+            return 500, str(e)
     
     @commands.command(name="fran_ligar", description="Liga o servidor Fran Minecraft + Playit")
     async def fran_ligar(self, ctx):
         """Liga o servidor Fran Minecraft + Playit na Codespace"""
         embed = discord.Embed(
             title="🟡 Iniciando servidor Fran...",
-            description="Aguarde enquanto o servidor está sendo iniciado",
+            description="Disparando workflow no GitHub Actions",
             color=discord.Color.gold()
         )
         msg = await ctx.send(embed=embed)
         
-        # Executa script de inicialização
-        stdout, stderr = await asyncio.to_thread(
-            self.run_ssh_command,
-            "bash /workspaces/fran-server/start.sh"
-        )
+        # Dispara o workflow
+        status, text = await asyncio.to_thread(self.trigger_server_action, "start")
         
-        # Pega logs
-        logs_stdout, _ = await asyncio.to_thread(
-            self.run_ssh_command,
-            "tail -20 /tmp/fran-server.log"
-        )
-        
-        if stderr and "já está rodando" not in stderr:
+        if status in (200, 202, 204):
             embed = discord.Embed(
-                title="❌ Erro ao iniciar servidor",
-                description=f"```\n{stderr[:1024]}\n```",
-                color=discord.Color.red()
+                title="✅ Servidor iniciado!",
+                description="Workflow foi disparado. O servidor está iniciando...\n\nVerifique em: https://github.com/Lukydnomo/fran-server/actions",
+                color=discord.Color.green()
             )
         else:
             embed = discord.Embed(
-                title="✅ Servidor iniciado!",
-                description="Minecraft + Playit estão rodando",
-                color=discord.Color.green()
+                title="❌ Erro ao iniciar servidor",
+                description=f"Status: {status}\nResposta: {text[:200]}",
+                color=discord.Color.red()
             )
-            if logs_stdout:
-                embed.add_field(
-                    name="📋 Logs recentes",
-                    value=f"```\n{logs_stdout[-512:]}\n```",
-                    inline=False
-                )
         
         await msg.edit(embed=embed)
     
@@ -80,77 +71,41 @@ class Fran_Server(commands.Cog):
         """Desliga o servidor Fran Minecraft + Playit"""
         embed = discord.Embed(
             title="🟡 Desligando servidor Fran...",
-            description="Aguarde",
+            description="Disparando workflow no GitHub Actions",
             color=discord.Color.gold()
         )
         msg = await ctx.send(embed=embed)
         
-        stdout, stderr = await asyncio.to_thread(
-            self.run_ssh_command,
-            "bash /workspaces/fran-server/stop.sh"
-        )
+        # Dispara o workflow
+        status, text = await asyncio.to_thread(self.trigger_server_action, "stop")
         
-        embed = discord.Embed(
-            title="✅ Servidor desligado",
-            description="Minecraft + Playit foram parados",
-            color=discord.Color.green()
-        )
-        await msg.edit(embed=embed)
-    
-    @commands.command(name="fran_status", description="Verifica status do servidor Fran")
-    async def fran_status(self, ctx):
-        """Verifica se o servidor Fran está rodando"""
-        logs_stdout, _ = await asyncio.to_thread(
-            self.run_ssh_command,
-            "tail -10 /tmp/fran-server.log"
-        )
-        
-        crafty_status, _ = await asyncio.to_thread(
-            self.run_ssh_command,
-            "ps aux | grep run_crafty || echo 'Crafty offline'"
-        )
-        
-        playit_status, _ = await asyncio.to_thread(
-            self.run_ssh_command,
-            "ps aux | grep playit || echo 'Playit offline'"
-        )
-        
-        embed = discord.Embed(
-            title="📊 Status do Servidor Fran",
-            color=discord.Color.blue()
-        )
-        
-        if "run_crafty" in crafty_status:
-            embed.add_field(name="🎮 Crafty", value="✅ Online", inline=True)
+        if status in (200, 202, 204):
+            embed = discord.Embed(
+                title="✅ Servidor desligado!",
+                description="Workflow foi disparado. O servidor está desligando...\n\nVerifique em: https://github.com/Lukydnomo/fran-server/actions",
+                color=discord.Color.green()
+            )
         else:
-            embed.add_field(name="🎮 Crafty", value="❌ Offline", inline=True)
-        
-        if "playit" in playit_status and "grep" not in playit_status:
-            embed.add_field(name="🌐 Playit", value="✅ Online", inline=True)
-        else:
-            embed.add_field(name="🌐 Playit", value="❌ Offline", inline=True)
-        
-        if logs_stdout:
-            embed.add_field(
-                name="📋 Últimas linhas do log",
-                value=f"```\n{logs_stdout[-300:]}\n```",
-                inline=False
+            embed = discord.Embed(
+                title="❌ Erro ao desligar servidor",
+                description=f"Status: {status}\nResposta: {text[:200]}",
+                color=discord.Color.red()
             )
         
-        await ctx.send(embed=embed)
+        await msg.edit(embed=embed)
     
-    @commands.command(name="fran_logs", description="Mostra os logs do servidor Fran")
-    async def fran_logs(self, ctx):
-        """Mostra os últimos logs do servidor Fran"""
-        logs_stdout, _ = await asyncio.to_thread(
-            self.run_ssh_command,
-            "tail -30 /tmp/fran-server.log"
-        )
-        
+    @commands.command(name="fran_status", description="Mostra link para verificar status no GitHub")
+    async def fran_status(self, ctx):
+        """Mostra status dos workflows"""
         embed = discord.Embed(
-            title="📋 Logs do Servidor Fran",
-            description=f"```\n{logs_stdout or 'Sem logs disponíveis'}\n```",
+            title="📊 Status do Servidor Fran",
+            description="Clique no link abaixo para ver os workflows em tempo real:",
             color=discord.Color.blue()
+        )
+        embed.add_field(
+            name="🔗 GitHub Actions",
+            value="https://github.com/Lukydnomo/fran-server/actions",
+            inline=False
         )
         await ctx.send(embed=embed)
 
