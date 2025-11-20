@@ -12,7 +12,7 @@ class Fran_Server(commands.Cog):
         self.bot = bot
         self.GITHUB_OWNER = "Lukydnomo"
         self.GITHUB_REPO = "fran-server"
-        self.GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+        self.GITHUB_TOKEN = os.getenv("FRAN_CONTROL_TOKEN") or os.getenv("GITHUB_TOKEN")
     
     def trigger_server_action(self, action: str) -> tuple[int, str]:
         """
