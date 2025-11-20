@@ -1,6 +1,7 @@
-# cogs/server.py
+# cogs/fran_minecraft_server.py
 import subprocess
 import asyncio
+import os
 from discord.ext import commands
 import discord
 
@@ -9,19 +10,22 @@ class Fran_Server(commands.Cog):
     
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        # Substitua com o nome da sua Codespace
-        self.CODESPACE = "didactic-goggles-v6qjj4gvq954f667w"
+        # Credenciais da Codespace (SSH)
+        self.CODESPACE_HOST = "didactic-goggles-v6qjj4gvq954f667w-vxr5qxv5x9ch7-0.githubpreview.dev"
+        self.CODESPACE_USER = "codespace"  # Padrão do GitHub Codespaces
     
     def run_ssh_command(self, cmd: str) -> tuple[str, str]:
         """Executa comando via SSH na Codespace"""
         try:
-            full_cmd = [
-                "gh", "codespace", "ssh",
-                "-c", self.CODESPACE,
-                "--",
+            # Tenta conectar via SSH direto
+            ssh_cmd = [
+                "ssh",
+                "-o", "StrictHostKeyChecking=no",
+                "-o", "UserKnownHostsFile=/dev/null",
+                f"{self.CODESPACE_USER}@{self.CODESPACE_HOST}",
                 cmd
             ]
-            result = subprocess.run(full_cmd, capture_output=True, text=True, timeout=60)
+            result = subprocess.run(ssh_cmd, capture_output=True, text=True, timeout=60)
             return result.stdout, result.stderr
         except subprocess.TimeoutExpired:
             return "", "❌ Timeout ao conectar à Codespace"
