@@ -1,6 +1,8 @@
 # cogs/moderation.py
 import asyncio
 import discord
+import random
+import string
 from discord import app_commands
 from discord.ext import commands
 from core.modules import save, load
@@ -10,6 +12,7 @@ class Moderation(commands.Cog):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.glitch_active = set()  # Rastreia usuários com glitch ativo
 
     @app_commands.command(name="punir", description="Pune um membro movendo-o para um canal de voz específico por um tempo determinado.")
     @app_commands.describe(
@@ -176,6 +179,65 @@ class Moderation(commands.Cog):
         else:
             await interaction.response.send_message(f"🔊 **{membros_desmutados}** membros foram desmutados em {canal.mention}!")
 
+    @app_commands.command(name="glitch_nickname", description="Causa um 'glitch' no apelido de um usuário por um tempo determinado")
+    @app_commands.describe(
+        member="Membro que sofrerá o glitch",
+        duration="Duração do glitch em segundos"
+    )
+    async def glitch_nickname(self, interaction: discord.Interaction, member: discord.Member, duration: int):
+        """Troca o apelido por caracteres aleatórios e volta após o tempo"""
+        
+        # Verifica se o usuário já tem um glitch ativo
+        if member.id in self.glitch_active:
+            return await interaction.response.send_message(
+                f"❌ **{member.mention} já está em glitch! Aguarde antes de tentar novamente.**",
+                ephemeral=True
+            )
+        
+        # Verifica permissões
+        if not interaction.user.guild_permissions.manage_nicknames:
+            return await interaction.response.send_message(
+                "🚫 Você não tem permissão para gerenciar apelidos!",
+                ephemeral=True
+            )
+        
+        # Salva o apelido original
+        original_nickname = member.display_name
+        glitch_length = len(original_nickname)
+        
+        try:
+            # Marca como ativo
+            self.glitch_active.add(member.id)
+            
+            # Gera caracteres aleatórios
+            random_chars = ''.join(random.choices(string.ascii_letters + string.digits + string.punctuation, k=glitch_length))
+            
+            # Aplica o glitch
+            await member.edit(nick=random_chars)
+            await interaction.response.send_message(
+                f"🌀 **Glitch ativado em {member.mention}!** ({random_chars})\nDuração: {duration}s"
+            )
+            
+            # Aguarda o tempo
+            await asyncio.sleep(duration)
+            
+            # Volta ao normal
+            await member.edit(nick=original_nickname if original_nickname != member.name else None)
+            await interaction.channel.send(
+                f"✅ **Glitch finalizado!** {member.mention} voltou ao normal. ({original_nickname})"
+            )
+            
+        except discord.Forbidden:
+            await interaction.followup.send(
+                f"🚨 Não tenho permissão para mudar o apelido de {member.mention}!",
+                ephemeral=True
+            )
+        except Exception as e:
+            await interaction.followup.send(f"❌ Erro ao aplicar glitch: {e}", ephemeral=True)
+        finally:
+            # Remove do ativo
+            self.glitch_active.discard(member.id)
+
     @app_commands.command(name="db_test", description="Testa o banco de dados")
     @app_commands.describe(action="Escolha entre save ou load", name="Nome da chave", value="Valor a ser salvo (apenas para save)")
     async def db_test(self, interaction: discord.Interaction, action: str, name: str, value: str = None):
@@ -199,10 +261,3 @@ class Moderation(commands.Cog):
 
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(Moderation(bot))
-
-
-
-
-
-
-
