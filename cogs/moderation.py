@@ -219,6 +219,14 @@ class Moderation(commands.Cog):
                     m = await interaction.guild.fetch_member(mid)
                 except discord.NotFound:
                     return
+            # Ignora membros cujo cargo seja maior ou igual ao do bot
+            try:
+                if m.top_role >= interaction.guild.me.top_role:
+                    return
+            except Exception:
+                # Em caso de guild.me não disponível ou outro erro, ignora a verificação
+                pass
+
             member_list.append(m)
             member_ids.add(m.id)
 
@@ -237,6 +245,12 @@ class Moderation(commands.Cog):
                         for gm in role.members:
                             if gm.id in member_ids:
                                 continue
+                            # Ignora membros cujo cargo seja maior ou igual ao do bot
+                            try:
+                                if gm.top_role >= interaction.guild.me.top_role:
+                                    continue
+                            except Exception:
+                                pass
                             member_list.append(gm)
                             member_ids.add(gm.id)
                             if len(member_list) >= MAX_MEMBERS:
@@ -294,6 +308,11 @@ class Moderation(commands.Cog):
                 for gm in matched_role.members:
                     if gm.id in member_ids:
                         continue
+                    try:
+                        if gm.top_role >= interaction.guild.me.top_role:
+                            continue
+                    except Exception:
+                        pass
                     member_list.append(gm)
                     member_ids.add(gm.id)
                     if len(member_list) >= MAX_MEMBERS:
@@ -307,6 +326,11 @@ class Moderation(commands.Cog):
                 if gm.id in member_ids:
                     continue
                 if lower in gm.display_name.lower() or lower in gm.name.lower():
+                    try:
+                        if gm.top_role >= interaction.guild.me.top_role:
+                            continue
+                    except Exception:
+                        pass
                     member_list.append(gm)
                     member_ids.add(gm.id)
                     break
