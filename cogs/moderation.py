@@ -222,28 +222,87 @@ class Moderation(commands.Cog):
             member_list.append(m)
             member_ids.add(m.id)
 
-        # Processa cada parte
+        # Processa cada parte: suportando mention de membro <@id>, mention de cargo <@&id>, IDs e nomes/parciais
         mention_re = re.compile(r"^<@!?(\d+)>$")
+        role_re = re.compile(r"^<@&(\d+)>$")
+        MAX_MEMBERS = 10
         for part in parts:
-            # mention format
+            # role mention format <@&id>
+            rm = role_re.match(part)
+            if rm:
+                try:
+                    role_id = int(rm.group(1))
+                    role = interaction.guild.get_role(role_id)
+                    if role:
+                        for gm in role.members:
+                            if gm.id in member_ids:
+                                continue
+                            member_list.append(gm)
+                            member_ids.add(gm.id)
+                            if len(member_list) >= MAX_MEMBERS:
+                                break
+                except Exception:
+                    pass
+                if len(member_list) >= MAX_MEMBERS:
+                    break
+                continue
+
+            # member mention format <@id>
             m = mention_re.match(part)
             if m:
                 try:
                     await add_member_by_id(int(m.group(1)))
-                    continue
                 except Exception:
-                    continue
+                    pass
+                if len(member_list) >= MAX_MEMBERS:
+                    break
+                continue
 
-            # plain ID
+            # If it's all digits, it may be a role ID or member ID
             if part.isdigit():
-                try:
-                    await add_member_by_id(int(part))
+                pid = int(part)
+                # Prefer role if exists
+                role = interaction.guild.get_role(pid)
+                if role:
+                    for gm in role.members:
+                        if gm.id in member_ids:
+                            continue
+                        member_list.append(gm)
+                        member_ids.add(gm.id)
+                        if len(member_list) >= MAX_MEMBERS:
+                            break
+                    if len(member_list) >= MAX_MEMBERS:
+                        break
                     continue
-                except Exception:
+                else:
+                    try:
+                        await add_member_by_id(pid)
+                    except Exception:
+                        pass
+                    if len(member_list) >= MAX_MEMBERS:
+                        break
                     continue
 
-            # Try name/display name substring match (first matches up to limit)
+            # Try matching role by name substring first
             lower = part.lower()
+            matched_role = None
+            for role in interaction.guild.roles:
+                if lower in role.name.lower():
+                    matched_role = role
+                    break
+            if matched_role:
+                for gm in matched_role.members:
+                    if gm.id in member_ids:
+                        continue
+                    member_list.append(gm)
+                    member_ids.add(gm.id)
+                    if len(member_list) >= MAX_MEMBERS:
+                        break
+                if len(member_list) >= MAX_MEMBERS:
+                    break
+                continue
+
+            # Try name/display name substring match (first match)
             for gm in interaction.guild.members:
                 if gm.id in member_ids:
                     continue
@@ -252,7 +311,7 @@ class Moderation(commands.Cog):
                     member_ids.add(gm.id)
                     break
 
-            if len(member_list) >= 10:
+            if len(member_list) >= MAX_MEMBERS:
                 break
 
         if not member_list:
