@@ -185,7 +185,7 @@ class Moderation(commands.Cog):
         duration="Duração do glitch em segundos"
     )
     async def glitch_nickname(self, interaction: discord.Interaction, member: discord.Member, duration: int):
-        """Troca o apelido por caracteres aleatórios e volta após o tempo"""
+        """Troca o apelido por caracteres aleatórios continuamente e volta após o tempo"""
         
         # Verifica se o usuário já tem um glitch ativo
         if member.id in self.glitch_active:
@@ -194,10 +194,17 @@ class Moderation(commands.Cog):
                 ephemeral=True
             )
         
-        # Verifica permissões
+        # Verifica permissões do autor
         if not interaction.user.guild_permissions.manage_nicknames:
             return await interaction.response.send_message(
                 "🚫 Você não tem permissão para gerenciar apelidos!",
+                ephemeral=True
+            )
+        
+        # Verifica se o bot tem cargo superior
+        if member.top_role >= interaction.guild.me.top_role:
+            return await interaction.response.send_message(
+                f"🚫 Meu cargo não é superior ao de {member.mention}. Não posso mudar o apelido!",
                 ephemeral=True
             )
         
@@ -209,23 +216,33 @@ class Moderation(commands.Cog):
             # Marca como ativo
             self.glitch_active.add(member.id)
             
-            # Gera caracteres aleatórios
-            random_chars = ''.join(random.choices(string.ascii_letters + string.digits + string.punctuation, k=glitch_length))
-            
-            # Aplica o glitch
-            await member.edit(nick=random_chars)
+            # Responde apenas ao autor
             await interaction.response.send_message(
-                f"🌀 **Glitch ativado em {member.mention}!** ({random_chars})\nDuração: {duration}s"
+                f"🌀 **Glitch ativado em {member.mention}!** Duração: {duration}s",
+                ephemeral=True
             )
             
-            # Aguarda o tempo
-            await asyncio.sleep(duration)
+            # Loop para mudar o nome continuamente
+            end_time = asyncio.get_event_loop().time() + duration
+            while asyncio.get_event_loop().time() < end_time:
+                # Gera caracteres aleatórios
+                random_chars = ''.join(random.choices(string.ascii_letters + string.digits + string.punctuation, k=glitch_length))
+                
+                try:
+                    await member.edit(nick=random_chars)
+                except discord.Forbidden:
+                    break
+                except Exception:
+                    break
+                
+                # Aguarda um pouco antes de mudar novamente (0.5 segundos)
+                await asyncio.sleep(0.5)
             
-            # Volta ao normal
-            await member.edit(nick=original_nickname if original_nickname != member.name else None)
-            await interaction.channel.send(
-                f"✅ **Glitch finalizado!** {member.mention} voltou ao normal. ({original_nickname})"
-            )
+            # Volta ao normal (sem mensagem pública)
+            try:
+                await member.edit(nick=original_nickname if original_nickname != member.name else None)
+            except Exception:
+                pass
             
         except discord.Forbidden:
             await interaction.followup.send(
