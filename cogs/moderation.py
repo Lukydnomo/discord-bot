@@ -3,6 +3,7 @@ import asyncio
 import discord
 import random
 import string
+import re
 from discord import app_commands
 from discord.ext import commands
 from core.modules import save, load
@@ -181,52 +182,85 @@ class Moderation(commands.Cog):
 
     @app_commands.command(name="glitch_nickname", description="Causa um 'glitch' no apelido de um ou mais usuários por um tempo determinado")
     @app_commands.describe(
-        members="Membro(s) que sofrerão o glitch (separe com espaço)",
+        members="Membro(s) que sofrerão o glitch (separe por vírgula)",
         duration="Duração do glitch em segundos"
     )
     async def glitch_nickname(self, interaction: discord.Interaction, members: str, duration: int):
-        """Troca o apelido por caracteres aleatórios continuamente e volta após o tempo"""
-        
-        # Converte a string em lista de membros
-        member_list = []
-        member_ids = set()
-        
-        # Tenta encontrar os membros mencionados
-        for mention in interaction.message.mentions if interaction.message else []:
-            if mention.id not in member_ids:
-                member_list.append(mention)
-                member_ids.add(mention.id)
-        
-        # Se não houver menções, tenta por nome/ID
-        if not member_list:
-            try:
-                # Tenta interpretar como ID
-                member_id = int(members.strip())
-                member = await interaction.guild.fetch_member(member_id)
-                member_list.append(member)
-            except (ValueError, discord.NotFound):
-                # Tenta por nome
-                for member in interaction.guild.members:
-                    if members.lower() in member.name.lower() or members.lower() in member.display_name.lower():
-                        if member.id not in member_ids:
-                            member_list.append(member)
-                            member_ids.add(member.id)
-                        if len(member_list) >= 10:  # Limite de 10 membros
-                            break
-        
-        if not member_list:
-            return await interaction.response.send_message(
-                f"❌ Nenhum membro encontrado com '{members}'",
-                ephemeral=True
-            )
-        
+        """Troca o apelido por caracteres aleatórios continuamente e volta após o tempo.
+
+        `members` deve ser uma lista separada por vírgulas contendo mentions (`<@id>`), IDs ou partes de nomes.
+        """
+
         # Verifica permissões do autor
         if not interaction.user.guild_permissions.manage_nicknames:
             return await interaction.response.send_message(
                 "🚫 Você não tem permissão para gerenciar apelidos!",
                 ephemeral=True
             )
-        
+
+        # Normaliza e separa as entradas por vírgula
+        parts = [p.strip() for p in members.split(",") if p.strip()]
+        if not parts:
+            return await interaction.response.send_message(
+                "❌ Você precisa informar pelo menos um membro (separados por vírgula).",
+                ephemeral=True
+            )
+
+        member_list = []
+        member_ids = set()
+
+        # Função auxiliar para adicionar membro único
+        async def add_member_by_id(mid: int):
+            if mid in member_ids:
+                return
+            m = interaction.guild.get_member(mid)
+            if m is None:
+                try:
+                    m = await interaction.guild.fetch_member(mid)
+                except discord.NotFound:
+                    return
+            member_list.append(m)
+            member_ids.add(m.id)
+
+        # Processa cada parte
+        mention_re = re.compile(r"^<@!?(\d+)>$")
+        for part in parts:
+            # mention format
+            m = mention_re.match(part)
+            if m:
+                try:
+                    await add_member_by_id(int(m.group(1)))
+                    continue
+                except Exception:
+                    continue
+
+            # plain ID
+            if part.isdigit():
+                try:
+                    await add_member_by_id(int(part))
+                    continue
+                except Exception:
+                    continue
+
+            # Try name/display name substring match (first matches up to limit)
+            lower = part.lower()
+            for gm in interaction.guild.members:
+                if gm.id in member_ids:
+                    continue
+                if lower in gm.display_name.lower() or lower in gm.name.lower():
+                    member_list.append(gm)
+                    member_ids.add(gm.id)
+                    break
+
+            if len(member_list) >= 10:
+                break
+
+        if not member_list:
+            return await interaction.response.send_message(
+                f"❌ Nenhum membro encontrado para: {members}",
+                ephemeral=True
+            )
+
         # Verifica quem já está em glitch
         already_glitching = [m for m in member_list if m.id in self.glitch_active]
         if already_glitching:
@@ -235,7 +269,7 @@ class Moderation(commands.Cog):
                 f"❌ **{already_names}** já está(ão) em glitch! Aguarde antes de tentar novamente.",
                 ephemeral=True
             )
-        
+
         # Verifica cargo do bot
         invalid_members = [m for m in member_list if m.top_role >= interaction.guild.me.top_role]
         if invalid_members:
@@ -244,59 +278,50 @@ class Moderation(commands.Cog):
                 f"🚫 Meu cargo não é superior ao de {invalid_names}. Não posso mudar seus apelidos!",
                 ephemeral=True
             )
-        
-        # Filtra membros válidos e salva nicks originais
+
+        # Salva nicks originais e marca ativos
         original_nicks = {}
         valid_members = []
-        
-        for member in member_list:
-            original_nicks[member.id] = member.display_name
-            valid_members.append(member)
-            self.glitch_active.add(member.id)
-        
+        for m in member_list:
+            original_nicks[m.id] = m.display_name
+            valid_members.append(m)
+            self.glitch_active.add(m.id)
+
         try:
-            # Responde apenas ao autor
             member_names = ", ".join([m.display_name for m in valid_members])
             await interaction.response.send_message(
                 f"🌀 **Glitch ativado em: {member_names}** Duração: {duration}s",
                 ephemeral=True
             )
-            
-            # Loop para mudar os nomes continuamente
+
             end_time = asyncio.get_event_loop().time() + duration
             while asyncio.get_event_loop().time() < end_time:
-                for member in valid_members:
-                    glitch_length = len(original_nicks[member.id])
-                    # Gera caracteres aleatórios
+                for m in valid_members:
+                    glitch_length = len(original_nicks.get(m.id, m.display_name))
                     random_chars = ''.join(random.choices(string.ascii_letters + string.digits + string.punctuation, k=glitch_length))
-                    
                     try:
-                        await member.edit(nick=random_chars)
+                        await m.edit(nick=random_chars)
                     except (discord.Forbidden, discord.NotFound):
                         pass
                     except Exception:
                         pass
-                
-                # Aguarda um pouco antes de mudar novamente (0.5 segundos)
                 await asyncio.sleep(0.5)
-            
-            # Volta ao normal (sem mensagem pública)
-            for member in valid_members:
+
+            for m in valid_members:
                 try:
-                    original = original_nicks[member.id]
-                    await member.edit(nick=original if original != member.name else None)
+                    original = original_nicks.get(m.id)
+                    await m.edit(nick=original if original != m.name else None)
                 except Exception:
                     pass
-            
+
         except Exception as e:
             try:
                 await interaction.followup.send(f"❌ Erro ao aplicar glitch: {e}", ephemeral=True)
-            except:
+            except Exception:
                 pass
         finally:
-            # Remove do ativo
-            for member in valid_members:
-                self.glitch_active.discard(member.id)
+            for m in valid_members:
+                self.glitch_active.discard(m.id)
 
     @app_commands.command(name="db_test", description="Testa o banco de dados")
     @app_commands.describe(action="Escolha entre save ou load", name="Nome da chave", value="Valor a ser salvo (apenas para save)")
