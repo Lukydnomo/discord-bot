@@ -58,7 +58,7 @@ class VoiceTrigger(commands.Cog):
         guild = member.guild
 
         # roda o número
-        roll = random.randint(1, 60)
+        roll = random.randint(1, 200)
 
         # log opcional em console
         role_id = 1436446592973541557
