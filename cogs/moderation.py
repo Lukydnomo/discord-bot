@@ -68,16 +68,36 @@ class Moderation(commands.Cog):
     @app_commands.command(name="mover", description="Move todos os membros de um canal de voz para outro")
     @app_commands.describe(origem="Canal de onde os usuários serão movidos",
                             destino="Canal para onde os usuários serão movidos",
-                            cargo="(Opcional) Apenas move membros com um cargo específico")
-    async def mover(self, interaction: discord.Interaction, origem: discord.VoiceChannel, destino: discord.VoiceChannel, cargo: discord.Role = None):
+                            cargo="(Opcional) Apenas move membros com um cargo específico",
+                            exceto="(Opcional) Usuários a serem excluídos (separe por vírgula)")
+    async def mover(self, interaction: discord.Interaction, origem: discord.VoiceChannel, destino: discord.VoiceChannel, cargo: discord.Role = None, exceto: str = None):
         if not interaction.user.guild_permissions.move_members:
             return await interaction.response.send_message("🚫 Você não tem permissão para mover membros!", ephemeral=True)
+
+        exceto_members = set()
+        if exceto:
+            exceto_parts = [p.strip() for p in exceto.split(",") if p.strip()]
+            mention_re = re.compile(r"^<@!?(\d+)>$")
+            for part in exceto_parts:
+                m = mention_re.match(part)
+                if m:
+                    mid = int(m.group(1))
+                    member = interaction.guild.get_member(mid)
+                    if member:
+                        exceto_members.add(member.id)
+                elif part.isdigit():
+                    mid = int(part)
+                    member = interaction.guild.get_member(mid)
+                    if member:
+                        exceto_members.add(member.id)
 
         membros_movidos = 0
 
         for membro in origem.members:
             if cargo and cargo not in membro.roles:
                 continue  # Se um cargo foi especificado, ignora membros que não o possuem
+            if membro.id in exceto_members:
+                continue  # Se o membro estiver na lista de excluídos, ignora
             try:
                 await membro.move_to(destino)
                 membros_movidos += 1
