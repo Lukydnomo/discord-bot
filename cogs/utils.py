@@ -22,7 +22,7 @@ class Utils(commands.Cog):
             None
         """
         pd = math.ceil(sanidade / 3) * 2
-        await interaction.response.send_message(f"O valor convertido de {sanidade} sanidade é {pd} pontos de dano (PD).")
+        await interaction.response.send_message(f"O valor convertido de {sanidade} sanidade é {pd} pontos de determinação (PD).")
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Utils(bot))
