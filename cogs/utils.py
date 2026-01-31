@@ -21,7 +21,7 @@ class Utils(commands.Cog):
         Returns:
             None
         """
-        pd = (sanidade / 3) * 2
+        pd = round(sanidade / 3) * 2
         await interaction.response.send_message(f"O valor convertido de {sanidade} sanidade é {pd} pontos de determinação (PD).")
 
 async def setup(bot: commands.Bot):
