@@ -304,3 +304,17 @@ async def castigar_automatico(member: discord.Member, tempo: int):
         await member.timeout(until_time, reason="puta")
     except discord.DiscordException as e:
         print(f"Erro ao castigar {member.mention}: {e}")
+
+async def converter_sanidade_para_pd(sanidade: int) -> int:
+    """
+    Converte um valor de sanidade para pontos de dano (PD) usando a fórmula:
+    Para cada 3 pontos de sanidade, o usuário recebe 2 pontos de dano.
+
+    Args:
+        sanidade (int): O valor de sanidade a ser convertido.
+
+    Returns:
+        int: O valor convertido em pontos de dano (PD).
+    """
+    pd = (sanidade // 3) * 2
+    return pd
