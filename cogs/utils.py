@@ -8,19 +8,20 @@ class Utils(commands.Cog):
     
     @app_commands.command(name="converter_sanidade_para_pd", description="Converte valores de Sanidade para Pontos de Determinação.")
     @app_commands.describe(sanidade="Valor de Sanidade a ser convertido.")
-    async def converter_sanidade_para_pd(sanidade: int) -> int:
+    async def converter_sanidade_para_pd(self, interaction: discord.Interaction, sanidade: int):
         """
         Converte um valor de sanidade para pontos de dano (PD) usando a fórmula:
         Para cada 3 pontos de sanidade, o usuário recebe 2 pontos de dano.
 
         Args:
+            interaction (discord.Interaction): A interação do comando.
             sanidade (int): O valor de sanidade a ser convertido.
 
         Returns:
-            int: O valor convertido em pontos de dano (PD).
+            None
         """
         pd = (sanidade // 3) * 2
-        return pd
+        await interaction.response.send_message(f"O valor convertido de {sanidade} sanidade é {pd} pontos de dano (PD).")
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Utils(bot))
