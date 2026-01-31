@@ -1,6 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
+import math
 
 class Utils(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -20,7 +21,7 @@ class Utils(commands.Cog):
         Returns:
             None
         """
-        pd = (sanidade // 3) * 2
+        pd = math.ceil(sanidade / 3) * 2
         await interaction.response.send_message(f"O valor convertido de {sanidade} sanidade é {pd} pontos de dano (PD).")
 
 async def setup(bot: commands.Bot):
