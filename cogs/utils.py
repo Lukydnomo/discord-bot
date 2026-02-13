@@ -51,8 +51,8 @@ class Utils(commands.Cog):
          novo NEX: 5 + Pre.
         """
 
-        nex_base = 95 if nex == 99 else nex
-        nex_pos = (nex_base - 5) // 5
+        nex_base = 100 if nex == 99 else nex
+        nex_pos = nex_base // 5
 
         base_por_classe = {
             "Combatente": 6,
