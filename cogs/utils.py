@@ -73,7 +73,7 @@ class Utils(commands.Cog):
             pre_pd += nex_pos * multiplicador
 
         if com_cicatrizes_psicológicas.value == 1:
-            pre_pd += (nex_pos/3)*2
+            pre_pd += int(((nex_pos/3)*2)+0.5)
 
         pd = pre_pd
 
