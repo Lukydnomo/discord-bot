@@ -25,7 +25,7 @@ class Utils(commands.Cog):
         await interaction.response.send_message(f"O valor convertido de {sanidade} sanidade é {pd} pontos de determinação (PD).")
 
     @app_commands.command(name="calcular_pd", description="Calcula os pontos de determinação (PD)")
-    @app_commands.describe(classe="Indica a classe do personagem.", NEX="Indica o quanto de exposição paranormal ele tem.", atributo="Valor do atributo a ser calculado.", tem_potencial_aprimorado="Indica se o personagem tem potencial aprimorado (sim/não).", com_afinidade_com_morte="Indica se o personagem tem afinidade com Morte (sim/não).")
+    @app_commands.describe(classe="Indica a classe do personagem.", nex="Indica o quanto de exposição paranormal ele tem.", atributo="Valor do atributo a ser calculado.", tem_potencial_aprimorado="Indica se o personagem tem potencial aprimorado (sim/não).", com_afinidade_com_morte="Indica se o personagem tem afinidade com Morte (sim/não).")
     @app_commands.choices(classe=[
         app_commands.Choice(name="Combatente", value="Combatente"),
         app_commands.Choice(name="Especialista", value="Especialista"),
