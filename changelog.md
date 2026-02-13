@@ -408,3 +408,7 @@ Dito isso, vlw, por tudo. _Eu já não vejo mais nada_.
 ## Adjustments
 
 - **`Adicionado o parâmetro 'exceto' para o comando de moderação '/mover', permitindo excluir usuários específicos da movimentação em massa.`**
+
+## Observação
+
+- difícil
