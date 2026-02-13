@@ -391,3 +391,20 @@ Dito isso, vlw, por tudo. _Eu já não vejo mais nada_.
 ## ⚙️ Testing
 
 - **`Compatibilidade com YouTube`** - A nossa equipe está testando a funcionaldiade de tocar vídeos do youtube no player de áudio.
+
+<!-- prettier-ignore -->
+- - - - - - - - - -
+
+## [2.2.0] - 2026-02-13
+
+**Random Update**
+
+## Added
+
+- **`/glitch_nickname`** - Novo comando que aplica um efeito de “glitch” no nickname de um ou mais usuários. Ideal para momentos de imersão, eventos narrativos ou só pra causar o caos de leve.
+- **`/converter_sanidade_para_pd`** - Converte valores de Sanidade do sistema padrão de Ordem Paranormal para Pontos de Determinação (PD), mantendo coerência com o sistema adaptado.
+- **`/calcular_pd`** - Calcula os Pontos de Determinação (PD) levando em consideração a classe do personagem, o NEX, o atributo base, a presença de Potencial Aprimorado, Afinidade com Morte e Cicatrizes Psicológicas. O comando foi implementado para corrigir inconsistências do C.R.I.S., garantindo um cálculo mais preciso e confiável.
+
+## Adjustments
+
+- **`Adicionado o parâmetro 'exceto' para o comando de moderação '/mover', permitindo excluir usuários específicos da movimentação em massa.`**
