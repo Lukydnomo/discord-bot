@@ -25,7 +25,7 @@ class Utils(commands.Cog):
         await interaction.response.send_message(f"O valor convertido de {sanidade} sanidade é {pd} pontos de determinação (PD).")
 
     @app_commands.command(name="calcular_pd", description="Calcula os pontos de determinação (PD)")
-    @app_commands.describe(classe="Indica a classe do personagem.", nex="Indica o quanto de exposição paranormal ele tem.", atributo="Valor do atributo a ser calculado.", tem_potencial_aprimorado="Indica se o personagem tem potencial aprimorado (sim/não).", com_afinidade_com_morte="Indica se o personagem tem afinidade com Morte (sim/não).")
+    @app_commands.describe(classe="Indica a classe do personagem.", nex="Indica o quanto de exposição paranormal ele tem.", atributo="Valor do atributo a ser calculado.", tem_potencial_aprimorado="Indica se o personagem tem potencial aprimorado (sim/não).", com_afinidade_com_morte="Indica se o personagem tem afinidade com Morte (sim/não).", com_cicatrizes_psicológicas="Indica se o personagem tem cicatrizes psicológicas (sim/não).")
     @app_commands.choices(classe=[
         app_commands.Choice(name="Combatente", value="Combatente"),
         app_commands.Choice(name="Especialista", value="Especialista"),
@@ -36,8 +36,11 @@ class Utils(commands.Cog):
     ], com_afinidade_com_morte=[
         app_commands.Choice(name="Sim", value=1),
         app_commands.Choice(name="Não", value=0)
+    ], com_cicatrizes_psicológicas=[
+        app_commands.Choice(name="Sim", value=1),
+        app_commands.Choice(name="Não", value=0)
     ])
-    async def calcular_pd(self, interaction: discord.Interaction, classe: str, nex: int, atributo: int, tem_potencial_aprimorado: app_commands.Choice[int], com_afinidade_com_morte: app_commands.Choice[int]):
+    async def calcular_pd(self, interaction: discord.Interaction, classe: str, nex: int, atributo: int, tem_potencial_aprimorado: app_commands.Choice[int], com_afinidade_com_morte: app_commands.Choice[int], com_cicatrizes_psicológicas: app_commands.Choice[int]):
         
         """
          Combatente. PD Iniciais: 6 + Pre. A cada novo NEX: 3 + Pre.
@@ -68,6 +71,9 @@ class Utils(commands.Cog):
         if tem_potencial_aprimorado.value == 1:
             multiplicador = 2 if com_afinidade_com_morte == 1 else 1
             pre_pd += nex_pos * multiplicador
+
+        if com_cicatrizes_psicológicas.value == 1:
+            pre_pd += nex_pos
 
         pd = pre_pd
 
