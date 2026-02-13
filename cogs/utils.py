@@ -37,7 +37,7 @@ class Utils(commands.Cog):
         app_commands.Choice(name="Sim", value=1),
         app_commands.Choice(name="Não", value=0)
     ])
-    async def calcular_pd(self, interaction: discord.Interaction, classe: str, NEX: int, atributo: int, tem_potencial_aprimorado: app_commands.Choice[int], com_afinidade_com_morte: app_commands.Choice[int]):
+    async def calcular_pd(self, interaction: discord.Interaction, classe: str, nex: int, atributo: int, tem_potencial_aprimorado: app_commands.Choice[int], com_afinidade_com_morte: app_commands.Choice[int]):
         
         """
          Combatente. PD Iniciais: 6 + Pre. A cada novo NEX: 3 + Pre.
@@ -48,7 +48,7 @@ class Utils(commands.Cog):
          novo NEX: 5 + Pre.
         """
 
-        nex_base = 95 if NEX == 99 else NEX
+        nex_base = 95 if nex == 99 else nex
         nex_pos = (nex_base - 5) // 5
 
         base_por_classe = {
