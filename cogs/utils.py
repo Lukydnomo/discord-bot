@@ -24,5 +24,60 @@ class Utils(commands.Cog):
         pd = int((sanidade / 3) * 2 + 0.5)
         await interaction.response.send_message(f"O valor convertido de {sanidade} sanidade é {pd} pontos de determinação (PD).")
 
+    @app_commands.command(name="calcular_pd", description="Calcula os pontos de determinação (PD)")
+    @app_commands.describe(classe="Indica a classe do personagem.", NEX="Indica o quanto de exposição paranormal ele tem.", atributo="Valor do atributo a ser calculado.", tem_potencial_aprimorado="Indica se o personagem tem potencial aprimorado (sim/não).", com_afinidade_com_morte="Indica se o personagem tem afinidade com Morte (sim/não).")
+    @app_commands.choices(classe=[
+        app_commands.Choice(name="Combatente", value="Combatente"),
+        app_commands.Choice(name="Especialista", value="Especialista"),
+        app_commands.Choice(name="Ocultista", value="Ocultista")
+    ],tem_potencial_aprimorado=[
+        app_commands.Choice(name="Sim", value=1),
+        app_commands.Choice(name="Não", value=0)
+    ], com_afinidade_com_morte=[
+        app_commands.Choice(name="Sim", value=1),
+        app_commands.Choice(name="Não", value=0)
+    ])
+    async def calcular_pd(self, interaction: discord.Interaction, classe: str, NEX: int, atributo: int, tem_potencial_aprimorado: app_commands.Choice[int], com_afinidade_com_morte: app_commands.Choice[int]):
+        
+        """
+         Combatente. PD Iniciais: 6 + Pre. A cada novo NEX: 3 + Pre.
+         
+         Especialista. PD Iniciais: 8 + Pre. A cada novo NEX: 4 + Pre.
+
+         Ocultista. PD Iniciais: 10 + Pre. A cada
+         novo NEX: 5 + Pre.
+        """
+
+        nex_base = 95 if NEX == 99 else NEX
+        nex_pos = (nex_base - 5) // 5
+
+        base_por_classe = {
+            "Combatente": 6,
+            "Especialista": 8,
+            "Ocultista": 10
+        }
+
+        ganho_por_classe ={
+            "Combatente": 3,
+            "Especialista": 4,
+            "Ocultista": 5
+        }
+
+        pre_pd = base_por_classe[classe] + atributo + (nex_pos * (ganho_por_classe[classe] + atributo))
+
+        if tem_potencial_aprimorado.value == 1:
+            multiplicador = 2 if com_afinidade_com_morte == 1 else 1
+            pre_pd += nex_pos * multiplicador
+
+        pd = pre_pd
+
+        await interaction.response.send_message(f"O valor é {pd} pontos de determinação (PD).")
+
+    @app_commands.command(name="calcular_dt_ritual", description="Calcula os dados de teste (DT) para um ritual.")
+    @app_commands.describe(atributo="Valor do atributo a ser calculado.", ocultismo="Valor do ocultismo a ser calculado.")
+    async def calcular_dt_ritual(self, interaction: discord.Interaction, atributo: int, ocultismo: int):
+        dt = 10 + atributo + ocultismo
+        await interaction.response.send_message(f"Sua DT de ritual é {dt}.")
+
 async def setup(bot: commands.Bot):
     await bot.add_cog(Utils(bot))
