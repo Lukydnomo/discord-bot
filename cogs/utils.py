@@ -68,12 +68,12 @@ class Utils(commands.Cog):
 
         pre_pd = base_por_classe[classe] + atributo + ((nex_pos - 1) * (ganho_por_classe[classe] + atributo))
 
-        if tem_potencial_aprimorado == 1:
+        if tem_potencial_aprimorado.value == 1:
             multiplicador = 2 if com_afinidade_com_morte == 1 else 1
             pre_pd += nex_pos * multiplicador
 
-        if com_cicatrizes_psicológicas == 1:
-            pre_pd += nex_pos
+        if com_cicatrizes_psicológicas.value == 1:
+            pre_pd += nex_pos * 1
 
         pd = pre_pd
 
