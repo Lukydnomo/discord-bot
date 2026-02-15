@@ -1,6 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
+from discord.ui import View, Button
 import math
 
 class Utils(commands.Cog):
@@ -84,6 +85,59 @@ class Utils(commands.Cog):
     async def calcular_dt_ritual(self, interaction: discord.Interaction, atributo: int, ocultismo: int):
         dt = 10 + atributo + ocultismo
         await interaction.response.send_message(f"Sua DT de ritual é {dt}.")
+
+    @app_commands.command(name="hexatombe_musics", description="Posta um embed com 48 botões numerados de 1 a 48.")
+    async def postar_botoes(self, interaction: discord.Interaction):
+        """Envia um embed com 48 botões para o canal de painel.
+
+        Ao clicar em um botão, o número correspondente será enviado
+        para o canal destino.
+        """
+        BOARD_CHANNEL_ID = 1472670458993446922
+        DEST_CHANNEL_ID = 1472671366183649462
+
+        await interaction.response.defer(thinking=True, ephemeral=True)
+
+        embed = discord.Embed(
+            title="Escolha um número",
+            description="Clique em um número de 1 a 48 abaixo.",
+            color=discord.Color.blurple(),
+        )
+
+        view = View(timeout=None)
+
+        # cria 48 botões, 5 por linha (rows 0..9, última linha terá 3)
+        for i in range(1, 49):
+            row = (i - 1) // 5
+
+            btn = Button(label=str(i), style=discord.ButtonStyle.primary, custom_id=f"num_button_{i}", row=row)
+
+            async def _callback(interaction_button: discord.Interaction, number=i):
+                try:
+                    dest = self.bot.get_channel(DEST_CHANNEL_ID)
+                    if dest is None:
+                        dest = await self.bot.fetch_channel(DEST_CHANNEL_ID)
+                    await dest.send(f"<@767015394648915978> Música {str(number)}")
+                    await interaction_button.response.send_message(f"Número {number} enviado.", ephemeral=True)
+                except Exception as e:
+                    try:
+                        await interaction_button.response.send_message("Falha ao enviar o número. Verifique permissões.", ephemeral=True)
+                    except Exception:
+                        pass
+
+            btn.callback = _callback
+            view.add_item(btn)
+
+        try:
+            board = self.bot.get_channel(BOARD_CHANNEL_ID)
+            if board is None:
+                board = await self.bot.fetch_channel(BOARD_CHANNEL_ID)
+            await board.send(embed=embed, view=view)
+            await interaction.followup.send("Embed com botões enviado com sucesso.", ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(f"Falha ao enviar embed: {e}", ephemeral=True)
+
+    
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Utils(bot))
