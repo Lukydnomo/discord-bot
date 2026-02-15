@@ -104,38 +104,52 @@ class Utils(commands.Cog):
             color=discord.Color.blurple(),
         )
 
-        view = View(timeout=None)
+        # O Discord permite no máximo 5 linhas (rows 0..4) por mensagem,
+        # cada linha comporta até 5 botões => até 25 botões por mensagem.
+        # Dividimos os 48 números em batches para respeitar esse limite.
+        chunk_size = 24
 
-        # cria 48 botões, 5 por linha (rows 0..9, última linha terá 3)
-        for i in range(1, 49):
-            row = (i - 1) // 5
+        board = self.bot.get_channel(BOARD_CHANNEL_ID)
+        if board is None:
+            board = await self.bot.fetch_channel(BOARD_CHANNEL_ID)
 
-            btn = Button(label=str(i), style=discord.ButtonStyle.primary, custom_id=f"num_button_{i}", row=row)
-
-            async def _callback(interaction_button: discord.Interaction, number=i):
-                try:
-                    dest = self.bot.get_channel(DEST_CHANNEL_ID)
-                    if dest is None:
-                        dest = await self.bot.fetch_channel(DEST_CHANNEL_ID)
-                    await dest.send(f"<@767015394648915978> Música {str(number)}")
-                    await interaction_button.response.send_message(f"Número {number} enviado.", ephemeral=True)
-                except Exception as e:
-                    try:
-                        await interaction_button.response.send_message("Falha ao enviar o número. Verifique permissões.", ephemeral=True)
-                    except Exception:
-                        pass
-
-            btn.callback = _callback
-            view.add_item(btn)
+        batches = [range(i, min(i + chunk_size, 49)) for i in range(1, 49, chunk_size)]
 
         try:
-            board = self.bot.get_channel(BOARD_CHANNEL_ID)
-            if board is None:
-                board = await self.bot.fetch_channel(BOARD_CHANNEL_ID)
-            await board.send(embed=embed, view=view)
-            await interaction.followup.send("Embed com botões enviado com sucesso.", ephemeral=True)
+            for batch_idx, batch in enumerate(batches, start=1):
+                batch_embed = discord.Embed(
+                    title=f"Escolha um número (parte {batch_idx}/{len(batches)})",
+                    description="Clique em um número abaixo.",
+                    color=discord.Color.blurple(),
+                )
+
+                view = View(timeout=None)
+
+                for idx, i in enumerate(batch):
+                    row = idx // 5
+                    btn = Button(label=str(i), style=discord.ButtonStyle.primary, custom_id=f"num_button_{i}", row=row)
+
+                    async def _callback(interaction_button: discord.Interaction, number=i):
+                        try:
+                            dest = self.bot.get_channel(DEST_CHANNEL_ID)
+                            if dest is None:
+                                dest = await self.bot.fetch_channel(DEST_CHANNEL_ID)
+                            await dest.send(f"<@767015394648915978> Música {str(number)}")
+                            await interaction_button.response.send_message(f"Número {number} enviado.", ephemeral=True)
+                        except Exception:
+                            try:
+                                await interaction_button.response.send_message("Falha ao enviar o número. Verifique permissões.", ephemeral=True)
+                            except Exception:
+                                pass
+
+                    btn.callback = _callback
+                    view.add_item(btn)
+
+                await board.send(embed=batch_embed, view=view)
+
+            await interaction.followup.send("Embed(s) com botões enviado(s) com sucesso.", ephemeral=True)
         except Exception as e:
-            await interaction.followup.send(f"Falha ao enviar embed: {e}", ephemeral=True)
+            await interaction.followup.send(f"Falha ao enviar embed(s): {e}", ephemeral=True)
 
     
 
