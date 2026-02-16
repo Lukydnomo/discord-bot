@@ -3,6 +3,9 @@ from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Button
 import math
+import re
+import ast
+import operator as op
 
 class Utils(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -26,7 +29,12 @@ class Utils(commands.Cog):
         await interaction.response.send_message(f"O valor convertido de {sanidade} sanidade é {pd} pontos de determinação (PD).")
 
     @app_commands.command(name="calcular_pd", description="Calcula os pontos de determinação (PD)")
-    @app_commands.describe(classe="Indica a classe do personagem.", nex="Indica o quanto de exposição paranormal ele tem.", atributo="Valor do atributo a ser calculado.", tem_potencial_aprimorado="Indica se o personagem tem potencial aprimorado (sim/não).", com_afinidade_com_morte="Indica se o personagem tem afinidade com Morte (sim/não).", com_cicatrizes_psicológicas="Indica se o personagem tem cicatrizes psicológicas (sim/não).")
+    @app_commands.describe(classe="Indica a classe do personagem.",
+                           nex="Indica o quanto de exposição paranormal ele tem.",
+                           atributo="Valor do atributo a ser calculado.",
+                           tem_potencial_aprimorado="Indica se o personagem tem potencial aprimorado (sim/não).",
+                           com_afinidade_com_morte="Indica se o personagem tem afinidade com Morte (sim/não).",
+                           com_cicatrizes_psicológicas="Indica se o personagem tem cicatrizes psicológicas (sim/não).")
     @app_commands.choices(classe=[
         app_commands.Choice(name="Combatente", value="Combatente"),
         app_commands.Choice(name="Especialista", value="Especialista"),
@@ -41,7 +49,13 @@ class Utils(commands.Cog):
         app_commands.Choice(name="Sim", value=1),
         app_commands.Choice(name="Não", value=0)
     ])
-    async def calcular_pd(self, interaction: discord.Interaction, classe: str, nex: int, atributo: int, tem_potencial_aprimorado: app_commands.Choice[int], com_afinidade_com_morte: app_commands.Choice[int], com_cicatrizes_psicológicas: app_commands.Choice[int]):
+    async def calcular_pd(self, interaction: discord.Interaction,
+                          classe: str,
+                          nex: int,
+                          atributo: int,
+                          tem_potencial_aprimorado: app_commands.Choice[int],
+                          com_afinidade_com_morte: app_commands.Choice[int],
+                          com_cicatrizes_psicológicas: app_commands.Choice[int]):
         
         """
          Combatente. PD Iniciais: 6 + Pre. A cada novo NEX: 3 + Pre.
@@ -151,7 +165,65 @@ class Utils(commands.Cog):
         except Exception as e:
             await interaction.followup.send(f"Falha ao enviar embed(s): {e}", ephemeral=True)
 
+    # Operadores permitidos
+    allowed_operators = {
+        ast.Add: op.add,
+        ast.Sub: op.sub,
+        ast.Mult: op.mul,
+        ast.Div: op.truediv,
+        ast.USub: op.neg
+    }
     
+    def eval_expr(self, expr):
+        def _eval(node):
+            if isinstance(node, ast.Num):
+                return node.n
+            elif isinstance(node, ast.BinOp):
+                return self.allowed_operators[type(node.op)](
+                    _eval(node.left),
+                    _eval(node.right)
+                )
+            elif isinstance(node, ast.UnaryOp):
+                return self.allowed_operators[type(node.op)](
+                    _eval(node.operand)
+                )
+            else:
+                raise TypeError("Expressão inválida.")
+    
+        return _eval(ast.parse(expr, mode='eval').body)
+    
+    @app_commands.command(
+        name="calcular_dano_medio",
+        description="Calcula o dano médio com base em uma expressão de dados."
+    )
+    @app_commands.describe(
+        expressao="Ex: 3d8+10, 10d8+4d6, 5d20+(3d10*2)"
+    )
+    async def calcular_dano_medio(self, interaction: discord.Interaction, expressao: str):
+        try:
+            expr = expressao.lower().replace(" ", "")
+    
+            # Substitui XdY pelo dano médio matemático
+            def substituir_dados(match):
+                x = int(match.group(1))
+                y = int(match.group(2))
+                if x <= 0 or y <= 0:
+                    raise ValueError("Número de dados e faces deve ser positivo.")
+                return f"({x}*({y}+1)/2)"
+    
+            expr_convertida = re.sub(r'(\d+)d(\d+)', substituir_dados, expr)
+    
+            resultado = self.eval_expr(expr_convertida)
+
+            await interaction.response.send_message(
+                f"🎲 Dano médio para `{expressao}`:\n**{resultado:.2f}**"
+            )
+
+        except Exception as e:
+            await interaction.response.send_message(
+                f"Erro ao calcular dano médio: {e}"
+            )
+
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Utils(bot))
