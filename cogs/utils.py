@@ -102,7 +102,7 @@ class Utils(commands.Cog):
         Returns:
             None
         """
-        pd = int((sanidade * 0.4) + 0.5)
+        pd = int((sanidade * 0.43) + 0.5)
         await interaction.response.send_message(f"O valor convertido de {sanidade} sanidade é {pd} pontos de determinação (PD).")
 
     @app_commands.command(name="calcular_pd", description="Calcula os pontos de determinação (PD)")
@@ -165,7 +165,7 @@ class Utils(commands.Cog):
             pre_pd += nex_pos * multiplicador
 
         if com_cicatrizes_psicológicas.value == 1:
-            pre_pd += int((nex_pos*0.4)+0.5)
+            pre_pd += int((nex_pos*0.43)+0.5)
 
         pd = pre_pd
 
