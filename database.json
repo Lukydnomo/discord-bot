@@ -41,9 +41,10 @@
                     "1345449850954715176": {
                         "guesses": [
                             "prometem",
-                            "represam"
+                            "represam",
+                            "represem"
                         ],
-                        "solved": false
+                        "solved": true
                     }
                 }
             }
@@ -53,9 +54,9 @@
         "1228383214049951815": {
             "2026-W08": {
                 "1345449850954715176": {
-                    "wins": 0,
+                    "wins": 1,
                     "plays": 1,
-                    "best": null
+                    "best": 3
                 }
             }
         }
