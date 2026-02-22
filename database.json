@@ -31,5 +31,7 @@
                 }
             }
         }
-    }
+    },
+    "wordle": {},
+    "last_wordle_cleanup": "02/22/26"
 }
