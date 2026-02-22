@@ -229,7 +229,7 @@ class HexaMusicButton(discord.ui.Button):
             dest_id = cfg.get("hexatombe_dest_channel_id")
             if not dest_id:
                 return await interaction.response.send_message(
-                    "❌ Hexatombê não configurado.\nUse: `/config hexatombe painel:#canal destino:#canal pingar:@alguem(opcional)`",
+                    "❌ Hexatombe não configurado.\nUse: `/config hexatombe painel:#canal destino:#canal pingar:@alguem(opcional)`",
                     ephemeral=True
                 )
 
@@ -446,7 +446,7 @@ class Utils(commands.Cog):
         board_id = cfg.get("hexatombe_board_channel_id")
         if not board_id:
             return await interaction.followup.send(
-                "❌ Hexatombê não configurado.\nUse: `/config hexatombe painel:#canal destino:#canal pingar:@alguem(opcional)`",
+                "❌ Hexatombe não configurado.\nUse: `/config hexatombe painel:#canal destino:#canal pingar:@alguem(opcional)`",
                 ephemeral=True
             )
 

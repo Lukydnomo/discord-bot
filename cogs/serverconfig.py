@@ -242,15 +242,15 @@ class ServerConfig(commands.Cog):
             "⚙️ **Config do servidor**\n"
             f"• Updates channel: {ch_txt}\n"
             f"• Updates ping: {role_txt}\n"
-            f"• Hexatombê painel: {board_txt}\n"
-            f"• Hexatombê destino: {dest_txt}\n"
-            f"• Hexatombê ping: {ping_txt}\n"
+            f"• Hexatombe painel: {board_txt}\n"
+            f"• Hexatombe destino: {dest_txt}\n"
+            f"• Hexatombe ping: {ping_txt}\n"
             f"• Music autodc: {autodc_txt}\n"
             f"• Music bitrate: {bitrate_txt}",
             ephemeral=True,
         )
 
-    @config.command(name="hexatombe", description="Configura os canais do Hexatombê (painel/destino e ping opcional).")
+    @config.command(name="hexatombe", description="Configura os canais do Hexatombe (painel/destino e ping opcional).")
     @app_commands.describe(
         painel="Canal onde o bot vai postar os botões (painel)",
         destino="Canal onde o bot vai mandar 'Música X'",
@@ -301,14 +301,14 @@ class ServerConfig(commands.Cog):
             return await interaction.followup.send("❌ Falha ao salvar no DB.", ephemeral=True)
 
         msg = (
-            "✅ Hexatombê configurado!\n"
+            "✅ Hexatombe configurado!\n"
             f"🧩 Painel: {painel.mention}\n"
             f"📨 Destino: {destino.mention}\n"
             f"🔔 Ping: {pingar.mention if pingar else '(desligado)'}"
         )
         await interaction.followup.send(msg, ephemeral=True)
 
-    @config.command(name="hexatombe_clear", description="Remove a configuração do Hexatombê deste servidor.")
+    @config.command(name="hexatombe_clear", description="Remove a configuração do Hexatombe deste servidor.")
     async def config_hexatombe_clear(self, interaction: discord.Interaction):
         if interaction.guild is None:
             return await interaction.response.send_message("❌ Isso só funciona em servidor.", ephemeral=True)
@@ -342,7 +342,7 @@ class ServerConfig(commands.Cog):
             return update_file_content(data)
 
         ok = await asyncio.to_thread(_clear)
-        await interaction.followup.send("✅ Config do Hexatombê removida." if ok else "❌ Falha ao remover.", ephemeral=True)
+        await interaction.followup.send("✅ Config do Hexatombe removida." if ok else "❌ Falha ao remover.", ephemeral=True)
 
     # -- botconfig commands ------------------------------------------------
     @botconfig.command(name="log_channel", description="Define o canal global de logs do bot.")
