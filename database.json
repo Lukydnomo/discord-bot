@@ -68,6 +68,18 @@
                     ],
                     "aliases": [],
                     "by": 767015394648915978
+                },
+                "patentes": {
+                    "nome": "patentes",
+                    "fonte": "Ordem",
+                    "pagina": 52,
+                    "notas": "Recruta. Agente novato, ainda sem experi\u00eancia em miss\u00f5es. Operador. J\u00e1 possui alguma experi\u00eancia e resolveu alguns casos paranormais. Patente da maioria dos membros da Ordem. Agente Especial. Agente experiente, chamado para resolver casos dif\u00edceis e complexos, que exigem grande conhecimento e capacidade. Um agente especial j\u00e1 pode indicar novos recrutas para a Ordem. Oficial de Opera\u00e7\u00f5es. Com dezenas de casos resolvidos, esses agentes s\u00e3o acionados para miss\u00f5es de alta import\u00e2ncia e perigo. T\u00eam acesso \u00e0 maioria dos arquivos confidenciais, al\u00e9m de prisioneiros e objetos amaldi\u00e7oados mantidos dentro da Ordem. Agente de Elite. As grandes lendas da Ordem, os raros agentes que sobreviveram \u00e0 guerra contra o Outro Lado por muitos anos. Os melhores entre os melhores, chamados pela Ordem para resolver casos que envolvem perigos de escala global.",
+                    "tags": [
+                        "patente",
+                        "regra"
+                    ],
+                    "aliases": [],
+                    "by": 767015394648915978
                 }
             }
         }
