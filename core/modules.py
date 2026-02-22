@@ -66,6 +66,10 @@ def get_file_content(force=False):
     # recarrega quando o cache estará vazio, expirado ou se for pedido explícito
     if force or _cached_data is None or (time.time() - _cached_at) > CACHE_TTL:
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+=======
+        # lê do branch db
+>>>>>>> Stashed changes
 =======
         # lê do branch db
 >>>>>>> Stashed changes
@@ -94,6 +98,7 @@ def update_file_content(data):
     global _cached_data, _cached_sha
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
         url = f"https://api.github.com/repos/{github_repo}/contents/{json_file_path}"
         headers = {"Authorization": f"token {GITHUBTOKEN}"}
         new_content = b64encode(json.dumps(data, indent=4).encode()).decode()
@@ -104,6 +109,11 @@ def update_file_content(data):
             "sha": _cached_sha,  # Inclui o SHA para evitar conflitos
             "branch": DB_BRANCH,  # especifica a branch destinada ao DB
         }
+=======
+    url = f"https://api.github.com/repos/{github_repo}/contents/{json_file_path}"
+    headers = {"Authorization": f"token {GITHUBTOKEN}"}
+    new_content = b64encode(json.dumps(data, indent=4).encode()).decode()
+>>>>>>> Stashed changes
 =======
     url = f"https://api.github.com/repos/{github_repo}/contents/{json_file_path}"
     headers = {"Authorization": f"token {GITHUBTOKEN}"}
