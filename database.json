@@ -40,6 +40,17 @@
                     ],
                     "aliases": [],
                     "by": 767015394648915978
+                },
+                "combatente": {
+                    "fonte": "Ordem",
+                    "pagina": 25,
+                    "notas": "NEX Habilidades 5% Ataque especial (2 PE, +5) 10% Habilidade de trilha 15% Poder de combatente 20% Aumento de atributo 25% Ataque especial (3 PE, +10) 30% Poder de combatente 35% Grau de treinamento 40% Habilidade de trilha 45% Poder de combatente 50% Aumento de atributo, versatilidade 55% Ataque especial (4 PE, +15) 60% Poder de combatente 65% Habilidade de trilha 70% Grau de treinamento 75% Poder de combatente 80% Aumento de atributo 85% Ataque especial (5 PE, +20) 90% Poder de combatente 95% Aumento de atributo 99% Habilidade de trilha",
+                    "tags": [
+                        "progress\u00e3o",
+                        "classe"
+                    ],
+                    "aliases": [],
+                    "by": 767015394648915978
                 }
             }
         }
