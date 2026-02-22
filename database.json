@@ -79,7 +79,8 @@
             "updates_role_id": 1319355628195549247,
             "hexatombe_board_channel_id": 1472670458993446922,
             "hexatombe_dest_channel_id": 1472671366183649462,
-            "hexatombe_ping_user_id": 767015394648915978
+            "hexatombe_ping_user_id": 767015394648915978,
+            "log_channel_id": 1317580138262695967
         }
     },
     "bot_config": {
