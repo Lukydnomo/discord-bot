@@ -3,7 +3,6 @@ import time
 import json
 import random
 import re
-import copy
 from base64 import b64decode, b64encode
 from datetime import datetime, timedelta, timezone
 
@@ -65,18 +64,6 @@ def get_file_content(force=False):
     global _cached_data, _cached_sha, _cached_at
     # recarrega quando o cache estará vazio, expirado ou se for pedido explícito
     if force or _cached_data is None or (time.time() - _cached_at) > CACHE_TTL:
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
-        # lê do branch db
->>>>>>> Stashed changes
-=======
-        # lê do branch db
->>>>>>> Stashed changes
-=======
-        # lê do branch db
->>>>>>> Stashed changes
         url = f"https://api.github.com/repos/{github_repo}/contents/{json_file_path}?ref={DB_BRANCH}"
         headers = {"Authorization": f"token {GITHUBTOKEN}"}
         response = requests.get(url, headers=headers).json()
@@ -84,7 +71,9 @@ def get_file_content(force=False):
         if "content" in response:
             try:
                 _cached_data = json.loads(b64decode(response["content"]).decode())
-                _cached_sha = response.get("sha")
+                _cached_sha = response.get(
+                    "sha"
+                )  # Armazena o SHA para atualizações futuras
             except json.JSONDecodeError:
                 _cached_data = {}
                 _cached_sha = None
@@ -95,15 +84,15 @@ def get_file_content(force=False):
 
         _cached_at = time.time()
 
-    # retorna CÓPIA pra não "mutar" o cache sem querer
-    return copy.deepcopy(_cached_data)
+    return _cached_data
 
-def update_file_content(data):
+def update_file_content(data, retries=2):
     global _cached_data, _cached_sha
+    for _ in range(retries + 1):
+        # evita enviar nada se não houver alteração
+        if data == _cached_data:
+            return True
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
         url = f"https://api.github.com/repos/{github_repo}/contents/{json_file_path}"
         headers = {"Authorization": f"token {GITHUBTOKEN}"}
         new_content = b64encode(json.dumps(data, indent=4).encode()).decode()
@@ -114,36 +103,22 @@ def update_file_content(data):
             "sha": _cached_sha,  # Inclui o SHA para evitar conflitos
             "branch": DB_BRANCH,  # especifica a branch destinada ao DB
         }
-=======
-    url = f"https://api.github.com/repos/{github_repo}/contents/{json_file_path}"
-    headers = {"Authorization": f"token {GITHUBTOKEN}"}
-    new_content = b64encode(json.dumps(data, indent=4).encode()).decode()
->>>>>>> Stashed changes
-=======
-    url = f"https://api.github.com/repos/{github_repo}/contents/{json_file_path}"
-    headers = {"Authorization": f"token {GITHUBTOKEN}"}
-    new_content = b64encode(json.dumps(data, indent=4).encode()).decode()
->>>>>>> Stashed changes
-=======
-    url = f"https://api.github.com/repos/{github_repo}/contents/{json_file_path}"
-    headers = {"Authorization": f"token {GITHUBTOKEN}"}
-    new_content = b64encode(json.dumps(data, indent=4).encode()).decode()
->>>>>>> Stashed changes
 
-    payload = {
-        "message": "Atualizando banco de dados",
-        "content": new_content,
-        "sha": _cached_sha,
-        "branch": DB_BRANCH,  # salva no branch db
-    }
-
-    response = requests.put(url, headers=headers, json=payload)
-    if response.status_code in (200, 201):
-        print("✅ Banco de dados atualizado com sucesso!")
-        _cached_data = copy.deepcopy(data)  # atualiza cache
-        _cached_sha = response.json().get("content", {}).get("sha")
-    else:
-        print(f"❌ Erro ao atualizar o banco de dados: {response.status_code} {response.text}")
+        response = requests.put(url, headers=headers, json=payload)
+        if response.status_code in (200, 201):
+            # sucesso; atualiza cache local e retorna
+            _cached_data = data
+            _cached_sha = response.json().get("content", {}).get("sha")
+            return True
+        if response.status_code == 409:
+            # conflito: recarrega do servidor e mescla (nosso dado vence)
+            latest = get_file_content(force=True)
+            latest.update(data)
+            data = latest
+            continue
+        # falha não contornável
+        return False
+    return False
 
 async def save(name, value):
     async with _db_lock:
@@ -155,7 +130,9 @@ async def save(name, value):
                 data[name] = [data[name], value]
         else:
             data[name] = value
-        await asyncio.to_thread(update_file_content, data)
+
+        ok = await asyncio.to_thread(update_file_content, data)
+        return ok
 
 def load(name):
     data = get_file_content()

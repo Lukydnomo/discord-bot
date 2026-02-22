@@ -29,10 +29,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements/requirementsPY.txt
 
-      - name: Criar cookies.txt
-        run: |
-          echo "${{ secrets.YOUTUBE_COOKIES }}" > cookies.txt
-
       - name: Run Bot
         run: python main.py
         env:
