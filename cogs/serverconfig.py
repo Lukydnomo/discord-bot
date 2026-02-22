@@ -219,6 +219,11 @@ class ServerConfig(commands.Cog):
         autodc = b.get("music_auto_disconnect_seconds")
         bitrate = b.get("music_bitrate_kbps")
 
+        # botconfig fields stored alongside
+        log_ch = b.get("log_channel_id")
+        max_dice = b.get("max_dice_group")
+        max_faces = b.get("max_faces")
+
         ch_txt = f"<#{ch_id}>" if ch_id else "(não definido)"
         role_txt = f"<@&{role_id}>" if role_id else "(não definido)"
         board_txt = f"<#{board_id}>" if board_id else "(não definido)"
@@ -226,6 +231,10 @@ class ServerConfig(commands.Cog):
         ping_txt = f"<@{ping_id}>" if ping_id else "(não definido)"
         autodc_txt = "(padrão 60s)" if autodc is None else ("desligado" if int(autodc) == 0 else f"{int(autodc)}s")
         bitrate_txt = "(padrão 128kbps)" if bitrate is None else f"{int(bitrate)}kbps"
+
+        log_txt = f"<#{log_ch}>" if log_ch else "(não definido)"
+        maxdice_txt = f"{max_dice}" if max_dice is not None else "(não definido)"
+        maxfaces_txt = f"{max_faces}" if max_faces is not None else "(não definido)"
 
         await interaction.followup.send(
             "⚙️ **Config do servidor**\n"
@@ -235,7 +244,10 @@ class ServerConfig(commands.Cog):
             f"• Hexatombe destino: {dest_txt}\n"
             f"• Hexatombe ping: {ping_txt}\n"
             f"• Music autodc: {autodc_txt}\n"
-            f"• Music bitrate: {bitrate_txt}",
+            f"• Music bitrate: {bitrate_txt}\n"
+            f"• log_channel_id: {log_txt}\n"
+            f"• max_dice_group: {maxdice_txt}\n"
+            f"• max_faces: {maxfaces_txt}",
             ephemeral=True,
         )
 
@@ -334,27 +346,31 @@ class ServerConfig(commands.Cog):
         await interaction.followup.send("✅ Config do Hexatombe removida." if ok else "❌ Falha ao remover.", ephemeral=True)
 
     # -- comandos globais (antes botconfig) -----------------------------------
-    @config.command(name="log_channel", description="Define o canal global de logs do bot.")
-    @app_commands.describe(canal="Canal onde o bot manda logs globais")
+    @config.command(name="log_channel", description="Define o canal de logs do bot para este servidor.")
+    @app_commands.describe(canal="Canal onde o bot manda logs")
     async def botconfig_log_channel(self, interaction: discord.Interaction, canal: discord.TextChannel):
-        # only server admins are allowed to adjust global bot config
         if interaction.guild is None or not interaction.user.guild_permissions.administrator:
             return await interaction.response.send_message("❌ Apenas administradores podem mexer no botconfig.", ephemeral=True)
 
         await interaction.response.defer(thinking=True, ephemeral=True)
+        guild_id = interaction.guild.id
 
         def _write():
             data = get_file_content()
             if not isinstance(data, dict):
                 data = {}
-            bc = _ensure_bot_config(data)
-            bc["log_channel_id"] = int(canal.id)
+            gc = _ensure_guild_config(data)
+            bucket = gc.get(str(guild_id))
+            if not isinstance(bucket, dict):
+                bucket = {}
+                gc[str(guild_id)] = bucket
+            bucket["log_channel_id"] = int(canal.id)
             return update_file_content(data)
 
         ok = await asyncio.to_thread(_write)
         await interaction.followup.send("✅ Log channel global salvo." if ok else "❌ Falha ao salvar.", ephemeral=True)
 
-    @config.command(name="dice_limits", description="Define limites globais do roller (dados e faces).")
+    @config.command(name="dice_limits", description="Define limites do roller (dados e faces) para este servidor.")
     @app_commands.describe(max_dados="Máx de dados no grupo", max_faces="Máx de faces (dN)")
     async def botconfig_dice_limits(self, interaction: discord.Interaction, max_dados: int, max_faces: int):
         if interaction.guild is None or not interaction.user.guild_permissions.administrator:
@@ -364,41 +380,24 @@ class ServerConfig(commands.Cog):
             return await interaction.response.send_message("❌ Valores fora do intervalo permitido.", ephemeral=True)
 
         await interaction.response.defer(thinking=True, ephemeral=True)
+        guild_id = interaction.guild.id
 
         def _write():
             data = get_file_content()
             if not isinstance(data, dict):
                 data = {}
-            bc = _ensure_bot_config(data)
-            bc["max_dice_group"] = int(max_dados)
-            bc["max_faces"] = int(max_faces)
+            gc = _ensure_guild_config(data)
+            bucket = gc.get(str(guild_id))
+            if not isinstance(bucket, dict):
+                bucket = {}
+                gc[str(guild_id)] = bucket
+            bucket["max_dice_group"] = int(max_dados)
+            bucket["max_faces"] = int(max_faces)
             return update_file_content(data)
 
         ok = await asyncio.to_thread(_write)
         await interaction.followup.send("✅ Limites de dados salvos." if ok else "❌ Falha ao salvar.", ephemeral=True)
 
-    @config.command(name="show_botconfig", description="Mostra o botconfig atual (global).")
-    async def botconfig_show(self, interaction: discord.Interaction):
-        if interaction.guild is None or not interaction.user.guild_permissions.administrator:
-            return await interaction.response.send_message("❌ Apenas administradores podem ver o botconfig.", ephemeral=True)
-
-        await interaction.response.defer(thinking=True, ephemeral=True)
-
-        def _read():
-            data = get_file_content()
-            if not isinstance(data, dict):
-                return {}
-            bc = data.get("bot_config", {})
-            return bc if isinstance(bc, dict) else {}
-
-        bc = await asyncio.to_thread(_read)
-        await interaction.followup.send(
-            "⚙️ **BotConfig (global)**\n"
-            f"• log_channel_id: `{bc.get('log_channel_id', None)}`\n"
-            f"• max_dice_group: `{bc.get('max_dice_group', None)}`\n"
-            f"• max_faces: `{bc.get('max_faces', None)}`",
-            ephemeral=True,
-        )
 
 
 async def setup(bot: commands.Bot):
