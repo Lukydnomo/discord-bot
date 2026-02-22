@@ -7,6 +7,50 @@ import re
 from discord import app_commands
 from discord.ext import commands
 from core.modules import save, load
+from discord.ui import View, Button
+
+class MuteUnmuteView(View):
+    def __init__(self, channel: discord.VoiceChannel):
+        super().__init__(timeout=60)
+        self.channel = channel
+
+    @discord.ui.button(label="Mutar Todos", style=discord.ButtonStyle.danger, custom_id="mute_all")
+    async def mute_all(self, interaction: discord.Interaction, button: Button):
+        if not interaction.user.guild_permissions.mute_members:
+            await interaction.response.send_message("❌ Você não tem permissão para mutar membros.", ephemeral=True)
+            return
+
+        count = 0
+        for member in self.channel.members:
+            if member.bot:
+                continue
+            if member.voice and not member.voice.mute:
+                try:
+                    await member.edit(mute=True)
+                    count += 1
+                except Exception:
+                    pass
+
+        await interaction.response.send_message(f"🔇 Mutados: {count} membros.", ephemeral=True)
+
+    @discord.ui.button(label="Desmutar Todos", style=discord.ButtonStyle.success, custom_id="unmute_all")
+    async def unmute_all(self, interaction: discord.Interaction, button: Button):
+        if not interaction.user.guild_permissions.mute_members:
+            await interaction.response.send_message("❌ Você não tem permissão para desmutar membros.", ephemeral=True)
+            return
+
+        count = 0
+        for member in self.channel.members:
+            if member.bot:
+                continue
+            if member.voice and member.voice.mute:
+                try:
+                    await member.edit(mute=False)
+                    count += 1
+                except Exception:
+                    pass
+
+        await interaction.response.send_message(f"🔊 Desmutados: {count} membros.", ephemeral=True)
 
 class Moderation(commands.Cog):
     """Comandos de punição, mover, mutar e desmutar."""
@@ -446,6 +490,22 @@ class Moderation(commands.Cog):
                 await interaction.followup.send(f"Valor de `{name}`: `{result}`")
         else:
             await interaction.followup.send("Ação inválida! Use 'save' ou 'load'.", ephemeral=True)
+        
+    # ---------- Mute Call ----------
+    @app_commands.command(name="mutecall", description="Cria botões para mutar/desmutar todos na call atual.")
+    async def mutecall(self, interaction: discord.Interaction):
+        if not interaction.user.voice or not interaction.user.voice.channel:
+            await interaction.response.send_message("❌ Você precisa estar em um canal de voz.", ephemeral=True)
+            return
+
+        channel = interaction.user.voice.channel
+        embed = discord.Embed(
+            title="Controle de Mute da Call",
+            description=f"Canal: **{channel.name}**\nUse os botões abaixo para mutar ou desmutar todos na call.",
+            color=discord.Color.blue(),
+        )
+        view = MuteUnmuteView(channel)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(Moderation(bot))
