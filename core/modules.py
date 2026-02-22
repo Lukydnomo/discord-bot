@@ -3,6 +3,7 @@ import time
 import json
 import random
 import re
+import copy
 from base64 import b64decode, b64encode
 from datetime import datetime, timedelta, timezone
 
@@ -84,7 +85,7 @@ def get_file_content(force=False):
 
         _cached_at = time.time()
 
-    return _cached_data
+    return copy.deepcopy(_cached_data)
 
 def update_file_content(data, retries=2):
     global _cached_data, _cached_sha
@@ -107,7 +108,7 @@ def update_file_content(data, retries=2):
         response = requests.put(url, headers=headers, json=payload)
         if response.status_code in (200, 201):
             # sucesso; atualiza cache local e retorna
-            _cached_data = data
+            _cached_data = copy.deepcopy(data)
             _cached_sha = response.json().get("content", {}).get("sha")
             return True
         if response.status_code == 409:
@@ -117,6 +118,7 @@ def update_file_content(data, retries=2):
             data = latest
             continue
         # falha não contornável
+        print(f"❌ PUT falhou: {response.status_code} {response.text}")
         return False
     return False
 

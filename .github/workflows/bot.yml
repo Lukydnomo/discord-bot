@@ -32,8 +32,7 @@ jobs:
       - name: Run Bot
         run: python main.py
         env:
-          DATABASE_TOKEN: ${{ secrets.GHUB_TOKEN }}
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN_ID: ${{ github.run_id }}
-          FRAN_CONTROL_TOKEN: ${{ secrets.FRAN_CONTROL_TOKEN }}
+          DATABASE_TOKEN: ${{ secrets.DATABASE_TOKEN }}
