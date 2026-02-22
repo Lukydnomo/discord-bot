@@ -348,8 +348,9 @@ class ServerConfig(commands.Cog):
     @botconfig.command(name="log_channel", description="Define o canal global de logs do bot.")
     @app_commands.describe(canal="Canal onde o bot manda logs globais")
     async def botconfig_log_channel(self, interaction: discord.Interaction, canal: discord.TextChannel):
-        if not self._is_authorized(interaction.user.id):
-            return await interaction.response.send_message("❌ Só autorizados podem mexer no botconfig.", ephemeral=True)
+        # only server admins are allowed to adjust global bot config
+        if interaction.guild is None or not interaction.user.guild_permissions.administrator:
+            return await interaction.response.send_message("❌ Apenas administradores podem mexer no botconfig.", ephemeral=True)
 
         await interaction.response.defer(thinking=True, ephemeral=True)
 
@@ -367,8 +368,8 @@ class ServerConfig(commands.Cog):
     @botconfig.command(name="dice_limits", description="Define limites globais do roller (dados e faces).")
     @app_commands.describe(max_dados="Máx de dados no grupo", max_faces="Máx de faces (dN)")
     async def botconfig_dice_limits(self, interaction: discord.Interaction, max_dados: int, max_faces: int):
-        if not self._is_authorized(interaction.user.id):
-            return await interaction.response.send_message("❌ Só autorizados podem mexer no botconfig.", ephemeral=True)
+        if interaction.guild is None or not interaction.user.guild_permissions.administrator:
+            return await interaction.response.send_message("❌ Apenas administradores podem mexer no botconfig.", ephemeral=True)
 
         if max_dados < 1 or max_dados > 10000 or max_faces < 2 or max_faces > 1_000_000:
             return await interaction.response.send_message("❌ Valores fora do intervalo permitido.", ephemeral=True)
@@ -389,8 +390,8 @@ class ServerConfig(commands.Cog):
 
     @botconfig.command(name="show", description="Mostra o botconfig atual (global).")
     async def botconfig_show(self, interaction: discord.Interaction):
-        if not self._is_authorized(interaction.user.id):
-            return await interaction.response.send_message("❌ Só autorizados podem ver o botconfig.", ephemeral=True)
+        if interaction.guild is None or not interaction.user.guild_permissions.administrator:
+            return await interaction.response.send_message("❌ Apenas administradores podem ver o botconfig.", ephemeral=True)
 
         await interaction.response.defer(thinking=True, ephemeral=True)
 
