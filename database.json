@@ -2,5 +2,13 @@
     "palavra_do_dia": {
         "palavra": "represem",
         "dia": "02/22/26"
+    },
+    "macros": {
+        "user": {
+            "1345449850954715176": {
+                "teste": "2d20+45"
+            }
+        },
+        "guild": {}
     }
 }
