@@ -76,7 +76,10 @@
     "guild_config": {
         "1228383214049951815": {
             "updates_channel_id": 1319356880627171448,
-            "updates_role_id": 1319355628195549247
+            "updates_role_id": 1319355628195549247,
+            "hexatombe_board_channel_id": 1472670458993446922,
+            "hexatombe_dest_channel_id": 1472671366183649462,
+            "hexatombe_ping_user_id": 767015394648915978
         }
     }
 }
