@@ -54,6 +54,18 @@
                     ],
                     "aliases": [],
                     "by": 767015394648915978
+                },
+                "custos_de_ritual": {
+                    "nome": "custos de ritual",
+                    "fonte": "Ordem",
+                    "pagina": 119,
+                    "notas": "1\u00ba C\u00edrculo: 1 PE; 2\u00ba C\u00edrculo: 3 PE; 3\u00ba C\u00edrculo: 6 PE; 4\u00ba C\u00edrculo 10 PE",
+                    "tags": [
+                        "ritual",
+                        "regra"
+                    ],
+                    "aliases": [],
+                    "by": 767015394648915978
                 }
             }
         }
