@@ -5,6 +5,7 @@ import re
 import ast
 import operator as op
 import asyncio
+import unicodedata
 from typing import Dict, Tuple, List, Optional
 
 from core.modules import get_file_content, update_file_content, rolar_dado
@@ -24,6 +25,23 @@ def _norm_term(s: str) -> str:
     s = (s or "").strip().lower()
     s = re.sub(r"\s+", " ", s)
     return s
+
+
+def _term_id(s: str) -> str:
+    """Generate a normalized identifier from a term.
+
+    The result is lowercase, ASCII (diacritics removed), and uses
+    underscores instead of spaces. This is used as the key in the
+    reference buckets so that terms like "Conjuração Complexa" and
+    "conjuracao complexa" collide correctly and avoid duplicates.
+    """
+    norm = _norm_term(s)
+    # remove accents/diacritics
+    norm = ''.join(ch for ch in unicodedata.normalize('NFD', norm)
+                   if unicodedata.category(ch) != 'Mn')
+    # spaces become underscores
+    norm = re.sub(r"\s+", "_", norm)
+    return norm
 
 def _parse_tags(tags: str) -> List[str]:
     if not tags:
@@ -45,16 +63,17 @@ def _parse_tags(tags: str) -> List[str]:
     return out
 
 def _parse_aliases(aliases: str) -> List[str]:
+    # store aliases in id form so lookups behave uniformly
     if not aliases:
         return []
     raw = re.split(r"[,\n;]+", aliases.strip())
     out = []
     for a in raw:
-        a = _norm_term(a)
-        if not a:
+        aid = _term_id(a)
+        if not aid:
             continue
-        if a not in out:
-            out.append(a)
+        if aid not in out:
+            out.append(aid)
         if len(out) >= MAX_REF_ALIASES:
             break
     return out
@@ -78,13 +97,16 @@ def _get_ref_bucket(refs: dict, scope: str, scope_id: int) -> Dict[str, dict]:
     return bucket
 
 def _find_ref(bucket: Dict[str, dict], term: str) -> Optional[Tuple[str, dict]]:
-    """Procura por termo exato ou por alias dentro do bucket.
-    Retorna (key_real, obj) ou None.
+    """Procura por um *id* dentro do bucket.
+
+    "term" **must** already be converted with :func:`_term_id`.  The
+    bucket keys are stored in that format and aliases are saved the same
+    way, so this function is a simple lookup.
     """
     if term in bucket:
         return term, bucket[term]
 
-    # busca por alias
+    # busca por alias (já estão no formato id)
     for k, obj in bucket.items():
         if not isinstance(obj, dict):
             continue
@@ -735,10 +757,14 @@ class Utils(commands.Cog):
         tags: str = "",
         aliases: str = "",
     ):
-        termo_n = _norm_term(termo)
-        if not termo_n or not REF_TERM_RE.fullmatch(termo.strip()):
+        # prepare both a canonical id and keep the original display name
+        termo_id = _term_id(termo)
+        display = termo.strip()
+
+        # validate id
+        if not termo_id or len(termo_id) > 40 or not re.fullmatch(r"[a-z0-9_\-]+", termo_id):
             return await interaction.response.send_message(
-                "❌ Termo inválido. Usa até 40 chars (letras/números/espaço/_/-).",
+                "❌ Termo inválido. Usa até 40 chars e só letras/números/_/- (acento será removido).",
                 ephemeral=True
             )
 
@@ -776,6 +802,9 @@ class Utils(commands.Cog):
 
         tags_list = _parse_tags(tags)
         aliases_list = _parse_aliases(aliases)
+        # don't let alias equal the main id (redundant)
+        if termo_id in aliases_list:
+            aliases_list.remove(termo_id)
 
         def _write():
             data = get_file_content()
@@ -784,7 +813,17 @@ class Utils(commands.Cog):
             refs = _ensure_ref_root(data)
             bucket = _get_ref_bucket(refs, scope, scope_id)
 
-            bucket[termo_n] = {
+            # duplicate check: same id or same as someone's alias
+            if termo_id in bucket:
+                return False
+            for k,obj in bucket.items():
+                if isinstance(obj, dict):
+                    aliases = obj.get("aliases", [])
+                    if isinstance(aliases, list) and termo_id in aliases:
+                        return False
+
+            bucket[termo_id] = {
+                "nome": display,
                 "fonte": fonte_n,
                 "pagina": int(pagina),
                 "notas": notas_n,
@@ -792,12 +831,18 @@ class Utils(commands.Cog):
                 "aliases": aliases_list,
                 "by": int(interaction.user.id),
             }
-
             update_file_content(data)
+            return True
 
-        await asyncio.to_thread(_write)
+        ok = await asyncio.to_thread(_write)
+        if not ok:
+            return await interaction.response.send_message(
+                f"❌ Já existe referência `{display}`.",
+                ephemeral=True
+            )
+
         await interaction.response.send_message(
-            f"✅ Referência `{termo_n}` salva em **{escopo.name}**.",
+            f"✅ Referência `{display}` salva em **{escopo.name}**.",
             ephemeral=True
         )
 
@@ -805,7 +850,7 @@ class Utils(commands.Cog):
     @ref.command(name="get", description="Mostra uma referência salva.")
     @app_commands.describe(termo="Termo/alias", oculto="Se True, só você vê (ephemeral).")
     async def ref_get(self, interaction: discord.Interaction, termo: str, oculto: bool = False):
-        termo_n = _norm_term(termo)
+        termo_id = _term_id(termo)
 
         def _read() -> Optional[Tuple[str, dict, str]]:
             data = get_file_content()
@@ -818,7 +863,7 @@ class Utils(commands.Cog):
             # prioridade: pessoal > servidor
             user_bucket = (((refs.get("user") or {}).get(str(interaction.user.id))) or {})
             if isinstance(user_bucket, dict):
-                found = _find_ref(user_bucket, termo_n)
+                found = _find_ref(user_bucket, termo_id)
                 if found:
                     key, obj = found
                     return key, obj, "Pessoal"
@@ -826,7 +871,7 @@ class Utils(commands.Cog):
             if interaction.guild is not None:
                 guild_bucket = (((refs.get("guild") or {}).get(str(interaction.guild.id))) or {})
                 if isinstance(guild_bucket, dict):
-                    found = _find_ref(guild_bucket, termo_n)
+                    found = _find_ref(guild_bucket, termo_id)
                     if found:
                         key, obj = found
                         return key, obj, "Servidor"
@@ -836,19 +881,20 @@ class Utils(commands.Cog):
         got = await asyncio.to_thread(_read)
         if not got:
             return await interaction.response.send_message(
-                f"❌ Não achei referência pra `{termo_n}`.",
+                f"❌ Não achei referência pra `{termo.strip()}`.",
                 ephemeral=True
             )
 
         key, obj, scope_name = got
         fonte = obj.get("fonte", "—")
+        display = obj.get("nome", key)
         pagina = obj.get("pagina", "—")
         notas = obj.get("notas", "—")
         tags = obj.get("tags", [])
         aliases = obj.get("aliases", [])
 
         emb = discord.Embed(
-            title=f"📌 {key}",
+            title=f"📌 {display}",
             description=notas,
             color=discord.Color.blurple()
         )
@@ -868,9 +914,10 @@ class Utils(commands.Cog):
     @ref.command(name="search", description="Procura referências por termo/tag/fonte.")
     @app_commands.describe(query="Ex: debil, #condicao, sah, perseg")
     async def ref_search(self, interaction: discord.Interaction, query: str):
-        q = _norm_term(query)
-        if not q:
+        q_norm = _norm_term(query)
+        if not q_norm:
             return await interaction.response.send_message("❌ Query vazia.", ephemeral=True)
+        q_id = _term_id(query)
 
         def _search() -> List[str]:
             data = get_file_content()
@@ -881,7 +928,7 @@ class Utils(commands.Cog):
                 return []
 
             results = []
-            qtag = q[1:] if q.startswith("#") else None
+            qtag = q_norm[1:] if q_norm.startswith("#") else None
 
             def scan_bucket(bucket: Dict[str, dict], prefix: str):
                 nonlocal results
@@ -898,15 +945,20 @@ class Utils(commands.Cog):
                         if isinstance(tags, list) and qtag in tags:
                             hit = True
                     else:
-                        if q in term_key:
+                        # try both normalized forms against id/aliases and
+                        # also match against display name, fonte and notas
+                        if q_id in term_key or q_norm in term_key:
                             hit = True
-                        elif isinstance(aliases, list) and any(q in a for a in aliases):
+                        elif isinstance(aliases, list) and (q_id in aliases or q_norm in aliases):
                             hit = True
-                        elif q in fonte or q in notas:
+                        elif q_norm in fonte or q_norm in notas or q_norm in str(obj.get("nome","")).lower():
+                            hit = True
+                        elif q_id in fonte or q_id in notas or q_id in str(obj.get("nome","")).lower():
                             hit = True
 
                     if hit:
-                        results.append(f"{prefix}`{term_key}` — {obj.get('fonte','—')} p.{obj.get('pagina','—')}")
+                        display = obj.get("nome", term_key)
+                        results.append(f"{prefix}`{display}` — {obj.get('fonte','—')} p.{obj.get('pagina','—')}")
                         if len(results) >= 10:
                             return
 
@@ -963,11 +1015,12 @@ class Utils(commands.Cog):
                         tags = obj.get("tags", [])
                         if not (isinstance(tags, list) and tag_q in tags):
                             continue
-                    terms.append(k)
+                    disp = obj.get("nome", k)
+                    terms.append(disp)
 
-                terms = sorted(terms)[:50]
+                # append a line summarizing this bucket
                 if terms:
-                    lines.append(f"**{header}:** " + ", ".join(f"`{t}`" for t in terms))
+                    lines.append(f"**{header}:** " + ", ".join(f"`{t}`" for t in sorted(terms)))
                 else:
                     lines.append(f"**{header}:** (vazio)")
 
@@ -998,7 +1051,7 @@ class Utils(commands.Cog):
     ])
     @app_commands.describe(termo="Termo/alias", escopo="Auto tenta pessoal e depois servidor")
     async def ref_del(self, interaction: discord.Interaction, termo: str, escopo: app_commands.Choice[str]):
-        termo_n = _norm_term(termo)
+        termo_id = _term_id(termo)
 
         if escopo.value == "guild":
             if interaction.guild is None:
@@ -1024,7 +1077,7 @@ class Utils(commands.Cog):
                     return
 
                 # pode ser termo real ou alias
-                found = _find_ref(bucket, termo_n)
+                found = _find_ref(bucket, termo_id)
                 if found:
                     key, _obj = found
                     if key in bucket:
@@ -1044,9 +1097,9 @@ class Utils(commands.Cog):
 
         ok = await asyncio.to_thread(_delete)
         if ok:
-            await interaction.response.send_message(f"🗑️ Referência apagada: `{termo_n}`", ephemeral=True)
+            await interaction.response.send_message(f"🗑️ Referência apagada: `{termo.strip()}`", ephemeral=True)
         else:
-            await interaction.response.send_message(f"❌ Não achei `{termo_n}` pra apagar.", ephemeral=True)
+            await interaction.response.send_message(f"❌ Não achei `{termo.strip()}` pra apagar.", ephemeral=True)
 
 
 #######################################################################
