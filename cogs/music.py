@@ -5,12 +5,12 @@ import asyncio
 import unidecode
 from base64 import urlsafe_b64encode, urlsafe_b64decode
 from typing import Optional
-from yt_dlp import YoutubeDL
-import re, requests
+from urllib.parse import urlparse
 
 import discord
 from discord import app_commands
 from discord.ext import commands
+
 
 class Music(commands.Cog):
     """
@@ -21,119 +21,6 @@ class Music(commands.Cog):
         self.voice_clients: dict[int, discord.VoiceClient] = {}
         self.queues: dict[int, list] = {}
         self.loop_status: dict[int, int] = {}  # 0=off,1=track loop,2=queue loop
-
-    YDL_OPTS = {
-        "format": "bestaudio/best",
-        "quiet": True,
-        "no_warnings": True,
-        "user_agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/136.0.0.0 Safari/537.36"
-        ),
-        # força usar um front-end Invidious que não exige cookies
-        "extractor_args": {
-            "youtube": {
-                "base_url": "https://yewtu.be",
-                "api_url":  "https://yewtu.be"
-            }
-        },
-        "geo_bypass": True,
-        "nocheckcertificate": True,
-    }
-
-    def fetch_invidious_audio(self, vid: str, instances=None) -> tuple[str,str]:
-        """
-        Tenta instâncias Invidious para pegar o melhor formato de áudio.
-        Retorna (audio_url, title) ou lança Exception.
-        """
-        if instances is None:
-            instances = [
-                "https://yewtu.eu.org",
-                "https://yewtu.be",
-                "https://yewtu.snopyta.org",
-            ]
-
-        for base in instances:
-            api = f"{base}/api/v1/videos/{vid}"
-            resp = requests.get(api, timeout=10)
-            if resp.status_code != 200:
-                continue
-            data = resp.json()
-            title = data.get("videoDetails", {}).get("title", vid)
-            # filtra só áudio
-            adaptive = data.get("adaptiveFormats", [])
-            audios = [
-                f for f in adaptive
-                if f.get("mimeType", "").startswith("audio/")
-                and "url" in f
-            ]
-            if not audios:
-                continue
-            # escolhe a maior bitrate
-            best = max(audios, key=lambda a: a.get("bitrate", 0))
-            return best["url"], title
-
-        raise RuntimeError("Não foi possível obter áudio via Invidious")
-
-    # --- NOVO: extrai URL direto via yt_dlp (assíncrono via to_thread) ---
-    def extract_youtube_stream(self, url: str) -> tuple[str, str]:
-        """
-        Extrai a melhor URL de áudio utilizável pelo ffmpeg a partir de um link do YouTube
-        usando yt_dlp (não faz download). Retorna (direct_media_url, title).
-        Usa cookies.txt se existir (gerado pelo GitHub Actions via secret).
-        Se cookies.txt não existir, usa a configuração padrão (Invidious) como fallback.
-        """
-        # copia as opções padrão
-        ydl_opts = dict(self.YDL_OPTS)
-
-        # garante que não faça download e retorne formatos
-        ydl_opts.update({"quiet": True, "skip_download": True, "forcejson": True})
-
-        # Se houver cookies.txt, usa-o e remove extractor_args (para usar o extractor oficial do YouTube)
-        if os.path.exists("cookies.txt"):
-            print("[Music] cookies.txt encontrado — usando cookies para yt_dlp (YouTube login).")
-            ydl_opts["cookies"] = "cookies.txt"
-            # remover extractor_args para permitir o extractor oficial do youtube usar os cookies
-            ydl_opts.pop("extractor_args", None)
-        else:
-            print("[Music] cookies.txt não encontrado — usando Invidious como fallback (sem login).")
-
-        # Extrai info com yt_dlp
-        with YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-
-        title = info.get("title") or info.get("videoDetails", {}).get("title") or str(url)
-
-        formats = info.get("formats") or [info]
-
-        # filtra formatos que contenham áudio e tenham URL
-        audios = []
-        for f in formats:
-            if not f.get("url"):
-                continue
-            # seleciona preferencialmente audio-only ou com vcodec == 'none'
-            vcodec = f.get("vcodec")
-            acodec = f.get("acodec")
-            format_note = (f.get("format_note") or "").lower()
-            if acodec and acodec != "none":
-                audios.append(f)
-            elif vcodec == "none" or "audio" in format_note:
-                audios.append(f)
-
-        if not audios:
-            # fallback para qualquer formato com url
-            audios = [f for f in formats if f.get("url")]
-            if not audios:
-                raise RuntimeError("Nenhum formato de áudio encontrado via yt_dlp")
-
-        # escolhe o melhor por taxa de bits (abr, tbr ou bitrate)
-        def quality_score(f):
-            return f.get("abr") or f.get("tbr") or f.get("bitrate") or 0
-
-        best = max(audios, key=quality_score)
-        media_url = best["url"]
-        return media_url, title
 
     # Tocador
     def check_auto_disconnect(self, guild_id):
@@ -147,6 +34,7 @@ class Music(commands.Cog):
 
         # Certifica-se de que o loop de eventos correto está sendo utilizado
         asyncio.run_coroutine_threadsafe(task(), self.bot.loop)
+
     def play_next(self, guild_id):
         if guild_id not in self.queues or not self.queues[guild_id]:
             self.check_auto_disconnect(guild_id)
@@ -186,14 +74,14 @@ class Music(commands.Cog):
         try:
             # Configura opções do FFmpeg
             common_opts = {
-                'options': '-vn -b:a 128k'  # Apenas áudio, bitrate 128k
+                "options": "-vn -b:a 128k"  # Apenas áudio, bitrate 128k
             }
             reconnect_opts = {
-                'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'  # Opções de reconexão
+                "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"
             }
 
             # Verifica o tipo de faixa e obtém o caminho correto
-            audio_path = current_track.get('path', current_track) if isinstance(current_track, dict) else current_track
+            audio_path = current_track.get("path", current_track) if isinstance(current_track, dict) else current_track
             is_remote = isinstance(audio_path, str) and audio_path.startswith("http")
 
             # Erro se local e não existe
@@ -218,6 +106,7 @@ class Music(commands.Cog):
         except Exception as e:
             print(f"Erro ao tocar a faixa: {e}")
             after_playback(e)
+
     def buscar_arquivo(self, nome: str) -> Optional[str]:
         # normaliza o nome passado
         nome_normalizado = unidecode.unidecode(nome).lower()
@@ -247,10 +136,10 @@ class Music(commands.Cog):
 
     @app_commands.command(name="tocar", description="Toca um ou mais áudios no canal de voz")
     @app_commands.describe(
-        arquivo="Nome(s) de arquivo(s), pasta(s) (*nome) ou URL(s) do YouTube, separados por vírgula"
+        arquivo="Nome(s) de arquivo(s), pasta(s) (*nome) ou URL(s) direta(s) de áudio (mp3/ogg/wav), separados por vírgula"
     )
     async def tocar(self, interaction: discord.Interaction, arquivo: str):
-        # 1) defer para dar tempo suficiente à extração/stream
+        # 1) defer para dar tempo suficiente
         await interaction.response.defer(thinking=True)
 
         guild_id = interaction.guild.id
@@ -271,27 +160,29 @@ class Music(commands.Cog):
         self.queues.setdefault(guild_id, [])
 
         for nome in nomes:
-            # ───  A) URL do YouTube  ──────────────────────────────────────────
-
+            # ───  A) URL (YouTube desativado; permite só URL direta de áudio) ───
             if nome.startswith(("http://", "https://")):
-                try:
-                    # aceita qualquer URL do youtube / youtu.be
-                    # extrai stream direto via yt_dlp em thread para não bloquear o event-loop
-                    audio_url, title = await asyncio.to_thread(self.extract_youtube_stream, nome)
-
-                    # enfileira stream remoto com chave consistente ("path" e "title")
-                    self.queues[guild_id].append({"path": audio_url, "title": title})
-                    encontrados.append(title)
-                    print(f"[Music] extraído yt_dlp: {title}")
-
-                except Exception as e:
-                    print(f"[Music] ERRO ao obter áudio via yt_dlp: {e}")
-                    await interaction.followup.send(f"❌ Erro ao processar link `{nome}`: {e}", ephemeral=True)
+                low = nome.lower()
+                if "youtube.com" in low or "youtu.be" in low:
+                    await interaction.followup.send(
+                        "❌ Links do YouTube foram desativados (yt-dlp removido). "
+                        "Baixe o áudio e coloque em `assets/audios/`.",
+                        ephemeral=True
+                    )
                     continue
 
+                parsed = urlparse(nome)
+                if not parsed.scheme or not parsed.netloc:
+                    await interaction.followup.send(f"❌ URL inválida: `{nome}`", ephemeral=True)
+                    continue
+
+                title = os.path.basename(parsed.path) or nome
+                self.queues[guild_id].append({"path": nome, "title": title})
+                encontrados.append(title)
+                continue
 
             # ───  B) Pasta local (*pasta)  ────────────────────────────────────
-            elif nome.startswith("*"):
+            if nome.startswith("*"):
                 pasta = nome[1:]
                 caminho_pasta = os.path.join("assets/audios", pasta)
                 if os.path.isdir(caminho_pasta):
@@ -311,22 +202,22 @@ class Music(commands.Cog):
                     await interaction.followup.send(
                         f"❌ Pasta `{pasta}` não encontrada!", ephemeral=True
                     )
+                continue
 
             # ───  C) Arquivo local simples  ───────────────────────────────────
+            audio_file = self.buscar_arquivo(nome)
+            if audio_file:
+                self.queues[guild_id].append(audio_file)
+                encontrados.append(nome)
             else:
-                audio_file = self.buscar_arquivo(nome)
-                if audio_file:
-                    self.queues[guild_id].append(audio_file)
-                    encontrados.append(nome)
-                else:
-                    await interaction.followup.send(
-                        f"⚠️ Arquivo `{nome}` não encontrado!", ephemeral=True
-                    )
+                await interaction.followup.send(
+                    f"⚠️ Arquivo `{nome}` não encontrado!", ephemeral=True
+                )
 
         # ─── Sem nada válido? retorna ──────────────────────────────────────
         if not encontrados:
             return await interaction.followup.send(
-                "❌ Nenhum áudio, pasta ou URL válido foi encontrado!", ephemeral=True
+                "❌ Nenhum áudio, pasta ou URL válida foi encontrado!", ephemeral=True
             )
 
         # ─── Inicia reprodução ou adiciona à fila ─────────────────────────
@@ -617,6 +508,7 @@ class Music(commands.Cog):
         loaded = []
         not_found = []
         self.queues.setdefault(guild_id, [])
+
         # Substitui a fila atual pela carregada (mantendo forma de dados usada pelo cog)
         new_queue = []
         for item in data["queue"]:
@@ -635,7 +527,7 @@ class Music(commands.Cog):
                     new_queue.append({"path": path, "title": title})
                     loaded.append(title)
                 else:
-                    # remote URL - mantêm como caminho para streaming ffmpeg/invidious
+                    # remote URL - mantêm como caminho para streaming ffmpeg
                     new_queue.append({"path": path, "title": title})
                     loaded.append(title)
             except Exception:
@@ -681,7 +573,7 @@ class Music(commands.Cog):
             msg += f"\n⚠️ Não encontrados/ignorados: {', '.join(not_found)}"
 
         await interaction.response.send_message(msg)
-    
+
     @app_commands.command(name="pausar", description="Pausa ou resume a reprodução (toggle)")
     async def pausar(self, interaction: discord.Interaction):
         guild_id = interaction.guild.id
@@ -705,6 +597,7 @@ class Music(commands.Cog):
                 await interaction.response.send_message("❌ Não há áudio tocando no momento.", ephemeral=True)
         except Exception as e:
             await interaction.response.send_message(f"❌ Erro ao alterar o estado de reprodução: {e}", ephemeral=True)
-            
+
+
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(Music(bot))

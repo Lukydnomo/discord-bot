@@ -18,10 +18,15 @@ from discord.ui import View, Button
 from PIL import Image, ImageEnhance, ImageFont, ImageDraw, ImageChops
 import pyfiglet
 
+from datetime import datetime, timezone
+
 from core.modules import (
     carregar_missoes,
     carregar_piada,
     obter_palavra_do_dia,
+    get_file_content,
+    update_file_content,
+    carregar_dicionario,
 )
 
 try:
@@ -77,6 +82,71 @@ FONTES_DISPONIVEIS = [
 # =========================
 # Helpers
 # =========================
+
+def wordle_max_tentativas(tamanho: int) -> int:
+    # Wordle: 5 letras -> 6 tentativas
+    return tamanho + 1
+
+_WORDLE_SET_CACHE = None  # set com palavras válidas (lower)
+
+def _wordle_week_key() -> str:
+    iso = datetime.now(timezone.utc).isocalendar()
+    return f"{iso.year}-W{iso.week:02d}"
+
+def _wordle_day_key() -> str:
+    # mantém igual teu obter_palavra_do_dia() (mm/dd/yy)
+    return datetime.now(timezone.utc).strftime("%m/%d/%y")
+
+def _wordle_get_wordset():
+    global _WORDLE_SET_CACHE
+    if _WORDLE_SET_CACHE is None:
+        try:
+            _WORDLE_SET_CACHE = set(
+                w.strip().lower()
+                for w in carregar_dicionario()
+                if isinstance(w, str) and w.strip()
+            )
+        except Exception:
+            _WORDLE_SET_CACHE = set()
+    return _WORDLE_SET_CACHE
+
+def _wordle_score(secret: str, guess: str) -> str:
+    """
+    Wordle-like (com duplicatas):
+    🟩 letra certa no lugar
+    🟨 letra existe mas em outro lugar (respeita quantidade)
+    ⬛ não existe
+    """
+    secret = secret.lower()
+    guess = guess.lower()
+
+    res = ["⬛"] * len(secret)
+
+    # conta letras que sobraram (não verdes)
+    remaining = {}
+    for i, (s, g) in enumerate(zip(secret, guess)):
+        if g == s:
+            res[i] = "🟩"
+        else:
+            remaining[s] = remaining.get(s, 0) + 1
+
+    # marca amarelos
+    for i, g in enumerate(guess):
+        if res[i] == "🟩":
+            continue
+        if remaining.get(g, 0) > 0:
+            res[i] = "🟨"
+            remaining[g] -= 1
+
+    return "".join(res)
+
+def _wordle_render(secret_len: int, guesses: list[str], secret: str) -> str:
+    lines = []
+    for g in guesses:
+        lines.append(f"{_wordle_score(secret, g)}  `{g}`")
+    if not lines:
+        lines.append("— (ainda sem palpites)")
+    return "\n".join(lines)
 
 def calcular_compatibilidade(nome1: str, nome2: str) -> str:
     base = (nome1.strip().lower() + "|" + nome2.strip().lower()).encode("utf-8")
@@ -392,6 +462,261 @@ class Misc(commands.Cog):
     async def pdd(self, interaction: discord.Interaction):
         palavra = obter_palavra_do_dia()
         await interaction.response.send_message(palavra, ephemeral=True)
+
+        # ---------- WORDLE ----------
+    @app_commands.command(name="wordle", description="Adivinhe a palavra do dia (estilo Wordle).")
+    @app_commands.describe(palpite="Seu palpite (mesmo tamanho da palavra)", publico="Se True, manda o resultado no canal")
+    async def wordle(self, interaction: discord.Interaction, palpite: Optional[str] = None, publico: bool = False):
+        if interaction.guild is None:
+            return await interaction.response.send_message("❌ Isso só funciona em servidor.", ephemeral=True)
+
+        # pode demorar (DB no GitHub), então defer
+        await interaction.response.defer(thinking=True, ephemeral=(not publico))
+
+        guild_id = interaction.guild.id
+        user_id = interaction.user.id
+
+        # segredo do dia (persistido no teu DB)
+        secret_raw = obter_palavra_do_dia()  # :contentReference[oaicite:5]{index=5}
+        day_key = _wordle_day_key()
+
+        secret = (secret_raw or "").strip().lower()
+        if not secret:
+            return await interaction.followup.send("❌ Palavra do dia inválida.", ephemeral=True)
+
+        secret_len = len(secret)
+        # agora calculamos o máximo de tentativas para o dia
+        max_tries = wordle_max_tentativas(secret_len)
+
+        guess = None
+        if palpite is not None:
+            guess = palpite.strip().lower()
+
+        def _play():
+            data = get_file_content()
+            if not isinstance(data, dict):
+                data = {}
+
+            # raiz do wordle por servidor
+            root = data.setdefault("wordle", {})
+            g = root.setdefault(str(guild_id), {})
+
+            entry = g.get(day_key)
+            if not isinstance(entry, dict) or entry.get("word") != secret or entry.get("len") != secret_len:
+                entry = {"word": secret, "len": secret_len, "players": {}}
+                g[day_key] = entry
+
+            players = entry.setdefault("players", {})
+            p = players.get(str(user_id))
+            if not isinstance(p, dict):
+                p = {"guesses": [], "solved": False}
+                players[str(user_id)] = p
+
+            guesses = p.get("guesses")
+            if not isinstance(guesses, list):
+                guesses = []
+                p["guesses"] = guesses
+
+            solved = bool(p.get("solved", False))
+
+            # status sem palpite
+            if guess is None:
+                return {
+                    "status": "status",
+                    "guesses": guesses,
+                    "solved": solved,
+                    "secret_len": secret_len,
+                    "day": day_key,
+                }
+
+            if solved:
+                return {
+                    "status": "already_solved",
+                    "guesses": guesses,
+                    "solved": True,
+                    "secret_len": secret_len,
+                    "day": day_key,
+                }
+
+            if len(guesses) >= max_tries:
+                return {
+                    "status": "no_tries",
+                    "guesses": guesses,
+                    "solved": False,
+                    "secret_len": secret_len,
+                    "day": day_key,
+                    "secret": secret,
+                }
+
+            if len(guess) != secret_len:
+                return {
+                    "status": "bad_len",
+                    "guesses": guesses,
+                    "solved": False,
+                    "secret_len": secret_len,
+                    "day": day_key,
+                }
+
+            # valida no dicionário (se der pra carregar)
+            wordset = _wordle_get_wordset()
+            if wordset and guess not in wordset:
+                return {
+                    "status": "not_in_dict",
+                    "guesses": guesses,
+                    "solved": False,
+                    "secret_len": secret_len,
+                    "day": day_key,
+                }
+
+            first_guess_today = (len(guesses) == 0)
+            guesses.append(guess)
+
+            just_solved = (guess == secret)
+            if just_solved:
+                p["solved"] = True
+
+            # ranking semanal
+            weekly = data.setdefault("wordle_weekly", {})
+            gw = weekly.setdefault(str(guild_id), {})
+            week_key = _wordle_week_key()
+            wk = gw.setdefault(week_key, {})
+            u = wk.get(str(user_id))
+            if not isinstance(u, dict):
+                u = {"wins": 0, "plays": 0, "best": None}
+                wk[str(user_id)] = u
+
+            if first_guess_today:
+                u["plays"] = int(u.get("plays", 0)) + 1
+
+            if just_solved:
+                u["wins"] = int(u.get("wins", 0)) + 1
+                used = len(guesses)
+                best = u.get("best", None)
+                if best is None or used < int(best):
+                    u["best"] = used
+
+            update_file_content(data)
+
+            return {
+                "status": "played",
+                "guesses": guesses,
+                "solved": bool(p.get("solved", False)),
+                "just_solved": just_solved,
+                "secret_len": secret_len,
+                "day": day_key,
+                "tries_left": max_tries - len(guesses),
+                "max_tries": max_tries,
+                "secret": secret if (len(guesses) >= max_tries and not just_solved) else None,
+            }
+
+        result = await asyncio.to_thread(_play)
+
+        board = _wordle_render(result["secret_len"], result["guesses"], secret)
+
+        # mensagens
+        if result["status"] == "status":
+            return await interaction.followup.send(
+                f"🧩 **Wordle do dia** ({result['day']})\n"
+                f"📏 Tamanho: **{result['secret_len']}** letras | Tentativas: **{max_tries}**\n\n"
+                f"{board}\n\n"
+                f"Use: `/wordle palpite: {'x'*result['secret_len']}`",
+                ephemeral=(not publico),
+            )
+
+        if result["status"] == "already_solved":
+            return await interaction.followup.send(
+                f"✅ Você já resolveu o Wordle de hoje ({result['day']}).\n\n{board}",
+                ephemeral=True,
+            )
+
+        if result["status"] == "no_tries":
+            return await interaction.followup.send(
+                f"❌ Suas tentativas acabaram hoje ({result['day']}).\n"
+                f"🔎 A palavra era: **{result['secret']}**\n\n{board}",
+                ephemeral=True,
+            )
+
+        if result["status"] == "bad_len":
+            return await interaction.followup.send(
+                f"❌ Palpite com tamanho errado. A palavra de hoje tem **{result['secret_len']}** letras.",
+                ephemeral=True,
+            )
+
+        if result["status"] == "not_in_dict":
+            return await interaction.followup.send(
+                "❌ Essa palavra não tá no meu dicionário (assets/resources/palavras.txt).",
+                ephemeral=True,
+            )
+
+        # played
+        if result.get("just_solved"):
+            return await interaction.followup.send(
+                f"🎉 **Acertou!** ✅\n"
+                f"📅 {result['day']} | Tentativas restantes: **{result['tries_left']}**\n\n{board}",
+                ephemeral=(not publico),
+            )
+
+        if result.get("secret") is not None:
+            # perdeu (mas só revela em msg privada)
+            await interaction.followup.send(
+                f"😵 Tentativas acabaram.\n🔎 A palavra era: **{result['secret']}**\n\n{board}",
+                ephemeral=True,
+            )
+            if publico:
+                return await interaction.followup.send(
+                    f"😵 {interaction.user.mention} não conseguiu hoje.\n\n{board}",
+                    ephemeral=False,
+                )
+            return
+
+        return await interaction.followup.send(
+            f"🧩 Palpite registrado.\n"
+            f"📅 {result['day']} | Tentativas restantes: **{result['tries_left']}**\n\n{board}",
+            ephemeral=(not publico),
+        )
+
+    @app_commands.command(name="wordle_rank", description="Ranking semanal do Wordle no servidor.")
+    async def wordle_rank(self, interaction: discord.Interaction):
+        if interaction.guild is None:
+            return await interaction.response.send_message("❌ Isso só funciona em servidor.", ephemeral=True)
+
+        await interaction.response.defer(thinking=True)
+
+        guild_id = interaction.guild.id
+        week_key = _wordle_week_key()
+
+        def _read():
+            data = get_file_content()
+            weekly = (data or {}).get("wordle_weekly", {})
+            gw = (weekly or {}).get(str(guild_id), {})
+            wk = (gw or {}).get(week_key, {})
+            if not isinstance(wk, dict):
+                return []
+            rows = []
+            for uid, st in wk.items():
+                if not isinstance(st, dict):
+                    continue
+                wins = int(st.get("wins", 0))
+                plays = int(st.get("plays", 0))
+                best = st.get("best", None)
+                rows.append((uid, wins, plays, best))
+            # ordena: wins desc, best asc (None por último), plays desc
+            def best_key(x):
+                return 999 if x is None else int(x)
+            rows.sort(key=lambda r: (-r[1], best_key(r[3]), -r[2]))
+            return rows[:10]
+
+        top = await asyncio.to_thread(_read)
+
+        if not top:
+            return await interaction.followup.send(f"📊 Ranking {week_key}: ninguém jogou ainda.")
+
+        lines = []
+        for i, (uid, wins, plays, best) in enumerate(top, start=1):
+            best_txt = "-" if best is None else f"{best} tent."
+            lines.append(f"**{i}.** <@{uid}> — 🏆 {wins} | 🎮 {plays} | ⭐ melhor {best_txt}")
+
+        await interaction.followup.send(f"📊 **Ranking Wordle** ({week_key})\n" + "\n".join(lines))
 
     # ---------- Rolar ----------
     @app_commands.command(name="rolar", description="Rola dados no formato XdY com operações matemáticas")
