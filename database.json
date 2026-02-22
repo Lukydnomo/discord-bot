@@ -58,6 +58,18 @@
                     ],
                     "aliases": [],
                     "by": 767015394648915978
+                },
+                "conjuracao_complexa": {
+                    "nome": "Conjura\u00e7\u00e3o Complexa",
+                    "fonte": "SaH",
+                    "pagina": 114,
+                    "notas": "Conjura\u00e7\u00e3o complexa transforma o ritual em um processo de 3 rodadas consecutivas: 1) s\u00edmbolo, 2) componentes, 3) invoca\u00e7\u00e3o. Durante todo o tempo voc\u00ea fica desprevenido e deve manter concentra\u00e7\u00e3o: faz teste de Vontade ao sofrer dano e no fim de cada rodada sob condi\u00e7\u00e3o ruim; se n\u00e3o puder agir em alguma rodada, o ritual \u00e9 interrompido e recome\u00e7a. A\u00e7\u00f5es padr\u00e3o extras n\u00e3o aceleram, mas cada uma concede +2 no teste de Ocultismo. Na 1\u00aa rodada voc\u00ea desenha o s\u00edmbolo e pode usar material de elemento para ganhar efeitos extras. Na 2\u00aa voc\u00ea prepara componentes; consumi-los pode fortalecer o ritual e catalisadores podem substituir. Na 3\u00aa voc\u00ea define PE, aprimoramentos e alvos e faz Ocultismo DT 20 + PE gasto: se passar, conjura; se falhar, paga os custos e nada acontece (podendo afetar Sanidade). Ao extrapolar limites, soma Presen\u00e7a ao limite de PE e usa aprimoramentos como 1 c\u00edrculo acima, mas com mais risco.",
+                    "tags": [
+                        "ritual",
+                        "regra"
+                    ],
+                    "aliases": [],
+                    "by": 767015394648915978
                 }
             }
         }
