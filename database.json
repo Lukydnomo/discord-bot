@@ -32,6 +32,32 @@
             }
         }
     },
-    "wordle": {},
-    "last_wordle_cleanup": "02/22/26"
+    "wordle": {
+        "1228383214049951815": {
+            "02/22/26": {
+                "word": "represem",
+                "len": 8,
+                "players": {
+                    "1345449850954715176": {
+                        "guesses": [
+                            "prometem"
+                        ],
+                        "solved": false
+                    }
+                }
+            }
+        }
+    },
+    "last_wordle_cleanup": "02/22/26",
+    "wordle_weekly": {
+        "1228383214049951815": {
+            "2026-W08": {
+                "1345449850954715176": {
+                    "wins": 0,
+                    "plays": 1,
+                    "best": null
+                }
+            }
+        }
+    }
 }
