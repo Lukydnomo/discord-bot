@@ -412,3 +412,60 @@ Dito isso, vlw, por tudo. _Eu já não vejo mais nada_.
 ## Observação
 
 - difícil
+
+<!-- prettier-ignore -->
+- - - - - - - - - -
+
+## [2.3.0] - 2026-02-22
+
+**update de utilidades e sistemas que facilitam a vida da mesa**
+
+### 🆕 Adicionado
+
+🎲 **Sistema de Macros**
+
+- Agora é possível salvar rolagens e usar depois com comandos rápidos.
+- Permite criar, listar, visualizar e remover macros pessoais ou do servidor.
+
+📚 **Sistema de Referências (`/ref`)**
+
+- Salve termos importantes com fonte, página, notas, tags e sinônimos.
+- Ideal pra consultar regras, condições e rituais sem ficar abrindo PDF.
+
+🔇 **Painel de mute para call (`/mutecall`)**
+
+- Embed com botões para mutar ou desmutar todos da call rapidamente.
+- Perfeito para jogos que exigem silêncio.
+
+🎮 **Organização dos comandos de diversão**
+
+- Comandos como **jokenpô**, **roleta**, **piadas**, **missões**, **ASCII**, **lápide**, **deepfry** e outros foram reunidos e melhor organizados.
+
+🧩 **Melhorias em painéis interativos**
+
+- Botões de alguns sistemas agora continuam funcionando mesmo após reinicializações do bot.
+
+---
+
+### ⚙️ Alterado
+
+- Ajustes no balanceamento da conversão de **Sanidade → PD** para resultados mais consistentes.
+- Sistema de referências ficou mais inteligente ao buscar termos (menos erro com variações e acentos).
+- Melhorias gerais na organização dos comandos para deixar o bot mais fácil de usar.
+
+---
+
+### 🛠️ Correções
+
+- Correções em salvamento de dados que podiam causar perda de informações em raros casos.
+- Ajustes em sistemas interativos que às vezes paravam de responder após atualizações.
+- Pequenas correções de inconsistências em comandos de rolagem e utilidades.
+
+---
+
+### 📝 Observação
+
+- madrugada foi foda guys
+
+<!-- prettier-ignore -->
+- - - - - - - - - -
