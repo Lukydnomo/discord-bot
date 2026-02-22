@@ -29,6 +29,17 @@
                     ],
                     "aliases": [],
                     "by": 1345449850954715176
+                },
+                "reter ritual": {
+                    "fonte": "Arquivos Secretos",
+                    "pagina": 58,
+                    "notas": "Reter ritual permite manter rituais de dura\u00e7\u00e3o cena ativos indefinidamente. Ao conjurar, voc\u00ea pode mudar a dura\u00e7\u00e3o para retida como a\u00e7\u00e3o livre ou rea\u00e7\u00e3o: os PE do ritual ficam \u201cpresos\u201d, reduzindo seus PE atuais e m\u00e1ximos, e voc\u00ea perde 1 SAN ao come\u00e7ar a reter. Enquanto esses PE estiverem retidos, o ritual continua funcionando. Voc\u00ea pode parar quando quiser (a\u00e7\u00e3o livre/rea\u00e7\u00e3o) e recupera os PE m\u00e1ximos, mas n\u00e3o os atuais; para recuperar ambos, pode gastar uma a\u00e7\u00e3o padr\u00e3o e fazer Ocultismo (DT 20 + custo em PE). Se falhar, recupera s\u00f3 os m\u00e1ximos. Efeitos que duravam a cena passam a durar enquanto o ritual for retido. Se o ritual afeta inimigos, voc\u00ea precisa manter linha de efeito para que funcione. Redu\u00e7\u00f5es de dura\u00e7\u00e3o tamb\u00e9m reduzem a reten\u00e7\u00e3o. Voc\u00ea pode reter v\u00e1rios rituais, mas perder foco encerra todos.",
+                    "tags": [
+                        "ritual",
+                        "regra"
+                    ],
+                    "aliases": [],
+                    "by": 767015394648915978
                 }
             }
         }
