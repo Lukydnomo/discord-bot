@@ -60,9 +60,9 @@ class ServerConfig(commands.Cog):
         if interaction.guild is None:
             return await interaction.response.send_message("❌ Isso só funciona em servidor.", ephemeral=True)
 
-        if not interaction.user.guild_permissions.manage_guild:
+        if not interaction.user.guild_permissions.administrator:
             return await interaction.response.send_message(
-                "❌ Pra configurar isso, precisa permissão **Gerenciar Servidor**.",
+                "❌ Pra configurar isso, precisa permissão **Administrador**.",
                 ephemeral=True,
             )
 
@@ -109,8 +109,8 @@ class ServerConfig(commands.Cog):
         if interaction.guild is None:
             return await interaction.response.send_message("❌ Isso só funciona em servidor.", ephemeral=True)
 
-        if not interaction.user.guild_permissions.manage_guild:
-            return await interaction.response.send_message("❌ Precisa **Gerenciar Servidor**.", ephemeral=True)
+        if not interaction.user.guild_permissions.administrator:
+            return await interaction.response.send_message("❌ Precisa **Administrador**.", ephemeral=True)
 
         segundos = max(0, min(3600, int(segundos)))
 
@@ -141,8 +141,8 @@ class ServerConfig(commands.Cog):
         if interaction.guild is None:
             return await interaction.response.send_message("❌ Isso só funciona em servidor.", ephemeral=True)
 
-        if not interaction.user.guild_permissions.manage_guild:
-            return await interaction.response.send_message("❌ Precisa **Gerenciar Servidor**.", ephemeral=True)
+        if not interaction.user.guild_permissions.administrator:
+            return await interaction.response.send_message("❌ Precisa **Administrador**.", ephemeral=True)
 
         kbps = max(48, min(320, int(kbps)))
 
@@ -169,9 +169,9 @@ class ServerConfig(commands.Cog):
         if interaction.guild is None:
             return await interaction.response.send_message("❌ Isso só funciona em servidor.", ephemeral=True)
 
-        if not interaction.user.guild_permissions.manage_guild:
+        if not interaction.user.guild_permissions.administrator:
             return await interaction.response.send_message(
-                "❌ Pra configurar isso, precisa permissão **Gerenciar Servidor**.",
+                "❌ Pra configurar isso, precisa permissão **Administrador**.",
                 ephemeral=True,
             )
 
@@ -266,9 +266,9 @@ class ServerConfig(commands.Cog):
         if interaction.guild is None:
             return await interaction.response.send_message("❌ Isso só funciona em servidor.", ephemeral=True)
 
-        if not interaction.user.guild_permissions.manage_guild:
+        if not interaction.user.guild_permissions.administrator:
             return await interaction.response.send_message(
-                "❌ Pra configurar isso, precisa permissão **Gerenciar Servidor**.",
+                "❌ Pra configurar isso, precisa permissão **Administrador**.",
                 ephemeral=True,
             )
 
@@ -313,9 +313,9 @@ class ServerConfig(commands.Cog):
         if interaction.guild is None:
             return await interaction.response.send_message("❌ Isso só funciona em servidor.", ephemeral=True)
 
-        if not interaction.user.guild_permissions.manage_guild:
+        if not interaction.user.guild_permissions.administrator:
             return await interaction.response.send_message(
-                "❌ Pra configurar isso, precisa permissão **Gerenciar Servidor**.",
+                "❌ Pra configurar isso, precisa permissão **Administrador**.",
                 ephemeral=True,
             )
 
