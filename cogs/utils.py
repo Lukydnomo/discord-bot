@@ -1,16 +1,93 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from discord.ui import View, Button
-import math
 import re
 import ast
 import operator as op
+
+# IDs fixos
+BOARD_CHANNEL_ID = 1472670458993446922
+DEST_CHANNEL_ID = 1472671366183649462
+PING_USER_ID = 767015394648915978
+
+class HexaMusicButton(discord.ui.Button):
+    def __init__(self, number: int, row: int):
+        super().__init__(
+            label=str(number),
+            style=discord.ButtonStyle.primary,
+            custom_id=f"num_button_{number}",  # <- IGUAL ao que você já usava
+            row=row,
+        )
+        self.number = number
+
+    async def callback(self, interaction: discord.Interaction):
+        try:
+            dest = interaction.client.get_channel(DEST_CHANNEL_ID)
+            if dest is None:
+                dest = await interaction.client.fetch_channel(DEST_CHANNEL_ID)
+
+            await dest.send(f"<@{PING_USER_ID}> Música {self.number}")
+
+            # responde o clique
+            if interaction.response.is_done():
+                await interaction.followup.send(f"Número {self.number} enviado.", ephemeral=True)
+            else:
+                await interaction.response.send_message(f"Número {self.number} enviado.", ephemeral=True)
+
+        except Exception:
+            msg = "Falha ao enviar o número. Verifique permissões."
+            if interaction.response.is_done():
+                await interaction.followup.send(msg, ephemeral=True)
+            else:
+                await interaction.response.send_message(msg, ephemeral=True)
+
+
+class HexaMusicView(discord.ui.View):
+    def __init__(self, start: int, end: int):
+        super().__init__(timeout=None)  # <- obrigatório pra persistir
+        for idx, n in enumerate(range(start, end + 1)):
+            self.add_item(HexaMusicButton(n, row=idx // 5))
 
 class Utils(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
     
+    # Operadores permitidos (calculadora segura)
+    allowed_operators = {
+        ast.Add: op.add,
+        ast.Sub: op.sub,
+        ast.Mult: op.mul,
+        ast.Div: op.truediv,
+        ast.USub: op.neg,
+        ast.UAdd: op.pos,
+    }
+
+    def eval_expr(self, expr: str):
+        def _eval(node):
+            # Python 3.8+: números vêm como ast.Constant
+            if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+                return node.value
+
+            # Compat com versões antigas
+            if isinstance(node, ast.Num):
+                return node.n
+
+            if isinstance(node, ast.BinOp):
+                op_type = type(node.op)
+                if op_type not in self.allowed_operators:
+                    raise TypeError("Operador inválido.")
+                return self.allowed_operators[op_type](_eval(node.left), _eval(node.right))
+
+            if isinstance(node, ast.UnaryOp):
+                op_type = type(node.op)
+                if op_type not in self.allowed_operators:
+                    raise TypeError("Operador inválido.")
+                return self.allowed_operators[op_type](_eval(node.operand))
+
+            raise TypeError("Expressão inválida.")
+
+        return _eval(ast.parse(expr, mode="eval").body)
+
     @app_commands.command(name="converter_sanidade_para_pd", description="Converte valores de Sanidade para Pontos de Determinação.")
     @app_commands.describe(sanidade="Valor de Sanidade a ser convertido.")
     async def converter_sanidade_para_pd(self, interaction: discord.Interaction, sanidade: int):
@@ -25,7 +102,7 @@ class Utils(commands.Cog):
         Returns:
             None
         """
-        pd = int((sanidade / 3) * 2 + 0.5)
+        pd = int((sanidade * 0.4) + 0.5)
         await interaction.response.send_message(f"O valor convertido de {sanidade} sanidade é {pd} pontos de determinação (PD).")
 
     @app_commands.command(name="calcular_pd", description="Calcula os pontos de determinação (PD)")
@@ -88,7 +165,7 @@ class Utils(commands.Cog):
             pre_pd += nex_pos * multiplicador
 
         if com_cicatrizes_psicológicas.value == 1:
-            pre_pd += int(((nex_pos/3)*2)+0.5)
+            pre_pd += int((nex_pos*0.4)+0.5)
 
         pd = pre_pd
 
@@ -102,95 +179,24 @@ class Utils(commands.Cog):
 
     @app_commands.command(name="hexatombe_musics", description="Posta um embed com 48 botões numerados de 1 a 48.")
     async def postar_botoes(self, interaction: discord.Interaction):
-        """Envia um embed com 48 botões para o canal de painel.
-
-        Ao clicar em um botão, o número correspondente será enviado
-        para o canal destino.
-        """
         BOARD_CHANNEL_ID = 1472670458993446922
-        DEST_CHANNEL_ID = 1472671366183649462
 
         await interaction.response.defer(thinking=True, ephemeral=True)
-
-        embed = discord.Embed(
-            title="Escolha um número",
-            description="Clique em um número de 1 a 48 abaixo.",
-            color=discord.Color.blurple(),
-        )
-
-        # O Discord permite no máximo 5 linhas (rows 0..4) por mensagem,
-        # cada linha comporta até 5 botões => até 25 botões por mensagem.
-        # Dividimos os 48 números em batches para respeitar esse limite.
-        chunk_size = 24
 
         board = self.bot.get_channel(BOARD_CHANNEL_ID)
         if board is None:
             board = await self.bot.fetch_channel(BOARD_CHANNEL_ID)
 
-        batches = [range(i, min(i + chunk_size, 49)) for i in range(1, 49, chunk_size)]
+        batches = [(1, 24), (25, 48)]
+        for batch_idx, (start, end) in enumerate(batches, start=1):
+            batch_embed = discord.Embed(
+                title=f"Escolha um número (parte {batch_idx}/{len(batches)})",
+                description="Clique em um número abaixo.",
+                color=discord.Color.blurple(),
+            )
+            await board.send(embed=batch_embed, view=HexaMusicView(start, end))
 
-        try:
-            for batch_idx, batch in enumerate(batches, start=1):
-                batch_embed = discord.Embed(
-                    title=f"Escolha um número (parte {batch_idx}/{len(batches)})",
-                    description="Clique em um número abaixo.",
-                    color=discord.Color.blurple(),
-                )
-
-                view = View(timeout=None)
-
-                for idx, i in enumerate(batch):
-                    row = idx // 5
-                    btn = Button(label=str(i), style=discord.ButtonStyle.primary, custom_id=f"num_button_{i}", row=row)
-
-                    async def _callback(interaction_button: discord.Interaction, number=i):
-                        try:
-                            dest = self.bot.get_channel(DEST_CHANNEL_ID)
-                            if dest is None:
-                                dest = await self.bot.fetch_channel(DEST_CHANNEL_ID)
-                            await dest.send(f"<@767015394648915978> Música {str(number)}")
-                            await interaction_button.response.send_message(f"Número {number} enviado.", ephemeral=True)
-                        except Exception:
-                            try:
-                                await interaction_button.response.send_message("Falha ao enviar o número. Verifique permissões.", ephemeral=True)
-                            except Exception:
-                                pass
-
-                    btn.callback = _callback
-                    view.add_item(btn)
-
-                await board.send(embed=batch_embed, view=view)
-
-            await interaction.followup.send("Embed(s) com botões enviado(s) com sucesso.", ephemeral=True)
-        except Exception as e:
-            await interaction.followup.send(f"Falha ao enviar embed(s): {e}", ephemeral=True)
-
-    # Operadores permitidos
-    allowed_operators = {
-        ast.Add: op.add,
-        ast.Sub: op.sub,
-        ast.Mult: op.mul,
-        ast.Div: op.truediv,
-        ast.USub: op.neg
-    }
-    
-    def eval_expr(self, expr):
-        def _eval(node):
-            if isinstance(node, ast.Num):
-                return node.n
-            elif isinstance(node, ast.BinOp):
-                return self.allowed_operators[type(node.op)](
-                    _eval(node.left),
-                    _eval(node.right)
-                )
-            elif isinstance(node, ast.UnaryOp):
-                return self.allowed_operators[type(node.op)](
-                    _eval(node.operand)
-                )
-            else:
-                raise TypeError("Expressão inválida.")
-    
-        return _eval(ast.parse(expr, mode='eval').body)
+        await interaction.followup.send("Embed(s) com botões enviado(s) com sucesso.", ephemeral=True)
     
     @app_commands.command(
         name="calcular_dano_medio",
@@ -227,3 +233,8 @@ class Utils(commands.Cog):
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Utils(bot))
+
+    if not getattr(bot, "_hexatombe_views_registered", False):
+        bot.add_view(HexaMusicView(1, 24))
+        bot.add_view(HexaMusicView(25, 48))
+        bot._hexatombe_views_registered = True
