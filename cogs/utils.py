@@ -196,7 +196,8 @@ def _get_guild_cfg_sync(guild_id: int) -> dict:
 
 
 async def _get_guild_cfg(guild_id: int) -> dict:
-    return await asyncio.to_thread(_get_guild_cfg_sync)
+    # the sync helper expects the guild_id argument, pass it along
+    return await asyncio.to_thread(_get_guild_cfg_sync, guild_id)
 
 
 async def _fetch_text_channel(client: discord.Client, channel_id: int) -> Optional[discord.TextChannel]:
@@ -246,7 +247,9 @@ class HexaMusicButton(discord.ui.Button):
             else:
                 await interaction.response.send_message(f"Número {self.number} enviado.", ephemeral=True)
 
-        except Exception:
+        except Exception as e:
+            # log the real error so we can diagnose permission/other issues
+            interaction.followup.send(f"[Hexatombe] erro: {type(e).__name__}: {e}")
             msg = "Falha ao enviar o número. Verifique permissões."
             if interaction.response.is_done():
                 await interaction.followup.send(msg, ephemeral=True)

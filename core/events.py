@@ -28,7 +28,8 @@ async def on_ready_custom(bot, conteudo):
             print(f"❌ Falha ao sincronizar comandos no servidor {guild.name}: {e}")
 
     # Atualiza o canal com o changelog (configurável por servidor)
-    data = get_file_content()
+    # use force=True to ensure we read the latest config from disk/GitHub
+    data = get_file_content(force=True)
     guild_cfg = (data.get("guild_config") or {}) if isinstance(data, dict) else {}
 
     full_message = f"{conteudo}"
