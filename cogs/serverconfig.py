@@ -7,7 +7,6 @@ from discord import app_commands
 from discord.ext import commands
 
 from core.modules import get_file_content, update_file_content
-from core.config import usuarios_autorizados
 
 
 def _ensure_guild_config(data: dict) -> dict:
@@ -30,16 +29,6 @@ class ServerConfig(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    botconfig = app_commands.Group(
-        name="botconfig",
-        description="Config global do bot (somente autorizados).",
-    )
-
-    def _is_authorized(self, user_id: int) -> bool:
-        try:
-            return int(user_id) in set(int(x) for x in usuarios_autorizados)
-        except Exception:
-            return False
 
     config = app_commands.Group(
         name="config",
@@ -344,8 +333,8 @@ class ServerConfig(commands.Cog):
         ok = await asyncio.to_thread(_clear)
         await interaction.followup.send("✅ Config do Hexatombe removida." if ok else "❌ Falha ao remover.", ephemeral=True)
 
-    # -- botconfig commands ------------------------------------------------
-    @botconfig.command(name="log_channel", description="Define o canal global de logs do bot.")
+    # -- comandos globais (antes botconfig) -----------------------------------
+    @config.command(name="log_channel", description="Define o canal global de logs do bot.")
     @app_commands.describe(canal="Canal onde o bot manda logs globais")
     async def botconfig_log_channel(self, interaction: discord.Interaction, canal: discord.TextChannel):
         # only server admins are allowed to adjust global bot config
@@ -365,7 +354,7 @@ class ServerConfig(commands.Cog):
         ok = await asyncio.to_thread(_write)
         await interaction.followup.send("✅ Log channel global salvo." if ok else "❌ Falha ao salvar.", ephemeral=True)
 
-    @botconfig.command(name="dice_limits", description="Define limites globais do roller (dados e faces).")
+    @config.command(name="dice_limits", description="Define limites globais do roller (dados e faces).")
     @app_commands.describe(max_dados="Máx de dados no grupo", max_faces="Máx de faces (dN)")
     async def botconfig_dice_limits(self, interaction: discord.Interaction, max_dados: int, max_faces: int):
         if interaction.guild is None or not interaction.user.guild_permissions.administrator:
@@ -388,7 +377,7 @@ class ServerConfig(commands.Cog):
         ok = await asyncio.to_thread(_write)
         await interaction.followup.send("✅ Limites de dados salvos." if ok else "❌ Falha ao salvar.", ephemeral=True)
 
-    @botconfig.command(name="show", description="Mostra o botconfig atual (global).")
+    @config.command(name="show_botconfig", description="Mostra o botconfig atual (global).")
     async def botconfig_show(self, interaction: discord.Interaction):
         if interaction.guild is None or not interaction.user.guild_permissions.administrator:
             return await interaction.response.send_message("❌ Apenas administradores podem ver o botconfig.", ephemeral=True)
