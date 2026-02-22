@@ -45,6 +45,12 @@
                             "represem"
                         ],
                         "solved": true
+                    },
+                    "767015394648915978": {
+                        "guesses": [
+                            "represem"
+                        ],
+                        "solved": true
                     }
                 }
             }
@@ -58,6 +64,11 @@
                     "wins": 1,
                     "plays": 1,
                     "best": 3
+                },
+                "767015394648915978": {
+                    "wins": 1,
+                    "plays": 1,
+                    "best": 1
                 }
             }
         }
