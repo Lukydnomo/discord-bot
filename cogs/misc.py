@@ -497,6 +497,19 @@ class Misc(commands.Cog):
             if not isinstance(data, dict):
                 data = {}
 
+            # limpa registros antigos a cada novo dia para evitar inchaço da DB
+            # (será executado na primeira chamada do comando após a virada)
+            last = data.get("last_wordle_cleanup")
+            if last != day_key:
+                # remove apenas os dados diários de palpites; mantém estatísticas semanais
+                data["wordle"] = {}
+                data["last_wordle_cleanup"] = day_key
+                try:
+                    update_file_content(data)
+                except Exception:
+                    # se falhar, não queremos interromper o jogo; será tentado de novo depois
+                    pass
+
             # raiz do wordle por servidor
             root = data.setdefault("wordle", {})
             g = root.setdefault(str(guild_id), {})
