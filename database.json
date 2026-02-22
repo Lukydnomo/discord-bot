@@ -75,7 +75,8 @@
     },
     "guild_config": {
         "1228383214049951815": {
-            "updates_channel_id": 1319356880627171448
+            "updates_channel_id": 1319356880627171448,
+            "updates_role_id": 1319355628195549247
         }
     }
 }
