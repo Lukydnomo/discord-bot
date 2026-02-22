@@ -12,6 +12,7 @@ import requests
 from core.config import *
 
 # Database System
+DB_BRANCH = "db"  # branch dedicada pro banco de dados
 _cached_data = None  # Cache em memória
 _cached_sha = None  # SHA do arquivo no GitHub
 
@@ -63,7 +64,7 @@ def get_file_content(force=False):
     global _cached_data, _cached_sha, _cached_at
     # recarrega quando o cache estará vazio, expirado ou se for pedido explícito
     if force or _cached_data is None or (time.time() - _cached_at) > CACHE_TTL:
-        url = f"https://api.github.com/repos/{github_repo}/contents/{json_file_path}"
+        url = f"https://api.github.com/repos/{github_repo}/contents/{json_file_path}?ref={DB_BRANCH}"
         headers = {"Authorization": f"token {GITHUBTOKEN}"}
         response = requests.get(url, headers=headers).json()
 
@@ -95,11 +96,12 @@ def update_file_content(data, retries=2):
         url = f"https://api.github.com/repos/{github_repo}/contents/{json_file_path}"
         headers = {"Authorization": f"token {GITHUBTOKEN}"}
         new_content = b64encode(json.dumps(data, indent=4).encode()).decode()
-        commit_message = "Atualizando banco de dados"
+        commit_message = "Atualizando banco de dados (db)"
         payload = {
             "message": commit_message,
             "content": new_content,
             "sha": _cached_sha,  # Inclui o SHA para evitar conflitos
+            "branch": DB_BRANCH,  # especifica a branch destinada ao DB
         }
 
         response = requests.put(url, headers=headers, json=payload)

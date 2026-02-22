@@ -4,6 +4,77 @@ from discord.ext import commands
 import re
 import ast
 import operator as op
+import asyncio
+from typing import Dict, Tuple, List, Optional
+
+from core.modules import get_file_content, update_file_content, rolar_dado
+
+####################################################
+####################################################
+####################################################
+
+# nomes: atk, dano-espada, rifle_01 etc
+MACRO_NAME_RE = re.compile(r"^[a-z0-9_-]{1,24}$", re.I)
+
+# expressão bem restrita pra não deixar coisa perigosa passar pro eval do rolar_dado
+SAFE_EXPR_RE = re.compile(r"^[0-9dD#+\-*/().\s:;=_\n]+$")
+
+MAX_MACRO_LEN = 400
+MAX_PARTS = 10
+
+def _normalize_name(name: str) -> str:
+    return name.strip().lower()
+
+
+def _expand_template(template: str, args: List[str]) -> str:
+    # $1..$9 e $* (tudo)
+    out = template
+    for i in range(1, 10):
+        token = f"${i}"
+        if token in out:
+            out = out.replace(token, args[i - 1] if i - 1 < len(args) else "")
+    out = out.replace("$*", " ".join(args))
+    return out
+
+
+def _ensure_macro_root(data: dict) -> dict:
+    macros = data.get("macros")
+    if not isinstance(macros, dict):
+        macros = {}
+        data["macros"] = macros
+    if not isinstance(macros.get("user"), dict):
+        macros["user"] = {}
+    if not isinstance(macros.get("guild"), dict):
+        macros["guild"] = {}
+    return macros
+
+
+def _get_scope_bucket(macros: dict, scope: str, scope_id: int) -> Dict[str, str]:
+    # scope: "user" ou "guild"
+    bucket = macros[scope].get(str(scope_id))
+    if not isinstance(bucket, dict):
+        bucket = {}
+        macros[scope][str(scope_id)] = bucket
+    return bucket
+
+
+def _split_parts(expanded: str) -> List[str]:
+    # separa por ; ou \n
+    raw = re.split(r"[;\n]+", expanded)
+    parts = [p.strip() for p in raw if p.strip()]
+    return parts[:MAX_PARTS]
+
+
+def _parse_labeled_expr(part: str) -> Tuple[Optional[str], str]:
+    # aceita "label: expr" ou "label=expr"
+    m = re.match(r"^([a-zA-ZÀ-ÿ0-9 _-]{1,20})\s*[:=]\s*(.+)$", part.strip())
+    if m:
+        return m.group(1).strip(), m.group(2).strip()
+    return None, part.strip()
+
+####################################################
+####################################################
+####################################################
 
 # IDs fixos
 BOARD_CHANNEL_ID = 1472670458993446922
@@ -88,6 +159,15 @@ class Utils(commands.Cog):
 
         return _eval(ast.parse(expr, mode="eval").body)
 
+
+
+#######################################################################
+
+
+#######################################################################
+
+
+
     @app_commands.command(name="converter_sanidade_para_pd", description="Converte valores de Sanidade para Pontos de Determinação.")
     @app_commands.describe(sanidade="Valor de Sanidade a ser convertido.")
     async def converter_sanidade_para_pd(self, interaction: discord.Interaction, sanidade: int):
@@ -104,6 +184,13 @@ class Utils(commands.Cog):
         """
         pd = int((sanidade * 0.43) + 0.5)
         await interaction.response.send_message(f"O valor convertido de {sanidade} sanidade é {pd} pontos de determinação (PD).")
+
+
+#######################################################################
+
+
+#######################################################################
+
 
     @app_commands.command(name="calcular_pd", description="Calcula os pontos de determinação (PD)")
     @app_commands.describe(classe="Indica a classe do personagem.",
@@ -171,6 +258,13 @@ class Utils(commands.Cog):
 
         await interaction.response.send_message(f"O valor é {pd} pontos de determinação (PD).")
 
+
+#######################################################################
+
+
+#######################################################################
+
+
     @app_commands.command(name="calcular_dt_ritual", description="Calcula os dados de teste (DT) para um ritual.")
     @app_commands.describe(atributo="Valor do atributo a ser calculado.", ocultismo="Valor do ocultismo a ser calculado.")
     async def calcular_dt_ritual(self, interaction: discord.Interaction, atributo: int, ocultismo: int):
@@ -198,6 +292,13 @@ class Utils(commands.Cog):
 
         await interaction.followup.send("Embed(s) com botões enviado(s) com sucesso.", ephemeral=True)
     
+
+#######################################################################
+
+
+#######################################################################
+
+
     @app_commands.command(
         name="calcular_dano_medio",
         description="Calcula o dano médio com base em uma expressão de dados."
@@ -229,6 +330,282 @@ class Utils(commands.Cog):
             await interaction.response.send_message(
                 f"Erro ao calcular dano médio: {e}"
             )
+
+
+#######################################################################
+
+
+#######################################################################
+
+
+    macro = app_commands.Group(name="macro", description="Macros de rolagem (atalhos)")
+
+    @macro.command(name="macro_set", description="Salva uma macro (atalho de rolagem).")
+    @app_commands.describe(
+        nome="Ex: atk, dano, furtividade",
+        template="Ex: atk: 3d20+$1; dano: 2d8+$2  | Use $1..$9 e $*",
+        escopo="Pessoal (só você) ou Servidor (pra mesa)"
+    )
+    @app_commands.choices(escopo=[
+        app_commands.Choice(name="Pessoal", value="user"),
+        app_commands.Choice(name="Servidor", value="guild"),
+    ])
+    async def macro_set(
+        self,
+        interaction: discord.Interaction,
+        nome: str,
+        template: str,
+        escopo: app_commands.Choice[str],
+    ):
+        nome_n = _normalize_name(nome)
+
+        if not MACRO_NAME_RE.fullmatch(nome_n):
+            return await interaction.response.send_message(
+                "❌ Nome inválido. Use só letras/números/_/- (até 24 chars).",
+                ephemeral=True
+            )
+
+        if len(template) > MAX_MACRO_LEN:
+            return await interaction.response.send_message(
+                f"❌ Macro grande demais (máx {MAX_MACRO_LEN} chars).",
+                ephemeral=True
+            )
+
+        if not SAFE_EXPR_RE.fullmatch(template):
+            return await interaction.response.send_message(
+                "❌ Template contém caracteres não permitidos (por segurança).",
+                ephemeral=True
+            )
+
+        scope = escopo.value
+        if scope == "guild":
+            if interaction.guild is None:
+                return await interaction.response.send_message("❌ Isso só funciona em servidor.", ephemeral=True)
+            # trava "escopo servidor" pra quem tem Manage Guild (evita bagunça)
+            if not interaction.user.guild_permissions.manage_guild:
+                return await interaction.response.send_message(
+                    "❌ Pra salvar macro no servidor, precisa permissão **Gerenciar Servidor**.",
+                    ephemeral=True
+                )
+            scope_id = interaction.guild.id
+        else:
+            scope_id = interaction.user.id
+
+        def _write():
+            data = get_file_content()
+            if not isinstance(data, dict):
+                data = {}
+            macros = _ensure_macro_root(data)
+            bucket = _get_scope_bucket(macros, scope, scope_id)
+            bucket[nome_n] = template.strip()
+            update_file_content(data)
+
+        await asyncio.to_thread(_write)
+
+        await interaction.response.send_message(
+            f"✅ Macro `{nome_n}` salva no escopo **{escopo.name}**.",
+            ephemeral=True
+        )
+
+
+    @macro.command(name="macro_usar", description="Usa uma macro salva.")
+    @app_commands.describe(
+        nome="Nome da macro",
+        args="Argumentos (separados por espaço). Ex: 5 3",
+        oculto="Se True, responde só pra você (ephemeral)."
+    )
+    async def macro_usar(
+        self,
+        interaction: discord.Interaction,
+        nome: str,
+        args: str = "",
+        oculto: bool = False,
+    ):
+        nome_n = _normalize_name(nome)
+        arglist = [a for a in args.split(" ") if a.strip()]
+
+        def _read_template() -> Optional[str]:
+            data = get_file_content()
+            if not isinstance(data, dict):
+                return None
+            macros = data.get("macros", {})
+            if not isinstance(macros, dict):
+                return None
+
+            # prioridade: pessoal > servidor
+            user_bucket = (((macros.get("user") or {}).get(str(interaction.user.id))) or {})
+            if isinstance(user_bucket, dict) and nome_n in user_bucket:
+                return user_bucket[nome_n]
+
+            if interaction.guild is not None:
+                guild_bucket = (((macros.get("guild") or {}).get(str(interaction.guild.id))) or {})
+                if isinstance(guild_bucket, dict) and nome_n in guild_bucket:
+                    return guild_bucket[nome_n]
+
+            return None
+
+        template = _read_template()
+        if not template:
+            return await interaction.response.send_message(
+                f"❌ Macro `{nome_n}` não encontrada (nem pessoal nem do servidor).",
+                ephemeral=True
+            )
+
+        expanded = _expand_template(template, arglist)
+        parts = _split_parts(expanded)
+
+        # valida cada parte antes de rolar
+        for p in parts:
+            _, expr = _parse_labeled_expr(p)
+            if not SAFE_EXPR_RE.fullmatch(expr):
+                return await interaction.response.send_message(
+                    "❌ A macro expandiu para algo com caracteres inválidos (bloqueado por segurança).",
+                    ephemeral=True
+                )
+
+        # rola tudo
+        resultados = []
+        for p in parts:
+            label, expr = _parse_labeled_expr(p)
+            res = await asyncio.to_thread(rolar_dado, expr, True)
+            if res is None:
+                resultados.append(f"❌ Falha ao rolar: `{expr}`")
+                continue
+
+            prefix = f"**{label}**: " if label else ""
+            resultados.append(
+                f"{prefix}``{res['resultado']}`` ⟵ {res['resultadoWOutEval']} {res.get('dice_group', expr)}"
+            )
+
+        await interaction.response.send_message("\n".join(resultados), ephemeral=oculto)
+
+
+    @macro.command(name="macro_list", description="Lista suas macros (e/ou as do servidor).")
+    @app_commands.describe(escopo="Pessoal / Servidor / Ambos")
+    @app_commands.choices(escopo=[
+        app_commands.Choice(name="Pessoal", value="user"),
+        app_commands.Choice(name="Servidor", value="guild"),
+        app_commands.Choice(name="Ambos", value="both"),
+    ])
+    async def macro_list(self, interaction: discord.Interaction, escopo: app_commands.Choice[str]):
+        data = get_file_content()
+        macros = (data or {}).get("macros", {}) if isinstance(data, dict) else {}
+        if not isinstance(macros, dict):
+            macros = {}
+
+        lines = []
+
+        if escopo.value in ("user", "both"):
+            user_bucket = (((macros.get("user") or {}).get(str(interaction.user.id))) or {})
+            if isinstance(user_bucket, dict) and user_bucket:
+                lines.append("**Pessoal:** " + ", ".join(f"`{k}`" for k in sorted(user_bucket.keys())))
+            else:
+                lines.append("**Pessoal:** (vazio)")
+
+        if escopo.value in ("guild", "both"):
+            if interaction.guild is None:
+                lines.append("**Servidor:** (fora de servidor)")
+            else:
+                guild_bucket = (((macros.get("guild") or {}).get(str(interaction.guild.id))) or {})
+                if isinstance(guild_bucket, dict) and guild_bucket:
+                    lines.append("**Servidor:** " + ", ".join(f"`{k}`" for k in sorted(guild_bucket.keys())))
+                else:
+                    lines.append("**Servidor:** (vazio)")
+
+        await interaction.response.send_message("\n".join(lines), ephemeral=True)
+
+
+    @macro.command(name="macro_show", description="Mostra o template salvo de uma macro.")
+    @app_commands.describe(nome="Nome da macro")
+    async def macro_show(self, interaction: discord.Interaction, nome: str):
+        nome_n = _normalize_name(nome)
+
+        data = get_file_content()
+        macros = (data or {}).get("macros", {}) if isinstance(data, dict) else {}
+        if not isinstance(macros, dict):
+            macros = {}
+
+        user_bucket = (((macros.get("user") or {}).get(str(interaction.user.id))) or {})
+        if isinstance(user_bucket, dict) and nome_n in user_bucket:
+            return await interaction.response.send_message(
+                f"**{nome_n}** (Pessoal):\n```{user_bucket[nome_n]}```",
+                ephemeral=True
+            )
+
+        if interaction.guild is not None:
+            guild_bucket = (((macros.get("guild") or {}).get(str(interaction.guild.id))) or {})
+            if isinstance(guild_bucket, dict) and nome_n in guild_bucket:
+                return await interaction.response.send_message(
+                    f"**{nome_n}** (Servidor):\n```{guild_bucket[nome_n]}```",
+                    ephemeral=True
+                )
+
+        await interaction.response.send_message(f"❌ Macro `{nome_n}` não encontrada.", ephemeral=True)
+
+
+    @macro.command(name="macro_del", description="Apaga uma macro.")
+    @app_commands.describe(
+        nome="Nome da macro",
+        escopo="Se não passar, tenta apagar pessoal e depois servidor."
+    )
+    @app_commands.choices(escopo=[
+        app_commands.Choice(name="Auto", value="auto"),
+        app_commands.Choice(name="Pessoal", value="user"),
+        app_commands.Choice(name="Servidor", value="guild"),
+    ])
+    async def macro_del(
+        self,
+        interaction: discord.Interaction,
+        nome: str,
+        escopo: app_commands.Choice[str],
+    ):
+        nome_n = _normalize_name(nome)
+
+        if escopo.value == "guild":
+            if interaction.guild is None:
+                return await interaction.response.send_message("❌ Isso só funciona em servidor.", ephemeral=True)
+            if not interaction.user.guild_permissions.manage_guild:
+                return await interaction.response.send_message(
+                    "❌ Pra apagar macro do servidor, precisa **Gerenciar Servidor**.",
+                    ephemeral=True
+                )
+
+        def _delete() -> bool:
+            data = get_file_content()
+            if not isinstance(data, dict):
+                return False
+            macros = _ensure_macro_root(data)
+
+            deleted = False
+
+            def del_from(scope: str, sid: int):
+                nonlocal deleted
+                bucket = macros.get(scope, {}).get(str(sid))
+                if isinstance(bucket, dict) and nome_n in bucket:
+                    del bucket[nome_n]
+                    deleted = True
+
+            if escopo.value in ("auto", "user"):
+                del_from("user", interaction.user.id)
+
+            if escopo.value in ("auto", "guild") and interaction.guild is not None:
+                del_from("guild", interaction.guild.id)
+
+            if deleted:
+                update_file_content(data)
+            return deleted
+
+        ok = await asyncio.to_thread(_delete)
+        if ok:
+            await interaction.response.send_message(f"🗑️ Macro `{nome_n}` apagada.", ephemeral=True)
+        else:
+            await interaction.response.send_message(f"❌ Não achei `{nome_n}` pra apagar.", ephemeral=True)
+
+
+#######################################################################
+
+
+#######################################################################
 
 
 async def setup(bot: commands.Bot):
