@@ -84,10 +84,5 @@
             "max_dice_group": 100,
             "max_faces": 10000
         }
-    },
-    "bot_config": {
-        "log_channel_id": 1317580138262695967,
-        "max_dice_group": 100,
-        "max_faces": 10000
     }
 }
