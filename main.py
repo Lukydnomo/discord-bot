@@ -147,8 +147,8 @@ async def jokenpo(interaction: discord.Interaction):
 
 @bot.tree.command(name="roletarussa", description="Vida ou morte.")
 async def roletarussa(interaction: discord.Interaction):
-    result = random.randrange(0,100)
-    if result <= 14:
+    result = random.randrange(1,6)
+    if result == 1:
         await interaction.response.send_message(f"Você **morreu**")
     else:
         await interaction.response.send_message("Você *sobrevive*")
