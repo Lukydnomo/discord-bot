@@ -463,3 +463,29 @@ Dito isso, vlw, por tudo. _Eu já não vejo mais nada_.
 
 <!-- prettier-ignore -->
 - - - - - - - - - -
+
+## [2.3.1] - 2026-02-22
+
+**update do Wordle e mudanças no player de música**
+
+### 🆕 Adicionado
+
+- Novo minigame **Wordle**: adivinhe a palavra do dia e receba feedback por letras (posição correta, letra existente ou inexistente).
+- O número de tentativas agora se ajusta automaticamente ao tamanho da palavra.
+- Adicionado **ranking semanal do Wordle** dentro do servidor.
+
+### ⚙️ Alterado
+
+- O player de música agora aceita apenas **áudios locais**.
+- Links do YouTube não são mais suportados.
+
+### 🛠️ Correções
+
+- Melhorias no sistema de reprodução para tornar a fila mais estável e reduzir erros ao tocar arquivos.
+
+### 📝 Observação
+
+- Se você utilizava YouTube para tocar músicas, agora é necessário baixar o áudio e mandar pro adm.
+
+<!-- prettier-ignore -->
+- - - - - - - - - -
