@@ -6,3 +6,4 @@ pillow
 deep_translator
 pyfiglet
 pytz
+yt-dlp
