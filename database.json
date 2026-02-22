@@ -7,7 +7,8 @@
         "user": {
             "1345449850954715176": {},
             "767015394648915978": {
-                "compreensaomaldicoes": "(1d4+1)*0.43"
+                "compreensaomaldicoes": "(1d4+1)*0.43",
+                "danoarma": "2d12"
             }
         },
         "guild": {
