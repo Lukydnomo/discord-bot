@@ -489,3 +489,44 @@ Dito isso, vlw, por tudo. _Eu já não vejo mais nada_.
 
 <!-- prettier-ignore -->
 - - - - - - - - - -
+
+## [2.3.2] - 2026-02-22
+
+**update de configurações por servidor e personalização do bot**
+
+### 🆕 Adicionado
+
+⚙️ **Sistema de Configuração do Servidor (`/config`)**
+
+- Agora é possível definir onde o bot posta **updates/changelog** e qual cargo será pingado.
+- Configuração do **Hexatombê** (canal do painel, canal de envio e pessoa para ping).
+- Ajustes de música por servidor: **auto-disconnect** e **qualidade do áudio (bitrate)**.
+- Novo comando para visualizar as configurações atuais do servidor.
+
+🛠️ **Configurações globais do bot (`/botconfig`)**
+
+- Donos/autorizados podem definir limites do sistema de rolagem e canal global de logs.
+
+### ⚙️ Alterado
+
+- O player de música agora respeita as configurações de cada servidor (tempo para sair da call e qualidade do áudio).
+- Painéis interativos (como Hexatombê) passaram a funcionar com configurações próprias de cada servidor.
+- O envio de changelog/updates ficou configurável e mais inteligente (evita repost desnecessário).
+- Prefixo do bot passou a ser configurável.
+
+### 🛠️ Correções
+
+- Melhorias na estabilidade de sistemas que antes dependiam de IDs fixos.
+- Limpeza de comportamentos antigos que podiam causar inconsistências em call ou painéis.
+
+### 🗑️ Removido
+
+- Sistema antigo de eventos de voz automáticos.
+- Áudio especial associado a esse sistema.
+
+### 📝 Observação
+
+- O bot agora foi preparado para funcionar de forma diferente em cada servidor, abrindo espaço para futuras features personalizáveis.
+
+<!-- prettier-ignore -->
+- - - - - - - - - -
