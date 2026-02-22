@@ -27,53 +27,98 @@ async def on_ready_custom(bot, conteudo):
         except Exception as e:
             print(f"❌ Falha ao sincronizar comandos no servidor {guild.name}: {e}")
 
-    # Atualiza o canal com o changelog
-    updatechannel = bot.get_channel(1319356880627171448)
-    mention_message = "<@&1319355628195549247>"
+    # Atualiza o canal com o changelog (configurável por servidor)
+    data = get_file_content()
+    guild_cfg = (data.get("guild_config") or {}) if isinstance(data, dict) else {}
+
     full_message = f"{conteudo}"
 
     def normalize_text(s: str) -> str:
-        """Normalize texto para comparação robusta (NFC), remove caracteres invisíveis e colapsa espaços."""
         if s is None:
             return ""
-        # canonical composition
         s = unicodedata.normalize("NFC", s)
-        # remove zero-width / directionality / BOM / invisible markers (ajuste conforme necessário)
         s = re.sub(r"[\u200B-\u200F\u202A-\u202E\u2060\uFEFF]", "", s)
-        # collapse whitespace (inclui newlines) and strip
         s = re.sub(r"\s+", " ", s).strip()
         return s
 
-    # quebra em chunks de 2000 chars (limite do Discord)
-    message_chunks = [full_message[i : i + 2000] for i in range(0, len(full_message), 2000)]
-    normalized_chunks = [normalize_text(ch) for ch in message_chunks]
-    normalized_mention = normalize_text(mention_message)
+    async def post_changelog(updatechannel: discord.TextChannel, mention_message: str | None):
+        # quebra em chunks de 2000 chars (limite do Discord)
+        message_chunks = [full_message[i:i + 2000] for i in range(0, len(full_message), 2000)]
+        normalized_chunks = [normalize_text(ch) for ch in message_chunks]
 
-    # pega apenas um número limitado de mensagens (esperado + margem)
-    expected_count = len(message_chunks) + 1  # +1 pelo mention final
-    existing_messages = [msg async for msg in updatechannel.history(limit=expected_count + 5, oldest_first=True)]
+        expected_count = len(message_chunks) + (1 if mention_message else 0)
 
-    # extrai e normaliza apenas os conteúdos textuais, preservando ordem
-    existing_texts = [normalize_text(m.content) for m in existing_messages if m.content is not None]
+        # pega as ÚLTIMAS mensagens (mais confiável que oldest_first=True)
+        existing_messages = [msg async for msg in updatechannel.history(limit=expected_count + 5, oldest_first=False)]
+        existing_messages.reverse()  # deixa em ordem cronológica
 
-    # tenta localizar um trecho onde os chunks correspondem e o último é a mention
-    is_same = False
-    if len(existing_texts) >= expected_count:
-        # slide window para permitir que existam mensagens extras antes
-        for i in range(0, len(existing_texts) - expected_count + 1):
-            window = existing_texts[i : i + expected_count]
-            if window[-1] == normalized_mention and window[:-1] == normalized_chunks:
-                is_same = True
-                break
+        existing_texts = [normalize_text(m.content) for m in existing_messages if m.content is not None]
 
-    if is_same:
-        print("✅ Changelog já está no canal, nenhuma mensagem enviada.")
-    else:
-        await updatechannel.purge()
+        is_same = False
+        if len(existing_texts) >= expected_count:
+            for i in range(0, len(existing_texts) - expected_count + 1):
+                window = existing_texts[i:i + expected_count]
+                if mention_message:
+                    if window[-1] == normalize_text(mention_message) and window[:-1] == normalized_chunks:
+                        is_same = True
+                        break
+                else:
+                    if window == normalized_chunks:
+                        is_same = True
+                        break
+
+        if is_same:
+            print(f"✅ Changelog já está no canal ({updatechannel.id}), nenhuma mensagem enviada.")
+            return
+
+        # tenta limpar só mensagens do bot (pra não sair deletando coisa dos outros)
+        try:
+            await updatechannel.purge(limit=200, check=lambda m: m.author == bot.user)
+        except Exception as e:
+            print(f"⚠️ Não consegui limpar mensagens no canal {updatechannel.id}: {e}")
+
         for chunk in message_chunks:
             await updatechannel.send(chunk)
-        await updatechannel.send(mention_message)
-        print("✅ Changelog atualizado no canal.")
+        if mention_message:
+            await updatechannel.send(mention_message)
+
+        print(f"✅ Changelog atualizado no canal ({updatechannel.id}).")
+
+    for guild in bot.guilds:
+        cfg = guild_cfg.get(str(guild.id), {})
+        if not isinstance(cfg, dict):
+            continue
+
+        ch_id = cfg.get("updates_channel_id")
+        if not ch_id:
+            continue
+
+        try:
+            ch_id = int(ch_id)
+        except Exception:
+            continue
+
+        updatechannel = bot.get_channel(ch_id)
+        if updatechannel is None:
+            try:
+                updatechannel = await bot.fetch_channel(ch_id)
+            except Exception as e:
+                print(f"❌ Falha ao buscar canal de updates {ch_id} no guild {guild.name}: {e}")
+                continue
+
+        role_id = cfg.get("updates_role_id")
+        mention_message = None
+        if role_id:
+            try:
+                mention_message = f"<@&{int(role_id)}>"
+            except Exception:
+                mention_message = None
+
+        # posta
+        try:
+            await post_changelog(updatechannel, mention_message)
+        except Exception as e:
+            print(f"❌ Erro ao postar changelog no guild {guild.name}: {e}")
 
     # Configura a presença do bot
     activity = discord.Activity(

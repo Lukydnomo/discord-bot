@@ -183,10 +183,30 @@ def _parse_labeled_expr(part: str) -> Tuple[Optional[str], str]:
 ####################################################
 ####################################################
 
-# IDs fixos
-BOARD_CHANNEL_ID = 1472670458993446922
-DEST_CHANNEL_ID = 1472671366183649462
-PING_USER_ID = 767015394648915978
+# helpers para ler configurações de guild (sincrono/async)
+def _get_guild_cfg_sync(guild_id: int) -> dict:
+    data = get_file_content()
+    if not isinstance(data, dict):
+        return {}
+    gc = data.get("guild_config", {})
+    if not isinstance(gc, dict):
+        return {}
+    b = gc.get(str(guild_id), {})
+    return b if isinstance(b, dict) else {}
+
+
+async def _get_guild_cfg(guild_id: int) -> dict:
+    return await asyncio.to_thread(_get_guild_cfg_sync)
+
+
+async def _fetch_text_channel(client: discord.Client, channel_id: int) -> Optional[discord.TextChannel]:
+    ch = client.get_channel(channel_id)
+    if ch is None:
+        try:
+            ch = await client.fetch_channel(channel_id)
+        except Exception:
+            return None
+    return ch if isinstance(ch, discord.TextChannel) else None
 
 class HexaMusicButton(discord.ui.Button):
     def __init__(self, number: int, row: int):
@@ -200,13 +220,27 @@ class HexaMusicButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         try:
-            dest = interaction.client.get_channel(DEST_CHANNEL_ID)
+            if interaction.guild is None:
+                return await interaction.response.send_message("❌ Isso só funciona em servidor.", ephemeral=True)
+
+            cfg = await _get_guild_cfg(interaction.guild.id)
+
+            dest_id = cfg.get("hexatombe_dest_channel_id")
+            if not dest_id:
+                return await interaction.response.send_message(
+                    "❌ Hexatombê não configurado.\nUse: `/config hexatombe painel:#canal destino:#canal pingar:@alguem(opcional)`",
+                    ephemeral=True
+                )
+
+            dest = await _fetch_text_channel(interaction.client, int(dest_id))
             if dest is None:
-                dest = await interaction.client.fetch_channel(DEST_CHANNEL_ID)
+                return await interaction.response.send_message("❌ Canal de destino inválido/sem acesso.", ephemeral=True)
 
-            await dest.send(f"<@{PING_USER_ID}> Música {self.number}")
+            ping_id = cfg.get("hexatombe_ping_user_id")
+            mention = f"<@{int(ping_id)}> " if ping_id else ""
 
-            # responde o clique
+            await dest.send(f"{mention}Música {self.number}")
+
             if interaction.response.is_done():
                 await interaction.followup.send(f"Número {self.number} enviado.", ephemeral=True)
             else:
@@ -393,13 +427,31 @@ class Utils(commands.Cog):
 
     @app_commands.command(name="hexatombe_musics", description="Posta um embed com 48 botões numerados de 1 a 48.")
     async def postar_botoes(self, interaction: discord.Interaction):
-        BOARD_CHANNEL_ID = 1472670458993446922
+        if interaction.guild is None:
+            return await interaction.response.send_message("❌ Isso só funciona em servidor.", ephemeral=True)
+
+        # (recomendo) trava pra Manage Guild
+        if not interaction.user.guild_permissions.manage_guild:
+            return await interaction.response.send_message(
+                "❌ Pra postar o painel, precisa permissão **Gerenciar Servidor**.",
+                ephemeral=True
+            )
 
         await interaction.response.defer(thinking=True, ephemeral=True)
 
-        board = self.bot.get_channel(BOARD_CHANNEL_ID)
+        cfg = await _get_guild_cfg(interaction.guild.id)
+        board_id = cfg.get("hexatombe_board_channel_id")
+        if not board_id:
+            return await interaction.followup.send(
+                "❌ Hexatombê não configurado.\nUse: `/config hexatombe painel:#canal destino:#canal pingar:@alguem(opcional)`",
+                ephemeral=True
+            )
+
+        board = await _fetch_text_channel(self.bot, int(board_id))
         if board is None:
-            board = await self.bot.fetch_channel(BOARD_CHANNEL_ID)
+            return await interaction.followup.send("❌ Canal do painel inválido/sem acesso.", ephemeral=True)
+
+        
 
         batches = [(1, 24), (25, 48)]
         for batch_idx, (start, end) in enumerate(batches, start=1):

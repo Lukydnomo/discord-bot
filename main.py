@@ -29,7 +29,7 @@ cancel_previous_github_runs()
 class MyBot(commands.Bot):
     def __init__(self):
         super().__init__(
-            command_prefix="foa!",
+            command_prefix=commandPrefix,
             intents=intents    # <<< use o intents que você configurou em cima
         )
 

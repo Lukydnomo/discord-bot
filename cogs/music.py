@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 import discord
 from discord import app_commands
 from discord.ext import commands
+from core.modules import get_file_content
 
 
 class Music(commands.Cog):
@@ -22,10 +23,46 @@ class Music(commands.Cog):
         self.queues: dict[int, list] = {}
         self.loop_status: dict[int, int] = {}  # 0=off,1=track loop,2=queue loop
 
+    # configuration helpers --------------------------------------------------
+    def _get_guild_cfg(self, guild_id: int) -> dict:
+        data = get_file_content()
+        if not isinstance(data, dict):
+            return {}
+        gc = data.get("guild_config", {})
+        if not isinstance(gc, dict):
+            return {}
+        b = gc.get(str(guild_id), {})
+        return b if isinstance(b, dict) else {}
+
+    def _music_settings(self, guild_id: int) -> tuple[int, int]:
+        """
+        returns: (autodc_seconds, bitrate_kbps)
+        """
+        cfg = self._get_guild_cfg(guild_id)
+
+        # autodc
+        try:
+            autodc = int(cfg.get("music_auto_disconnect_seconds", 60))
+        except Exception:
+            autodc = 60
+        autodc = max(0, min(3600, autodc))
+
+        # bitrate
+        try:
+            kbps = int(cfg.get("music_bitrate_kbps", 128))
+        except Exception:
+            kbps = 128
+        kbps = max(48, min(320, kbps))
+
+        return autodc, kbps
+
     # Tocador
     def check_auto_disconnect(self, guild_id):
         async def task():
-            await asyncio.sleep(60)  # Aguarda 1 minuto
+            delay, _ = self._music_settings(guild_id)
+            if delay <= 0:
+                return
+            await asyncio.sleep(delay)
             vc = self.voice_clients.get(guild_id)
             if vc and not vc.is_playing() and not self.queues.get(guild_id):
                 await vc.disconnect()
@@ -73,8 +110,9 @@ class Music(commands.Cog):
 
         try:
             # Configura opções do FFmpeg
+            _, kbps = self._music_settings(guild_id)
             common_opts = {
-                "options": "-vn -b:a 128k"  # Apenas áudio, bitrate 128k
+                "options": f"-vn -b:a {kbps}k"  # Apenas áudio, bitrate configurável
             }
             reconnect_opts = {
                 "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"
@@ -165,8 +203,8 @@ class Music(commands.Cog):
                 low = nome.lower()
                 if "youtube.com" in low or "youtu.be" in low:
                     await interaction.followup.send(
-                        "❌ Links do YouTube foram desativados (yt-dlp removido). "
-                        "Baixe o áudio e coloque em `assets/audios/`.",
+                        "❌ Links do YouTube foram desativados. "
+                        "Se quiser essa música no bot, pede pro dono do bot adicionar na biblioteca dele.",
                         ephemeral=True
                     )
                     continue
@@ -231,9 +269,10 @@ class Music(commands.Cog):
 
     @app_commands.command(name="listar", description="Lista todos os áudios")
     async def listar(self, interaction: discord.Interaction):
+        # mostra lista de arquivos de áudio disponíveis
         diretorio = "assets/audios"
         if not os.path.exists(diretorio):
-            return await interaction.response.send_message("❌ Diretório não encontrado!", ephemeral=True)
+            return await interaction.response.send_message("❌ Diretório de áudios não encontrado!", ephemeral=True)
 
         def build_tree(path, prefix):
             itens = os.listdir(path)
@@ -263,7 +302,7 @@ class Music(commands.Cog):
             await interaction.response.send_message("📜 Lista de arquivos:", file=discord.File("lista_arquivos.txt"))
             os.remove("lista_arquivos.txt")
         else:
-            await interaction.response.send_message(f"**Arquivos e pastas em `{diretorio}`:**\n```\n{lista_arquivos}\n```")
+            await interaction.response.send_message(f"**Arquivos e pastas disponíveis:**\n```\n{lista_arquivos}\n```")
 
     @app_commands.command(name="parar", description="Para a reprodução e limpa a fila")
     async def parar(self, interaction: discord.Interaction):
@@ -298,22 +337,6 @@ class Music(commands.Cog):
                 self.loop_status.pop(guild_id, None)
 
         # Tentativa adicional: remover diretamente uma instância problemática pelo ID conhecido
-        try:
-            problematic_id = 1317632778505814046  # ID fornecido
-            if problematic_id in self.voice_clients:
-                try:
-                    vc = self.voice_clients.get(problematic_id)
-                    if vc:
-                        await vc.disconnect()
-                    desconectados += 1
-                except Exception as e:
-                    erros.append(f"force-{problematic_id}: {e}")
-                finally:
-                    self.voice_clients.pop(problematic_id, None)
-                    self.queues.pop(problematic_id, None)
-                    self.loop_status.pop(problematic_id, None)
-        except Exception as e:
-            erros.append(f"cleanup-force-{problematic_id}-error: {e}")
 
         resumo = f"👋 Desconectado de {desconectados} canal(is) de voz e limpei as filas correspondentes."
         if erros:

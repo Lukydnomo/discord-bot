@@ -136,6 +136,20 @@ async def save(name, value):
         ok = await asyncio.to_thread(update_file_content, data)
         return ok
 
+# --- bot_config helpers ----------------------------------------------------
+def get_bot_config() -> dict:
+    data = get_file_content()
+    bc = data.get("bot_config", {}) if isinstance(data, dict) else {}
+    return bc if isinstance(bc, dict) else {}
+
+
+def botcfg_int(key: str, default: int) -> int:
+    bc = get_bot_config()
+    v = bc.get(key, default)
+    try:
+        return int(v)
+    except Exception:
+        return default
 def load(name):
     data = get_file_content()
     return data.get(name, None)
@@ -206,9 +220,11 @@ def rolar_dado(expressao, detalhado=True):
             faces = int(faces_str)
 
             # ─── validação de limites ───
-            if qtd > MAX_DICE_GROUP or faces > MAX_FACES:
+            max_dados = botcfg_int("max_dice_group", MAX_DICE_GROUP)
+            max_faces = botcfg_int("max_faces", MAX_FACES)
+            if qtd > max_dados or faces > max_faces:
                 raise ValueError(
-                    f"Máximo permitido: {MAX_DICE_GROUP} dados de até d{MAX_FACES}"
+                    f"Máximo permitido: {max_dados} dados de até d{max_faces}"
                 )
             # ─────────────────────────────
 
@@ -237,9 +253,11 @@ def rolar_dado(expressao, detalhado=True):
             faces = int(faces_str)
 
             # ─── validação de limites ───
-            if qtd > MAX_DICE_GROUP or faces > MAX_FACES:
+            max_dados = botcfg_int("max_dice_group", MAX_DICE_GROUP)
+            max_faces = botcfg_int("max_faces", MAX_FACES)
+            if qtd > max_dados or faces > max_faces:
                 raise ValueError(
-                    f"Máximo permitido: {MAX_DICE_GROUP} dados de até d{MAX_FACES}"
+                    f"Máximo permitido: {max_dados} dados de até d{max_faces}"
                 )
             # ─────────────────────────────
 

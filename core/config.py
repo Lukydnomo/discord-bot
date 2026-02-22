@@ -3,18 +3,64 @@ import os
 
 import requests
 
-commandPrefix = "foa!"
+def _env_str(name: str, default: str) -> str:
+    v = os.getenv(name)
+    return v.strip() if v and v.strip() else default
+
+
+def _env_int(name: str, default: int) -> int:
+    v = os.getenv(name)
+    if not v or not v.strip():
+        return default
+    try:
+        return int(v.strip())
+    except ValueError:
+        return default
+
+
+def _env_int_list(name: str, default: list[int]) -> list[int]:
+    v = os.getenv(name)
+    if not v or not v.strip():
+        return default
+    parts = v.replace(";", ",").split(",")
+    out: list[int] = []
+    for p in parts:
+        p = p.strip()
+        if not p:
+            continue
+        try:
+            out.append(int(p))
+        except ValueError:
+            pass
+    return out or default
+
+
+# Prefixo de comandos (se tu ainda usa prefix command)
+commandPrefix = _env_str("COMMAND_PREFIX", "foa!")
+
+# Tokens
 DISCORDTOKEN = os.getenv("DISCORD_BOT_TOKEN")
 GITHUBTOKEN = os.getenv("DATABASE_TOKEN")
-luky = 767015394648915978
-logChannel = 1317580138262695967
-usuarios_autorizados = [luky]
-github_repo = "Lukydnomo/discord-bot"
-json_file_path = "database.json"
-NOME_ORIGINAL = "FranBOT"
-CAMINHO_AVATAR_ORIGINAL = "assets/images/FranBOT-Logo.png"
-MAX_DICE_GROUP = 100
-MAX_FACES = 10000
+
+# IDs (com fallback pros teus atuais)
+luky = _env_int("OWNER_ID", 767015394648915978)
+logChannel = _env_int("LOG_CHANNEL_ID", 1317580138262695967)
+
+# Lista de autorizados (ex: "123,456,789")
+usuarios_autorizados = _env_int_list("AUTHORIZED_USER_IDS", [luky])
+
+# DB no GitHub
+github_repo = _env_str("GITHUB_REPO", "Lukydnomo/discord-bot")
+json_file_path = _env_str("DB_JSON_PATH", "database.json")
+
+# Identidade
+NOME_ORIGINAL = _env_str("BOT_ORIGINAL_NAME", "FranBOT")
+CAMINHO_AVATAR_ORIGINAL = _env_str("BOT_ORIGINAL_AVATAR", "assets/images/FranBOT-Logo.png")
+
+# Limites
+MAX_DICE_GROUP = _env_int("MAX_DICE_GROUP", 100)
+MAX_FACES = _env_int("MAX_FACES", 10000)
+
 logger = logging.getLogger("discord_bot")
 logger.setLevel(logging.INFO)
 
