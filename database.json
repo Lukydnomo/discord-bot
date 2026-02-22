@@ -48,6 +48,16 @@
                     ],
                     "aliases": [],
                     "by": 767015394648915978
+                },
+                "amaldi\u00e7oar arma": {
+                    "fonte": "Ordem",
+                    "pagina": 124,
+                    "notas": "Execu\u00e7\u00e3o: padr\u00e3o; Alcance: toque; Alvo: 1 arma corpo a corpo ou pacote de muni\u00e7\u00e3o; Dura\u00e7\u00e3o: cena. Quando aprender este ritual, escolha um elemento entre Conhecimento, Energia, Morte e Sangue \u2014 este ritual passa a ser do elemento escolhido. Voc\u00ea imbui a arma ou muni\u00e7\u00f5es com esse elemento, fazendo com que causem +1d6 de dano do tipo do elemento. Discente (+2 PE): o b\u00f4nus de dano muda para +2d6; requer 2\u00ba c\u00edrculo. Verdadeiro (+5 PE): o b\u00f4nus de dano muda para +4d6; requer 3\u00ba c\u00edrculo e afinidade.",
+                    "tags": [
+                        "ritual"
+                    ],
+                    "aliases": [],
+                    "by": 767015394648915978
                 }
             }
         }
