@@ -9,6 +9,91 @@ from typing import Dict, Tuple, List, Optional
 
 from core.modules import get_file_content, update_file_content, rolar_dado
 
+
+# =========================
+# REFERÊNCIAS (DB)
+# =========================
+
+REF_TERM_RE = re.compile(r"^[a-zA-ZÀ-ÿ0-9 _\-]{1,40}$")
+MAX_REF_NOTES = 320
+MAX_REF_FONTE = 40
+MAX_REF_TAGS = 8
+MAX_REF_ALIASES = 8
+
+def _norm_term(s: str) -> str:
+    s = (s or "").strip().lower()
+    s = re.sub(r"\s+", " ", s)
+    return s
+
+def _parse_tags(tags: str) -> List[str]:
+    if not tags:
+        return []
+    # aceita "#tag #outra" ou "tag, outra"
+    raw = re.split(r"[,\s]+", tags.strip())
+    out = []
+    for t in raw:
+        t = t.strip().lower()
+        if not t:
+            continue
+        if t.startswith("#"):
+            t = t[1:]
+        t = re.sub(r"[^a-z0-9_\-à-ÿ]", "", t)
+        if t and t not in out:
+            out.append(t)
+        if len(out) >= MAX_REF_TAGS:
+            break
+    return out
+
+def _parse_aliases(aliases: str) -> List[str]:
+    if not aliases:
+        return []
+    raw = re.split(r"[,\n;]+", aliases.strip())
+    out = []
+    for a in raw:
+        a = _norm_term(a)
+        if not a:
+            continue
+        if a not in out:
+            out.append(a)
+        if len(out) >= MAX_REF_ALIASES:
+            break
+    return out
+
+def _ensure_ref_root(data: dict) -> dict:
+    refs = data.get("refs")
+    if not isinstance(refs, dict):
+        refs = {}
+        data["refs"] = refs
+    if not isinstance(refs.get("user"), dict):
+        refs["user"] = {}
+    if not isinstance(refs.get("guild"), dict):
+        refs["guild"] = {}
+    return refs
+
+def _get_ref_bucket(refs: dict, scope: str, scope_id: int) -> Dict[str, dict]:
+    bucket = refs[scope].get(str(scope_id))
+    if not isinstance(bucket, dict):
+        bucket = {}
+        refs[scope][str(scope_id)] = bucket
+    return bucket
+
+def _find_ref(bucket: Dict[str, dict], term: str) -> Optional[Tuple[str, dict]]:
+    """Procura por termo exato ou por alias dentro do bucket.
+    Retorna (key_real, obj) ou None.
+    """
+    if term in bucket:
+        return term, bucket[term]
+
+    # busca por alias
+    for k, obj in bucket.items():
+        if not isinstance(obj, dict):
+            continue
+        aliases = obj.get("aliases", [])
+        if isinstance(aliases, list) and term in aliases:
+            return k, obj
+
+    return None
+
 ####################################################
 ####################################################
 ####################################################
@@ -118,6 +203,19 @@ class HexaMusicView(discord.ui.View):
         super().__init__(timeout=None)  # <- obrigatório pra persistir
         for idx, n in enumerate(range(start, end + 1)):
             self.add_item(HexaMusicButton(n, row=idx // 5))
+
+
+
+############################################
+# __   __  _______  ___   ___      _______ #
+#|  | |  ||       ||   | |   |    |       |#
+#|  | |  ||_     _||   | |   |    |  _____|#
+#|  |_|  |  |   |  |   | |   |    | |_____ #
+#|       |  |   |  |   | |   |___ |_____  |#
+#|       |  |   |  |   | |       | _____| |#
+#|_______|  |___|  |___| |_______||_______|#
+############################################
+############################################
 
 class Utils(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -340,7 +438,7 @@ class Utils(commands.Cog):
 
     macro = app_commands.Group(name="macro", description="Macros de rolagem (atalhos)")
 
-    @macro.command(name="macro_set", description="Salva uma macro (atalho de rolagem).")
+    @macro.command(name="set", description="Salva uma macro (atalho de rolagem).")
     @app_commands.describe(
         nome="Ex: atk, dano, furtividade",
         template="Ex: atk: 3d20+$1; dano: 2d8+$2  | Use $1..$9 e $*",
@@ -408,7 +506,7 @@ class Utils(commands.Cog):
         )
 
 
-    @macro.command(name="macro_usar", description="Usa uma macro salva.")
+    @macro.command(name="usar", description="Usa uma macro salva.")
     @app_commands.describe(
         nome="Nome da macro",
         args="Argumentos (separados por espaço). Ex: 5 3",
@@ -480,7 +578,7 @@ class Utils(commands.Cog):
         await interaction.response.send_message("\n".join(resultados), ephemeral=oculto)
 
 
-    @macro.command(name="macro_list", description="Lista suas macros (e/ou as do servidor).")
+    @macro.command(name="list", description="Lista suas macros (e/ou as do servidor).")
     @app_commands.describe(escopo="Pessoal / Servidor / Ambos")
     @app_commands.choices(escopo=[
         app_commands.Choice(name="Pessoal", value="user"),
@@ -515,7 +613,7 @@ class Utils(commands.Cog):
         await interaction.response.send_message("\n".join(lines), ephemeral=True)
 
 
-    @macro.command(name="macro_show", description="Mostra o template salvo de uma macro.")
+    @macro.command(name="show", description="Mostra o template salvo de uma macro.")
     @app_commands.describe(nome="Nome da macro")
     async def macro_show(self, interaction: discord.Interaction, nome: str):
         nome_n = _normalize_name(nome)
@@ -543,7 +641,7 @@ class Utils(commands.Cog):
         await interaction.response.send_message(f"❌ Macro `{nome_n}` não encontrada.", ephemeral=True)
 
 
-    @macro.command(name="macro_del", description="Apaga uma macro.")
+    @macro.command(name="del", description="Apaga uma macro.")
     @app_commands.describe(
         nome="Nome da macro",
         escopo="Se não passar, tenta apagar pessoal e depois servidor."
@@ -600,6 +698,355 @@ class Utils(commands.Cog):
             await interaction.response.send_message(f"🗑️ Macro `{nome_n}` apagada.", ephemeral=True)
         else:
             await interaction.response.send_message(f"❌ Não achei `{nome_n}` pra apagar.", ephemeral=True)
+
+
+#######################################################################
+
+
+#######################################################################
+
+
+    # =========================
+    # /ref (Referências)
+    # =========================
+    ref = app_commands.Group(name="ref", description="Referências rápidas (apelidos → fonte/página/notas)")
+
+    @ref.command(name="add", description="Salva uma referência (apelido → fonte/página/notas).")
+    @app_commands.describe(
+        termo="Ex: debilitado, perseguição, ritual retido",
+        fonte="Ex: Ordem, SaH, Arquivos Secretos",
+        pagina="Página do PDF/livro (número)",
+        notas="Resumo curtinho (evita colar texto longo do livro)",
+        tags="Ex: #condicao #ritual (opcional)",
+        aliases="Sinônimos separados por vírgula (opcional). Ex: debil, deb"
+    )
+    @app_commands.choices(escopo=[
+        app_commands.Choice(name="Servidor", value="guild"),
+        app_commands.Choice(name="Pessoal", value="user"),
+    ])
+    async def ref_add(
+        self,
+        interaction: discord.Interaction,
+        termo: str,
+        fonte: str,
+        pagina: int,
+        notas: str,
+        escopo: app_commands.Choice[str],
+        tags: str = "",
+        aliases: str = "",
+    ):
+        termo_n = _norm_term(termo)
+        if not termo_n or not REF_TERM_RE.fullmatch(termo.strip()):
+            return await interaction.response.send_message(
+                "❌ Termo inválido. Usa até 40 chars (letras/números/espaço/_/-).",
+                ephemeral=True
+            )
+
+        fonte_n = (fonte or "").strip()
+        if not fonte_n or len(fonte_n) > MAX_REF_FONTE:
+            return await interaction.response.send_message(
+                f"❌ Fonte inválida (1–{MAX_REF_FONTE} chars).",
+                ephemeral=True
+            )
+
+        if pagina < 1 or pagina > 5000:
+            return await interaction.response.send_message("❌ Página inválida.", ephemeral=True)
+
+        notas_n = (notas or "").strip()
+        if not notas_n:
+            return await interaction.response.send_message("❌ Notas não podem ficar vazias.", ephemeral=True)
+        if len(notas_n) > MAX_REF_NOTES:
+            return await interaction.response.send_message(
+                f"❌ Notas muito longas (máx {MAX_REF_NOTES} chars).",
+                ephemeral=True
+            )
+
+        scope = escopo.value
+        if scope == "guild":
+            if interaction.guild is None:
+                return await interaction.response.send_message("❌ Isso só funciona em servidor.", ephemeral=True)
+            if not interaction.user.guild_permissions.manage_guild:
+                return await interaction.response.send_message(
+                    "❌ Pra salvar no servidor, precisa permissão **Gerenciar Servidor**.",
+                    ephemeral=True
+                )
+            scope_id = interaction.guild.id
+        else:
+            scope_id = interaction.user.id
+
+        tags_list = _parse_tags(tags)
+        aliases_list = _parse_aliases(aliases)
+
+        def _write():
+            data = get_file_content()
+            if not isinstance(data, dict):
+                data = {}
+            refs = _ensure_ref_root(data)
+            bucket = _get_ref_bucket(refs, scope, scope_id)
+
+            bucket[termo_n] = {
+                "fonte": fonte_n,
+                "pagina": int(pagina),
+                "notas": notas_n,
+                "tags": tags_list,
+                "aliases": aliases_list,
+                "by": int(interaction.user.id),
+            }
+
+            update_file_content(data)
+
+        await asyncio.to_thread(_write)
+        await interaction.response.send_message(
+            f"✅ Referência `{termo_n}` salva em **{escopo.name}**.",
+            ephemeral=True
+        )
+
+
+    @ref.command(name="get", description="Mostra uma referência salva.")
+    @app_commands.describe(termo="Termo/alias", oculto="Se True, só você vê (ephemeral).")
+    async def ref_get(self, interaction: discord.Interaction, termo: str, oculto: bool = False):
+        termo_n = _norm_term(termo)
+
+        def _read() -> Optional[Tuple[str, dict, str]]:
+            data = get_file_content()
+            if not isinstance(data, dict):
+                return None
+            refs = data.get("refs", {})
+            if not isinstance(refs, dict):
+                return None
+
+            # prioridade: pessoal > servidor
+            user_bucket = (((refs.get("user") or {}).get(str(interaction.user.id))) or {})
+            if isinstance(user_bucket, dict):
+                found = _find_ref(user_bucket, termo_n)
+                if found:
+                    key, obj = found
+                    return key, obj, "Pessoal"
+
+            if interaction.guild is not None:
+                guild_bucket = (((refs.get("guild") or {}).get(str(interaction.guild.id))) or {})
+                if isinstance(guild_bucket, dict):
+                    found = _find_ref(guild_bucket, termo_n)
+                    if found:
+                        key, obj = found
+                        return key, obj, "Servidor"
+
+            return None
+
+        got = await asyncio.to_thread(_read)
+        if not got:
+            return await interaction.response.send_message(
+                f"❌ Não achei referência pra `{termo_n}`.",
+                ephemeral=True
+            )
+
+        key, obj, scope_name = got
+        fonte = obj.get("fonte", "—")
+        pagina = obj.get("pagina", "—")
+        notas = obj.get("notas", "—")
+        tags = obj.get("tags", [])
+        aliases = obj.get("aliases", [])
+
+        emb = discord.Embed(
+            title=f"📌 {key}",
+            description=notas,
+            color=discord.Color.blurple()
+        )
+        emb.add_field(name="Fonte", value=str(fonte), inline=True)
+        emb.add_field(name="Página", value=str(pagina), inline=True)
+        emb.add_field(name="Escopo", value=scope_name, inline=True)
+
+        if isinstance(tags, list) and tags:
+            emb.add_field(name="Tags", value=" ".join(f"`#{t}`" for t in tags[:MAX_REF_TAGS]), inline=False)
+
+        if isinstance(aliases, list) and aliases:
+            emb.add_field(name="Aliases", value=", ".join(f"`{a}`" for a in aliases[:MAX_REF_ALIASES]), inline=False)
+
+        await interaction.response.send_message(embed=emb, ephemeral=oculto)
+
+
+    @ref.command(name="search", description="Procura referências por termo/tag/fonte.")
+    @app_commands.describe(query="Ex: debil, #condicao, sah, perseg")
+    async def ref_search(self, interaction: discord.Interaction, query: str):
+        q = _norm_term(query)
+        if not q:
+            return await interaction.response.send_message("❌ Query vazia.", ephemeral=True)
+
+        def _search() -> List[str]:
+            data = get_file_content()
+            if not isinstance(data, dict):
+                return []
+            refs = data.get("refs", {})
+            if not isinstance(refs, dict):
+                return []
+
+            results = []
+            qtag = q[1:] if q.startswith("#") else None
+
+            def scan_bucket(bucket: Dict[str, dict], prefix: str):
+                nonlocal results
+                for term_key, obj in bucket.items():
+                    if not isinstance(obj, dict):
+                        continue
+                    fonte = str(obj.get("fonte", "")).lower()
+                    notas = str(obj.get("notas", "")).lower()
+                    tags = obj.get("tags", [])
+                    aliases = obj.get("aliases", [])
+
+                    hit = False
+                    if qtag:
+                        if isinstance(tags, list) and qtag in tags:
+                            hit = True
+                    else:
+                        if q in term_key:
+                            hit = True
+                        elif isinstance(aliases, list) and any(q in a for a in aliases):
+                            hit = True
+                        elif q in fonte or q in notas:
+                            hit = True
+
+                    if hit:
+                        results.append(f"{prefix}`{term_key}` — {obj.get('fonte','—')} p.{obj.get('pagina','—')}")
+                        if len(results) >= 10:
+                            return
+
+            # pessoal
+            user_bucket = (((refs.get("user") or {}).get(str(interaction.user.id))) or {})
+            if isinstance(user_bucket, dict):
+                scan_bucket(user_bucket, "👤 ")
+
+            # servidor
+            if interaction.guild is not None and len(results) < 10:
+                guild_bucket = (((refs.get("guild") or {}).get(str(interaction.guild.id))) or {})
+                if isinstance(guild_bucket, dict):
+                    scan_bucket(guild_bucket, "🏠 ")
+
+            return results
+
+        results = await asyncio.to_thread(_search)
+        if not results:
+            return await interaction.response.send_message("🔎 Nada encontrado.", ephemeral=True)
+
+        await interaction.response.send_message("\n".join(results), ephemeral=True)
+
+
+    @ref.command(name="list", description="Lista referências (pessoal/servidor).")
+    @app_commands.choices(escopo=[
+        app_commands.Choice(name="Pessoal", value="user"),
+        app_commands.Choice(name="Servidor", value="guild"),
+        app_commands.Choice(name="Ambos", value="both"),
+    ])
+    @app_commands.describe(escopo="Onde listar", fonte="Filtrar por fonte (opcional)", tag="Filtrar por tag (opcional, sem #)")
+    async def ref_list(self, interaction: discord.Interaction, escopo: app_commands.Choice[str], fonte: str = "", tag: str = ""):
+        fonte_q = (fonte or "").strip().lower()
+        tag_q = (tag or "").strip().lower().lstrip("#")
+
+        def _list() -> List[str]:
+            data = get_file_content()
+            if not isinstance(data, dict):
+                return []
+            refs = data.get("refs", {})
+            if not isinstance(refs, dict):
+                return []
+
+            lines = []
+
+            def add_terms(bucket: Dict[str, dict], header: str):
+                nonlocal lines
+                terms = []
+                for k, obj in bucket.items():
+                    if not isinstance(obj, dict):
+                        continue
+                    if fonte_q and fonte_q not in str(obj.get("fonte", "")).lower():
+                        continue
+                    if tag_q:
+                        tags = obj.get("tags", [])
+                        if not (isinstance(tags, list) and tag_q in tags):
+                            continue
+                    terms.append(k)
+
+                terms = sorted(terms)[:50]
+                if terms:
+                    lines.append(f"**{header}:** " + ", ".join(f"`{t}`" for t in terms))
+                else:
+                    lines.append(f"**{header}:** (vazio)")
+
+            if escopo.value in ("user", "both"):
+                user_bucket = (((refs.get("user") or {}).get(str(interaction.user.id))) or {})
+                if isinstance(user_bucket, dict):
+                    add_terms(user_bucket, "Pessoal")
+
+            if escopo.value in ("guild", "both"):
+                if interaction.guild is None:
+                    lines.append("**Servidor:** (fora de servidor)")
+                else:
+                    guild_bucket = (((refs.get("guild") or {}).get(str(interaction.guild.id))) or {})
+                    if isinstance(guild_bucket, dict):
+                        add_terms(guild_bucket, "Servidor")
+
+            return lines
+
+        lines = await asyncio.to_thread(_list)
+        await interaction.response.send_message("\n".join(lines) if lines else "—", ephemeral=True)
+
+
+    @ref.command(name="del", description="Apaga uma referência.")
+    @app_commands.choices(escopo=[
+        app_commands.Choice(name="Auto", value="auto"),
+        app_commands.Choice(name="Pessoal", value="user"),
+        app_commands.Choice(name="Servidor", value="guild"),
+    ])
+    @app_commands.describe(termo="Termo/alias", escopo="Auto tenta pessoal e depois servidor")
+    async def ref_del(self, interaction: discord.Interaction, termo: str, escopo: app_commands.Choice[str]):
+        termo_n = _norm_term(termo)
+
+        if escopo.value == "guild":
+            if interaction.guild is None:
+                return await interaction.response.send_message("❌ Isso só funciona em servidor.", ephemeral=True)
+            if not interaction.user.guild_permissions.manage_guild:
+                return await interaction.response.send_message(
+                    "❌ Pra apagar do servidor, precisa **Gerenciar Servidor**.",
+                    ephemeral=True
+                )
+
+        def _delete() -> bool:
+            data = get_file_content()
+            if not isinstance(data, dict):
+                return False
+            refs = _ensure_ref_root(data)
+
+            deleted = False
+
+            def del_from(scope: str, sid: int):
+                nonlocal deleted
+                bucket = refs.get(scope, {}).get(str(sid))
+                if not isinstance(bucket, dict):
+                    return
+
+                # pode ser termo real ou alias
+                found = _find_ref(bucket, termo_n)
+                if found:
+                    key, _obj = found
+                    if key in bucket:
+                        del bucket[key]
+                        deleted = True
+
+            if escopo.value in ("auto", "user"):
+                del_from("user", interaction.user.id)
+
+            if escopo.value in ("auto", "guild") and interaction.guild is not None:
+                del_from("guild", interaction.guild.id)
+
+            if deleted:
+                update_file_content(data)
+
+            return deleted
+
+        ok = await asyncio.to_thread(_delete)
+        if ok:
+            await interaction.response.send_message(f"🗑️ Referência apagada: `{termo_n}`", ephemeral=True)
+        else:
+            await interaction.response.send_message(f"❌ Não achei `{termo_n}` pra apagar.", ephemeral=True)
 
 
 #######################################################################
