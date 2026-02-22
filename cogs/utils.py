@@ -15,7 +15,7 @@ from core.modules import get_file_content, update_file_content, rolar_dado
 # =========================
 
 REF_TERM_RE = re.compile(r"^[a-zA-ZÀ-ÿ0-9 _\-]{1,40}$")
-MAX_REF_NOTES = 1000
+MAX_REF_NOTES = 2000
 MAX_REF_FONTE = 40
 MAX_REF_TAGS = 8
 MAX_REF_ALIASES = 8
