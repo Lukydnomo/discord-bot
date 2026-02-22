@@ -28,6 +28,18 @@
                     ],
                     "aliases": [],
                     "by": 767015394648915978
+                },
+                "conflictus_systemicus": {
+                    "nome": "Conflictus Systemicus",
+                    "fonte": "Homebrew",
+                    "pagina": 1,
+                    "notas": "Execu\u00e7\u00e3o: padr\u00e3o; Alcance: curto; Alvo: 1 ser; Dura\u00e7\u00e3o: cena; Resist\u00eancia: Fortitude parcial. Requer afinidade com Sangue ou Conhecimento. Ao ser afetado, o corpo do alvo entra em conflito consigo mesmo: m\u00fasculos se contraem fora de sincronia, \u00f3rg\u00e3os falham por instantes e o fluxo de sangue perde ritmo, fazendo o alvo sofrer 4d8 de dano de Sangue. Al\u00e9m do dano, enquanto durar o ritual, no in\u00edcio de cada turno o alvo deve escolher agir normalmente ou reduzir seu deslocamento a 0 at\u00e9 o pr\u00f3ximo turno; se agir normalmente, sofre 2d8 de dano de Sangue adicional, representando o corpo \u201crasgando por dentro\u201d toda vez que tenta funcionar como deveria. Se o alvo ficar dois turnos seguidos sem agir (apenas se movendo ou ficando parado), o efeito cont\u00ednuo termina. Quem passa no teste de resist\u00eancia inicial sofre metade do dano e ignora o efeito cont\u00ednuo, mas ainda sente dores intensas (efeito narrativo). Discente (+2 PE): o dano inicial aumenta para 6d8 e o dano adicional por agir sobe para 3d8; al\u00e9m disso, enquanto o ritual durar, o alvo n\u00e3o pode realizar rea\u00e7\u00f5es. Verdadeiro (+5 PE): a dura\u00e7\u00e3o muda para sustentada e o conjurador pode, uma vez por turno, escolher inverter o efeito \u2014 o alvo n\u00e3o pode deixar de agir; se tentar n\u00e3o agir, sofre 3d8 de dano de Sangue automaticamente; requer 3\u00ba c\u00edrculo.",
+                    "tags": [
+                        "ritual",
+                        "homebrew"
+                    ],
+                    "aliases": [],
+                    "by": 767015394648915978
                 }
             }
         }
