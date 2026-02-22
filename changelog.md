@@ -445,23 +445,17 @@ Dito isso, vlw, por tudo. _Eu já não vejo mais nada_.
 
 - Botões de alguns sistemas agora continuam funcionando mesmo após reinicializações do bot.
 
----
-
 ### ⚙️ Alterado
 
 - Ajustes no balanceamento da conversão de **Sanidade → PD** para resultados mais consistentes.
 - Sistema de referências ficou mais inteligente ao buscar termos (menos erro com variações e acentos).
 - Melhorias gerais na organização dos comandos para deixar o bot mais fácil de usar.
 
----
-
 ### 🛠️ Correções
 
 - Correções em salvamento de dados que podiam causar perda de informações em raros casos.
 - Ajustes em sistemas interativos que às vezes paravam de responder após atualizações.
 - Pequenas correções de inconsistências em comandos de rolagem e utilidades.
-
----
 
 ### 📝 Observação
 
