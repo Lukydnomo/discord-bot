@@ -412,15 +412,3 @@ Dito isso, vlw, por tudo. _Eu já não vejo mais nada_.
 ## Observação
 
 - difícil
-
-## [2.1.1] - sla algum dia
-
-**não aguento mais caralho**
-
-## Added
-
-- **``**
-
-## Adjustments
-
-- Ajustado o balanceamento de `/converter_sanidade_para_pd`.
