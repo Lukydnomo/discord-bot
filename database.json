@@ -41,6 +41,19 @@
                     ],
                     "aliases": [],
                     "by": 767015394648915978
+                },
+                "esconder_dos_olhos": {
+                    "nome": "Esconder dos Olhos",
+                    "fonte": "Ordem",
+                    "pagina": 132,
+                    "notas": "Esconder dos Olhos \u2014 Conhecimento 2. Execu\u00e7\u00e3o: livre; Alcance: pessoal; Alvo: voc\u00ea; Dura\u00e7\u00e3o: 1 rodada. Voc\u00ea fica invis\u00edvel, incluindo seu equipamento, recebendo camuflagem total e +15 em testes de Furtividade; como o normal, seres que n\u00e3o possam v\u00ea-lo ficam desprevenidos contra seus ataques. O efeito termina se voc\u00ea fizer um ataque ou usar uma habilidade hostil; a\u00e7\u00f5es contra objetos livres n\u00e3o dissipam Esconder dos Olhos (voc\u00ea pode tocar ou apanhar objetos que n\u00e3o estejam sendo segurados por outros seres) e causar dano indiretamente \u2014 por exemplo, preparar explosivos para detonar mais tarde \u2014 n\u00e3o \u00e9 considerado um ataque. Objetos soltos voltam a ser vis\u00edveis e objetos apanhados por voc\u00ea ficam invis\u00edveis; uma luz transportada nunca fica invis\u00edvel (mesmo que sua fonte seja) e qualquer parte de um item carregado que se estenda al\u00e9m de seu alcance corpo a corpo natural se torna vis\u00edvel. Discente (+3 PE): a dura\u00e7\u00e3o muda para sustentada e, em vez do normal, voc\u00ea gera uma esfera de invisibilidade \u2014 voc\u00ea e todos os aliados a at\u00e9 3m de voc\u00ea se tornam invis\u00edveis, como no efeito normal do ritual (ainda ficam vis\u00edveis caso fa\u00e7am uma a\u00e7\u00e3o hostil); a esfera se move com voc\u00ea e qualquer coisa que saia dela fica vis\u00edvel; requer 3\u00ba c\u00edrculo. Verdadeiro (+7 PE): a execu\u00e7\u00e3o muda para a\u00e7\u00e3o padr\u00e3o, o alcance para toque, o alvo para 1 ser e a dura\u00e7\u00e3o para sustentada; o efeito n\u00e3o \u00e9 dissipado caso o alvo fa\u00e7a um ataque ou a\u00e7\u00e3o hostil; requer 4\u00ba c\u00edrculo e afinidade.",
+                    "tags": [
+                        "ritual",
+                        "ordem",
+                        "descri\u00e7\u00e3o"
+                    ],
+                    "aliases": [],
+                    "by": 767015394648915978
                 }
             }
         }
