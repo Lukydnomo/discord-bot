@@ -92,9 +92,10 @@
                 "players": {
                     "767015394648915978": {
                         "guesses": [
-                            "amadurecimento"
+                            "amadurecimento",
+                            "satisfizeramos"
                         ],
-                        "solved": false
+                        "solved": true
                     }
                 }
             }
@@ -117,9 +118,9 @@
             },
             "2026-W09": {
                 "767015394648915978": {
-                    "wins": 0,
+                    "wins": 1,
                     "plays": 1,
-                    "best": null
+                    "best": 2
                 }
             }
         }
