@@ -26,7 +26,6 @@ def _norm_term(s: str) -> str:
     s = re.sub(r"\s+", " ", s)
     return s
 
-
 def _term_id(s: str) -> str:
     """Generate a normalized identifier from a term.
 
