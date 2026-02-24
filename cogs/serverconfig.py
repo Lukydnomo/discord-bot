@@ -8,6 +8,17 @@ from discord.ext import commands
 
 from core.modules import get_file_content, update_file_content
 
+import os
+import json
+import time
+import threading
+import audioop
+import random
+
+from discord.ext import voice_recv
+from vosk import Model, KaldiRecognizer
+
+import unidecode
 
 def _ensure_guild_config(data: dict) -> dict:
     root = data.get("guild_config")
@@ -28,7 +39,6 @@ def _ensure_bot_config(data: dict) -> dict:
 class ServerConfig(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-
 
     config = app_commands.Group(
         name="config",
@@ -181,6 +191,101 @@ class ServerConfig(commands.Cog):
 
         ok = await asyncio.to_thread(_write)
         await interaction.followup.send("✅ Canal do painel de música configurado!" if ok else "❌ Falha ao salvar.", ephemeral=True)
+
+    # no topo já tem Optional, di:contentReference[oaicite:11]{index=11} :contentReference[oaicite:12]{index=12}_role", description="Define o cargo que pode usar comandos de voz do FranBot.")
+    @app_commands.describe(cargo="Cargo que pode falar 'ei franbot ...'")
+    async def config_voicecmd_role(self, interaction: discord.Interaction, cargo: discord.Role):
+        if interaction.guild is None:
+            return await interaction.response.send_message("❌ Isso só funciona em servidor.", ephemeral=True)
+        if not interaction.user.guild_permissions.manage_guild:
+            return await interaction.response.send_message("❌ Precisa **Gerenciar Servidor**.", ephemeral=True)
+
+        await interaction.response.defer(thinking=True, ephemeral=True)
+        guild_id = interaction.guild.id
+
+        def _write() -> bool:
+            data = get_file_content()
+            if not isinstance(data, dict):
+                data = {}
+            gc = _ensure_guild_config(data)
+            bucket = gc.get(str(guild_id))
+            if not isinstance(bucket, dict):
+                bucket = {}
+                gc[str(guild_id)] = bucket
+
+            bucket["voicecmd_role_id"] = int(cargo.id)
+            bucket["voicecmd_enabled"] = True
+            return update_file_content(data)
+
+        ok = await asyncio.to_thread(_write)
+        await interaction.followup.send(
+            f"✅ VoiceCmd: ligado.\n🎙️ Cargo: {cargo.mention}" if ok else "❌ Falha ao salvar.",
+            ephemeral=True
+        )
+
+    @config.command(name="voicecmd_enabled", description="Liga/desliga comandos de voz do FranBot.")
+    @app_commands.describe(ligado="True liga, False desliga")
+    async def config_voicecmd_enabled(self, interaction: discord.Interaction, ligado: bool):
+        if interaction.guild is None:
+            return await interaction.response.send_message("❌ Isso só funciona em servidor.", ephemeral=True)
+        if not interaction.user.guild_permissions.manage_guild:
+            return await interaction.response.send_message("❌ Precisa **Gerenciar Servidor**.", ephemeral=True)
+
+        await interaction.response.defer(thinking=True, ephemeral=True)
+        guild_id = interaction.guild.id
+
+        def _write() -> bool:
+            data = get_file_content()
+            if not isinstance(data, dict):
+                data = {}
+            gc = _ensure_guild_config(data)
+            bucket = gc.get(str(guild_id))
+            if not isinstance(bucket, dict):
+                bucket = {}
+                gc[str(guild_id)] = bucket
+
+            bucket["voicecmd_enabled"] = bool(ligado)
+            return update_file_content(data)
+
+        ok = await asyncio.to_thread(_write)
+        await interaction.followup.send(
+            f"✅ VoiceCmd: **{'ligado' if ligado else 'desligado'}**" if ok else "❌ Falha ao salvar.",
+            ephemeral=True
+        )
+
+    @config.command(name="voicecmd_wakeword", description="Define a palavra de chamada (wakeword). Ex: 'franbot'.")
+    @app_commands.describe(wakeword="Ex: franbot")
+    async def config_voicecmd_wakeword(self, interaction: discord.Interaction, wakeword: str):
+        if interaction.guild is None:
+            return await interaction.response.send_message("❌ Isso só funciona em servidor.", ephemeral=True)
+        if not interaction.user.guild_permissions.manage_guild:
+            return await interaction.response.send_message("❌ Precisa **Gerenciar Servidor**.", ephemeral=True)
+
+        wakeword = (wakeword or "").strip().lower()
+        if not wakeword or len(wakeword) > 32:
+            return await interaction.response.send_message("❌ Wakeword inválida (1–32 chars).", ephemeral=True)
+
+        await interaction.response.defer(thinking=True, ephemeral=True)
+        guild_id = interaction.guild.id
+
+        def _write() -> bool:
+            data = get_file_content()
+            if not isinstance(data, dict):
+                data = {}
+            gc = _ensure_guild_config(data)
+            bucket = gc.get(str(guild_id))
+            if not isinstance(bucket, dict):
+                bucket = {}
+                gc[str(guild_id)] = bucket
+
+            bucket["voicecmd_wakeword"] = wakeword
+            return update_file_content(data)
+
+        ok = await asyncio.to_thread(_write)
+        await interaction.followup.send(
+            f"✅ Wakeword: **{wakeword}**" if ok else "❌ Falha ao salvar.",
+            ephemeral=True
+        )
 
     @config.command(name="updates_clear", description="Remove a configuração de updates deste servidor.")
     async def config_updates_clear(self, interaction: discord.Interaction):

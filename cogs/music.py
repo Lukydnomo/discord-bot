@@ -11,9 +11,16 @@ from urllib.parse import urlparse
 
 import discord
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, voice_recv
 from core.modules import get_file_content, update_file_content
 
+import json
+import time
+import threading
+import audioop
+
+from discord.ext import voice_recv
+from vosk import Model, KaldiRecognizer
 
 STATE_RE = re.compile(r"\|\|music_state:([A-Za-z0-9_\-]+=*)\|\|")
 
@@ -24,6 +31,143 @@ def encode_state(obj: dict) -> str:
 def decode_state(token: str) -> dict:
     raw = urlsafe_b64decode(token.encode("ascii"))
     return json.loads(raw.decode("utf-8"))
+
+class VoiceCommandSink(voice_recv.AudioSink):
+    """
+    Recebe PCM, guarda por usuário autorizado, e ao parar de falar tenta reconhecer comando.
+    """
+    def __init__(self, *, bot: commands.Bot, music_cog: "Music", guild_id: int):
+        super().__init__()
+        self.bot = bot
+        self.music = music_cog
+        self.guild_id = guild_id
+
+        self._buffers: dict[int, bytearray] = {}
+        self._cooldown_until: dict[int, float] = {}
+        self._lock = threading.Lock()
+
+        # tuning
+        self.MIN_MS = 300
+        self.MAX_MS = 2000
+        self.COOLDOWN_S = 1.2
+
+    def wants_opus(self) -> bool:
+        return False  # precisamos PCM pro Vosk
+
+    def _is_allowed(self, member: discord.Member) -> tuple[bool, str]:
+        enabled, role_id, wake = self.music._voicecmd_settings(self.guild_id)
+        if not enabled or role_id is None:
+            return (False, wake)
+        if member.bot:
+            return (False, wake)
+
+        # precisa estar no mesmo canal de voz do bot
+        vc = self.music.voice_clients.get(self.guild_id)
+        try:
+            if not vc or not vc.channel or not member.voice or member.voice.channel != vc.channel:
+                return (False, wake)
+        except Exception:
+            return (False, wake)
+
+        # checa cargo
+        try:
+            if not any(r.id == role_id for r in member.roles):
+                return (False, wake)
+        except Exception:
+            return (False, wake)
+
+        return (True, wake)
+
+    def write(self, user: discord.Member | None, data: voice_recv.VoiceData):
+        if user is None:
+            return
+
+        ok, _wake = self._is_allowed(user)
+        if not ok:
+            return
+
+        now = time.monotonic()
+        if now < self._cooldown_until.get(user.id, 0.0):
+            return
+
+        pcm = getattr(data, "pcm", None)
+        if not pcm:
+            return
+
+        with self._lock:
+            buf = self._buffers.setdefault(user.id, bytearray())
+            buf.extend(pcm)
+
+            # limita buffer
+            max_bytes = int(48000 * 2 * 2 * (self.MAX_MS / 1000.0))
+            if len(buf) > max_bytes:
+                del buf[: len(buf) - max_bytes]
+
+    @voice_recv.AudioSink.listener()
+    def on_voice_member_speaking_stop(self, member: discord.Member):
+        ok, wake = self._is_allowed(member)
+        if not ok:
+            return
+
+        with self._lock:
+            buf = self._buffers.pop(member.id, None)
+
+        if not buf:
+            return
+
+        min_bytes = int(48000 * 2 * 2 * (self.MIN_MS / 1000.0))
+        if len(buf) < min_bytes:
+            return
+
+        self._cooldown_until[member.id] = time.monotonic() + self.COOLDOWN_S
+
+        # joga pro loop do bot
+        asyncio.run_coroutine_threadsafe(
+            self.music._handle_voice_pcm_command(self.guild_id, member.id, bytes(buf), wake),
+            self.bot.loop
+        )
+
+class DuckingSink(voice_recv.AudioSink):
+    """AudioSink para detectar fala e pedir pro cog ajustar o volume.
+    Os callbacks de listener rodam em thread -> usamos call_soon_threadsafe.
+    """
+    def __init__(self, bot: commands.Bot, guild_id: int, on_change):
+        super().__init__()
+        self.bot = bot
+        self.guild_id = guild_id
+        self.on_change = on_change
+        self._speakers: set[int] = set()
+
+    def wants_opus(self) -> bool:
+        # mais leve (não precisa decodificar PCM só pra detectar atividade)
+        return True
+
+    def write(self, user, data):
+        # não gravamos nada; só queremos os eventos virtuais
+        return
+
+    @voice_recv.AudioSink.listener()
+    def on_voice_member_speaking_start(self, member: discord.Member):
+        if member.bot:
+            return
+        self._speakers.add(member.id)
+        self.bot.loop.call_soon_threadsafe(self.on_change, self.guild_id, True)
+
+    @voice_recv.AudioSink.listener()
+    def on_voice_member_speaking_stop(self, member: discord.Member):
+        if member.bot:
+            return
+        self._speakers.discard(member.id)
+        speaking_any = len(self._speakers) > 0
+        self.bot.loop.call_soon_threadsafe(self.on_change, self.guild_id, speaking_any)
+
+    @voice_recv.AudioSink.listener()
+    def on_voice_member_disconnect(self, member: discord.Member, ssrc: int | None):
+        if member.bot:
+            return
+        self._speakers.discard(member.id)
+        speaking_any = len(self._speakers) > 0
+        self.bot.loop.call_soon_threadsafe(self.on_change, self.guild_id, speaking_any)
 
 
 class MusicControlView(discord.ui.View):
@@ -63,8 +207,129 @@ class Music(commands.Cog):
         self.loop_status: dict[int, int] = {}  # 0=off,1=track loop,2=queue loop
         # usado para pausar quando canal ficou vazio e restaurar ao voltar gente
         self.paused_for_empty: set[int] = set()
+        # anti-ruído (ducking)
+        self._duck_sinks: dict[int, DuckingSink] = {}
+        self._duck_restore: dict[int, asyncio.Handle] = {}
+        self._desired_volume: dict[int, float] = {}  # volume atual desejado por guild
+        # voice commands
+        self._voice_sinks: dict[int, "VoiceCommandSink"] = {}
+        self._vosk_model: Model | None = None
+        self._vosk_lock = threading.Lock()
 
     # configuration helpers --------------------------------------------------
+
+    async def _handle_voice_pcm_command(self, guild_id: int, user_id: int, pcm_48k_stereo: bytes, wake: str):
+        text = await asyncio.to_thread(self._transcribe_command_vosk, pcm_48k_stereo, wake)
+        if not text:
+            return
+
+        cmd = self._match_voice_command(text, wake)
+        if not cmd:
+            return
+
+        vc = self.voice_clients.get(guild_id)
+        if not vc:
+            return
+
+        # executa ações
+        if cmd == "next":
+            if getattr(vc, "is_playing", lambda: False)() or getattr(vc, "is_paused", lambda: False)():
+                vc.stop()
+
+        elif cmd == "pause_toggle":
+            is_paused = getattr(vc, "is_paused", lambda: False)()
+            is_playing = getattr(vc, "is_playing", lambda: False)()
+            if is_paused:
+                vc.resume()
+            elif is_playing:
+                vc.pause()
+
+        elif cmd == "stop":
+            self.queues[guild_id] = []
+            vc.stop()
+
+        elif cmd == "shuffle":
+            fila = self.queues.get(guild_id)
+            if fila and len(fila) > 2:
+                tocando = fila[0]
+                restante = fila[1:]
+                random.shuffle(restante)
+                self.queues[guild_id] = [tocando] + restante
+
+        elif cmd == "loop":
+            cur = int(self.loop_status.get(guild_id, 0))
+            self.loop_status[guild_id] = (cur + 1) % 3
+
+
+    def _transcribe_command_vosk(self, pcm_48k_stereo: bytes, wake: str) -> str | None:
+        model = self._get_or_load_vosk_model()
+
+        # stereo -> mono
+        try:
+            pcm_mono = audioop.tomono(pcm_48k_stereo, 2, 0.5, 0.5)
+        except Exception:
+            pcm_mono = pcm_48k_stereo
+
+        # 48k -> 16k
+        try:
+            pcm_16k, _ = audioop.ratecv(pcm_mono, 2, 1, 48000, 16000, None)
+        except Exception:
+            pcm_16k = pcm_mono
+
+        # gramática curta (bem rápida)
+        grammar = json.dumps([
+            f"ei {wake} proxima",
+            f"{wake} proxima",
+            f"ei {wake} próxima",
+            f"{wake} próxima",
+            f"ei {wake} pular",
+            f"{wake} pular",
+            f"ei {wake} pausar",
+            f"{wake} pausar",
+            f"ei {wake} parar",
+            f"{wake} parar",
+            f"ei {wake} shuffle",
+            f"{wake} shuffle",
+            f"ei {wake} loop",
+            f"{wake} loop",
+        ], ensure_ascii=False)
+
+        rec = KaldiRecognizer(model, 16000)
+        try:
+            rec.SetGrammar(grammar)
+        except Exception:
+            pass
+
+        rec.AcceptWaveform(pcm_16k)
+        try:
+            result = json.loads(rec.FinalResult() or "{}")
+            text = (result.get("text") or "").strip().lower()
+            return text or None
+        except Exception:
+            return None
+
+
+    def _match_voice_command(self, text: str, wake: str) -> str | None:
+        t = unidecode.unidecode((text or "").lower())
+        w = unidecode.unidecode((wake or "franbot").lower())
+
+        if w not in t:
+            return None
+
+        if "proxima" in t or "pular" in t or "skip" in t:
+            return "next"
+        if "pausar" in t or "pause" in t or "continuar" in t or "resume" in t:
+            return "pause_toggle"
+        if "parar" in t or "stop" in t:
+            return "stop"
+        if "shuffle" in t or "embaralhar" in t:
+            return "shuffle"
+        if "loop" in t or "repetir" in t:
+            return "loop"
+
+        return None
+
+
     def _get_guild_cfg(self, guild_id: int) -> dict:
         data = get_file_content()
         if not isinstance(data, dict):
@@ -96,6 +361,166 @@ class Music(commands.Cog):
         kbps = max(48, min(320, kbps))
 
         return autodc, kbps
+
+    def _get_or_load_vosk_model(self) -> Model:
+    # carrega 1x só (thread-safe)
+        with self._vosk_lock:
+            if self._vosk_model is None:
+                model_path = os.getenv("VOSK_MODEL_PATH", "models/vosk/pt")
+                self._vosk_model = Model(model_path)
+            return self._vosk_model
+
+
+    def _voicecmd_settings(self, guild_id: int) -> tuple[bool, int | None, str]:
+        cfg = self._get_guild_cfg(guild_id)
+        enabled = bool(cfg.get("voicecmd_enabled", False))
+
+        role_id = cfg.get("voicecmd_role_id", None)
+        try:
+            role_id = int(role_id) if role_id is not None else None
+        except Exception:
+            role_id = None
+
+        wake = str(cfg.get("voicecmd_wakeword", "franbot")).strip().lower() or "franbot"
+        return enabled, role_id, wake
+
+
+    async def _ensure_voicecmd_listening(self, guild_id: int):
+        vc = self.voice_clients.get(guild_id)
+        if not vc or not getattr(vc, "is_connected", lambda: False)():
+            return
+
+        enabled, role_id, _wake = self._voicecmd_settings(guild_id)
+        if not enabled or role_id is None:
+            # se desligou, para de ouvir
+            try:
+                if isinstance(vc, voice_recv.VoiceRecvClient):
+                    vc.stop_listening()
+            except Exception:
+                pass
+            self._voice_sinks.pop(guild_id, None)
+            return
+
+        # precisa ser VoiceRecvClient
+        if not isinstance(vc, voice_recv.VoiceRecvClient):
+            return
+
+        if guild_id in self._voice_sinks:
+            return
+
+        sink = VoiceCommandSink(bot=self.bot, music_cog=self, guild_id=guild_id)
+        self._voice_sinks[guild_id] = sink
+        vc.listen(sink)
+
+    def _voicecmd_settings(self, guild_id: int) -> tuple[bool, int | None, str]:
+        cfg = self._get_guild_cfg(guild_id)
+        enabled = bool(cfg.get("voicecmd_enabled", False))
+        role_id = cfg.get("voicecmd_role_id")
+        try:
+            role_id = int(role_id) if role_id is not None else None
+        except Exception:
+            role_id = None
+        wake = str(cfg.get("voicecmd_wakeword", "franbot")).strip().lower() or "franbot"
+        return enabled, role_id, wake
+
+    def _duck_cfg(self, guild_id: int) -> tuple[bool, float, float, int]:
+        """Retorna (enabled, base_volume, duck_volume, release_ms)
+        (se não tiver config, usa defaults)
+        """
+        cfg = {}
+        try:
+            cfg = self._get_guild_cfg(guild_id)  # você já tem isso no seu music.py mais novo
+        except Exception:
+            cfg = {}
+
+        enabled = bool(cfg.get("music_duck_enabled", True))
+
+        def _f(key, default):
+            try:
+                return float(cfg.get(key, default))
+            except Exception:
+                return float(default)
+
+        base = _f("music_volume", 1.0)
+        duck = _f("music_duck_volume", 0.35)
+
+        try:
+            release_ms = int(cfg.get("music_duck_release_ms", 1200))
+        except Exception:
+            release_ms = 1200
+
+        base = max(0.0, min(2.0, base))
+        duck = max(0.0, min(base, duck))
+        release_ms = max(100, min(5000, release_ms))
+
+        return enabled, base, duck, release_ms
+
+    def _apply_volume_now(self, guild_id: int):
+        vc = self.voice_clients.get(guild_id)
+        if not vc:
+            return
+        src = getattr(vc, "source", None)
+        if not src:
+            return
+        vol = self._desired_volume.get(guild_id)
+        if vol is None:
+            enabled, base, _, _ = self._duck_cfg(guild_id)
+            vol = base if enabled else 1.0
+            self._desired_volume[guild_id] = vol
+
+        if isinstance(src, discord.PCMVolumeTransformer):
+            src.volume = vol
+        else:
+            # se já estiver tocando sem transformer, tenta "embrulhar" ao vivo
+            try:
+                vc.source = discord.PCMVolumeTransformer(src, volume=vol)
+            except Exception:
+                pass
+
+    def _set_desired_volume(self, guild_id: int, vol: float):
+        self._desired_volume[guild_id] = vol
+        self._apply_volume_now(guild_id)
+
+    def _on_speaking_change(self, guild_id: int, speaking_any: bool):
+        enabled, base, duck, release_ms = self._duck_cfg(guild_id)
+        if not enabled:
+            return
+
+        # cancela restore pendente
+        h = self._duck_restore.pop(guild_id, None)
+        if h:
+            try:
+                h.cancel()
+            except Exception:
+                pass
+
+        if speaking_any:
+            self._set_desired_volume(guild_id, duck)
+        else:
+            # espera um pouco pra não ficar "tremendo" o volume
+            def _restore():
+                self._duck_restore.pop(guild_id, None)
+                self._set_desired_volume(guild_id, base)
+
+            self._duck_restore[guild_id] = self.bot.loop.call_later(release_ms / 1000.0, _restore)
+
+    def _ensure_ducking(self, guild_id: int, vc: discord.VoiceClient):
+        # só funciona com VoiceRecvClient
+        if not isinstance(vc, voice_recv.VoiceRecvClient):
+            return
+
+        if guild_id in self._duck_sinks:
+            return
+
+        sink = DuckingSink(self.bot, guild_id, self._on_speaking_change)
+        self._duck_sinks[guild_id] = sink
+
+        # começa a "escutar" pra gerar eventos de speaking
+        try:
+            vc.listen(sink)
+        except Exception:
+            # se falhar, não mata a música
+            self._duck_sinks.pop(guild_id, None)
 
     async def cog_load(self):
         # register persistent view so buttons survive bot restarts
@@ -322,13 +747,17 @@ class Music(commands.Cog):
             if is_remote:
                 opts.update(reconnect_opts)
 
-            vc.play(
-                discord.FFmpegPCMAudio(
-                    audio_path,
-                    **opts
-                ),
-                after=after_playback
+            enabled, base, _, _ = self._duck_cfg(guild_id)
+            if guild_id not in self._desired_volume:
+                self._desired_volume[guild_id] = base if enabled else 1.0
+
+            ff = discord.FFmpegPCMAudio(
+                audio_path,
+                **opts
             )
+            src = discord.PCMVolumeTransformer(ff, volume=self._desired_volume[guild_id])
+
+            vc.play(src, after=after_playback)
             # refresh panel to reflect now playing
             try:
                 asyncio.run_coroutine_threadsafe(
@@ -370,8 +799,10 @@ class Music(commands.Cog):
         if interaction.guild.id in self.voice_clients:
             return await interaction.response.send_message("⚠️ Já estou em um canal de voz!", ephemeral=True)
 
-        vc = await canal.connect()
+        vc = await canal.connect(cls=voice_recv.VoiceRecvClient)
         self.voice_clients[interaction.guild.id] = vc
+        self._ensure_ducking(interaction.guild.id, vc)
+        await self._ensure_voicecmd_listening(interaction.guild.id)
         await interaction.response.send_message(f"🔊 Entrei no canal {canal.mention}!")
 
     @app_commands.command(name="tocar", description="Toca um ou mais áudios no canal de voz")
@@ -392,8 +823,10 @@ class Music(commands.Cog):
                 return await interaction.followup.send(
                     "❌ Você precisa estar em um canal de voz!", ephemeral=True
                 )
-            vc = await canal.connect()
+            vc = await canal.connect(cls=voice_recv.VoiceRecvClient)
             self.voice_clients[guild_id] = vc
+            self._ensure_ducking(guild_id, vc)
+            await self._ensure_voicecmd_listening(interaction.guild.id)
 
         # ensure a panel exists in this channel (and move existing if necessary)
         if isinstance(interaction.channel, discord.TextChannel):
@@ -898,8 +1331,10 @@ class Music(commands.Cog):
                 return await interaction.response.send_message("❌ Você precisa estar em um canal de voz para eu tocar a fila.", ephemeral=True)
             try:
                 if not vc or not getattr(vc, "is_connected", lambda: False)():
-                    vc = await canal.connect()
+                    vc = await canal.connect(cls=voice_recv.VoiceRecvClient)
                     self.voice_clients[guild_id] = vc
+                    self._ensure_ducking(guild_id, vc)
+                    await self._ensure_voicecmd_listening(interaction.guild.id)
             except Exception as e:
                 return await interaction.response.send_message(f"❌ Erro ao conectar no canal de voz: {e}", ephemeral=True)
 
@@ -1039,8 +1474,9 @@ class Music(commands.Cog):
                 continue
 
             try:
-                vc = await ch.connect()
+                vc = await ch.connect(cls=voice_recv.VoiceRecvClient)
                 self.voice_clients[guild_id] = vc
+                self._ensure_ducking(guild_id, vc)
                 if self.queues.get(guild_id):
                     self.play_next(guild_id)
                     await self._update_panel(guild_id, "Tocando", disabled=False, voice_channel_id=int(voice_id))
