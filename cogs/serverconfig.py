@@ -153,6 +153,35 @@ class ServerConfig(commands.Cog):
         ok = await asyncio.to_thread(_write)
         await interaction.followup.send(f"✅ Bitrate: **{kbps}kbps**" if ok else "❌ Falha ao salvar.", ephemeral=True)
 
+    @config.command(name="music_panel", description="Define o canal do painel de música (onde fica o embed com botões).")
+    @app_commands.describe(canal="Canal de texto do painel de música")
+    async def config_music_panel(self, interaction: discord.Interaction, canal: discord.TextChannel):
+        if interaction.guild is None:
+            return await interaction.response.send_message("❌ Isso só funciona em servidor.", ephemeral=True)
+
+        if not interaction.user.guild_permissions.manage_guild:
+            return await interaction.response.send_message("❌ Precisa **Gerenciar Servidor**.", ephemeral=True)
+
+        await interaction.response.defer(thinking=True, ephemeral=True)
+        guild_id = interaction.guild.id
+
+        def _write() -> bool:
+            data = get_file_content()
+            if not isinstance(data, dict):
+                data = {}
+            gc = _ensure_guild_config(data)
+            bucket = gc.get(str(guild_id))
+            if not isinstance(bucket, dict):
+                bucket = {}
+                gc[str(guild_id)] = bucket
+
+            bucket["music_panel_channel_id"] = int(canal.id)
+            # não definimos message_id aqui
+            return update_file_content(data)
+
+        ok = await asyncio.to_thread(_write)
+        await interaction.followup.send("✅ Canal do painel de música configurado!" if ok else "❌ Falha ao salvar.", ephemeral=True)
+
     @config.command(name="updates_clear", description="Remove a configuração de updates deste servidor.")
     async def config_updates_clear(self, interaction: discord.Interaction):
         if interaction.guild is None:
@@ -213,6 +242,7 @@ class ServerConfig(commands.Cog):
 
         ch_id = b.get("updates_channel_id")
         role_id = b.get("updates_role_id")
+        panel_ch = b.get("music_panel_channel_id")
         board_id = b.get("hexatombe_board_channel_id")
         dest_id = b.get("hexatombe_dest_channel_id")
         ping_id = b.get("hexatombe_ping_user_id")
@@ -226,6 +256,7 @@ class ServerConfig(commands.Cog):
 
         ch_txt = f"<#{ch_id}>" if ch_id else "(não definido)"
         role_txt = f"<@&{role_id}>" if role_id else "(não definido)"
+        panel_txt = f"<#{panel_ch}>" if panel_ch else "(não definido)"
         board_txt = f"<#{board_id}>" if board_id else "(não definido)"
         dest_txt = f"<#{dest_id}>" if dest_id else "(não definido)"
         ping_txt = f"<@{ping_id}>" if ping_id else "(não definido)"
@@ -240,6 +271,7 @@ class ServerConfig(commands.Cog):
             "⚙️ **Config do servidor**\n"
             f"• Updates channel: {ch_txt}\n"
             f"• Updates ping: {role_txt}\n"
+            f"• Music painel: {panel_txt}\n"
             f"• Hexatombe painel: {board_txt}\n"
             f"• Hexatombe destino: {dest_txt}\n"
             f"• Hexatombe ping: {ping_txt}\n"

@@ -2,6 +2,8 @@
 import os
 import random
 import asyncio
+import json
+import re
 import unidecode
 from base64 import urlsafe_b64encode, urlsafe_b64decode
 from typing import Optional
@@ -10,7 +12,44 @@ from urllib.parse import urlparse
 import discord
 from discord import app_commands
 from discord.ext import commands
-from core.modules import get_file_content
+from core.modules import get_file_content, update_file_content
+
+
+STATE_RE = re.compile(r"\|\|music_state:([A-Za-z0-9_\-]+=*)\|\|")
+
+def encode_state(obj: dict) -> str:
+    raw = json.dumps(obj, ensure_ascii=False, separators=(",",":")).encode("utf-8")
+    return urlsafe_b64encode(raw).decode("ascii")
+
+def decode_state(token: str) -> dict:
+    raw = urlsafe_b64decode(token.encode("ascii"))
+    return json.loads(raw.decode("utf-8"))
+
+
+class MusicControlView(discord.ui.View):
+    def __init__(self, disabled: bool = False):
+        super().__init__(timeout=None)  # persistent view
+        self.disabled = disabled
+
+        def btn(label, cid, style=discord.ButtonStyle.secondary, emoji=None):
+            b = discord.ui.Button(label=label, custom_id=cid, style=style, emoji=emoji, disabled=disabled)
+            b.callback = self._wrap(cid)
+            self.add_item(b)
+
+        btn("Pause/Play", "music:toggle", discord.ButtonStyle.primary, "⏯️")
+        btn("Pular", "music:skip", discord.ButtonStyle.secondary, "⏭️")
+        btn("Parar", "music:stop", discord.ButtonStyle.danger, "⏹️")
+        btn("Loop", "music:loop", discord.ButtonStyle.secondary, "🔁")
+        btn("Shuffle", "music:shuffle", discord.ButtonStyle.secondary, "🔀")
+        btn("Fila", "music:queue", discord.ButtonStyle.secondary, "📜")
+
+    def _wrap(self, cid: str):
+        async def _cb(interaction: discord.Interaction):
+            cog = interaction.client.get_cog("Music")
+            if cog is None:
+                return await interaction.response.send_message("❌ Music cog não carregado.", ephemeral=True)
+            await cog._panel_action(interaction, cid)
+        return _cb
 
 
 class Music(commands.Cog):
@@ -22,6 +61,8 @@ class Music(commands.Cog):
         self.voice_clients: dict[int, discord.VoiceClient] = {}
         self.queues: dict[int, list] = {}
         self.loop_status: dict[int, int] = {}  # 0=off,1=track loop,2=queue loop
+        # usado para pausar quando canal ficou vazio e restaurar ao voltar gente
+        self.paused_for_empty: set[int] = set()
 
     # configuration helpers --------------------------------------------------
     def _get_guild_cfg(self, guild_id: int) -> dict:
@@ -55,6 +96,130 @@ class Music(commands.Cog):
         kbps = max(48, min(320, kbps))
 
         return autodc, kbps
+
+    async def cog_load(self):
+        # register persistent view so buttons survive bot restarts
+        self.bot.add_view(MusicControlView(disabled=False))
+
+    # helpers for panel and configuration ----------------------------------
+    def _cfg_bucket(self, guild_id: int) -> dict:
+        data = get_file_content()
+        if not isinstance(data, dict):
+            return {}
+        gc = data.get("guild_config", {})
+        if not isinstance(gc, dict):
+            return {}
+        b = gc.get(str(guild_id), {})
+        return b if isinstance(b, dict) else {}
+
+    def _get_panel_ids(self, guild_id: int) -> tuple[Optional[int], Optional[int]]:
+        b = self._cfg_bucket(guild_id)
+        ch = b.get("music_panel_channel_id")
+        mid = b.get("music_panel_message_id")
+        return (int(ch) if ch else None, int(mid) if mid else None)
+
+    async def _save_panel_message_id(self, guild_id: int, message: discord.Message) -> None:
+        def _write() -> bool:
+            data = get_file_content()
+            if not isinstance(data, dict):
+                data = {}
+            gc = data.get("guild_config")
+            if not isinstance(gc, dict):
+                gc = {}
+                data["guild_config"] = gc
+            bucket = gc.get(str(guild_id))
+            if not isinstance(bucket, dict):
+                bucket = {}
+                gc[str(guild_id)] = bucket
+            bucket["music_panel_channel_id"] = int(message.channel.id)
+            bucket["music_panel_message_id"] = int(message.id)
+            return update_file_content(data)
+
+        await asyncio.to_thread(_write)
+
+    def _listeners_count(self, vc: Optional[discord.VoiceClient]) -> int:
+        try:
+            if not vc or not vc.channel:
+                return 0
+            return sum(1 for m in vc.channel.members if not m.bot)
+        except Exception:
+            return 0
+
+    def _track_title(self, t) -> str:
+        if isinstance(t, dict):
+            return str(t.get("title") or os.path.basename(str(t.get("path", "???"))))
+        return os.path.basename(str(t))
+
+    def _normalize_track(self, t, requester_id: Optional[int] = None) -> dict:
+        if isinstance(t, dict):
+            path = t.get("path", t)
+            title = t.get("title") or os.path.basename(str(path))
+            return {"path": str(path), "title": str(title), "requester_id": t.get("requester_id", requester_id)}
+        s = str(t)
+        return {"path": s, "title": os.path.basename(s), "requester_id": requester_id}
+
+    def _build_panel_embed(self, guild_id: int, status: str) -> discord.Embed:
+        queue = self.queues.get(guild_id, [])
+        vc = self.voice_clients.get(guild_id)
+        now = self._track_title(queue[0]) if queue else "—"
+        nexts = [self._track_title(x) for x in queue[1:6]]
+        loop = int(self.loop_status.get(guild_id, 0))
+        loop_txt = {0: "Desligado", 1: "Música atual", 2: "Fila inteira"}.get(loop, "Desconhecido")
+
+        e = discord.Embed(title="🎧 Painel de Música", description=f"**Status:** {status}", color=discord.Color.blurple())
+        e.add_field(name="🎵 Agora", value=now, inline=False)
+        e.add_field(name="⏭️ Próximas", value=("\n".join(f"• {x}" for x in nexts) if nexts else "—"), inline=False)
+        e.add_field(name="🔁 Loop", value=loop_txt, inline=True)
+        e.add_field(name="📦 Tamanho da fila", value=str(max(0, len(queue)-1)), inline=True)
+
+        e.set_footer(text="Se não tiver ninguém ouvindo, o painel desativa sozinho.")
+        return e
+
+    def _make_state_token(self, guild_id: int, voice_channel_id: Optional[int]) -> str:
+        queue = [self._normalize_track(t) for t in self.queues.get(guild_id, [])][:50]
+        payload = {
+            "v": 1,
+            "voice": int(voice_channel_id) if voice_channel_id else None,
+            "loop": int(self.loop_status.get(guild_id, 0)),
+            "queue": queue,
+        }
+        return encode_state(payload)
+
+    async def _get_panel_message(self, guild_id: int) -> Optional[discord.Message]:
+        ch_id, msg_id = self._get_panel_ids(guild_id)
+        if not ch_id or not msg_id:
+            return None
+        ch = self.bot.get_channel(ch_id) or await self.bot.fetch_channel(ch_id)
+        if not isinstance(ch, discord.TextChannel):
+            return None
+        try:
+            return await ch.fetch_message(msg_id)
+        except Exception:
+            return None
+
+    async def _update_panel(self, guild_id: int, status: str, disabled: bool = False, voice_channel_id: Optional[int] = None):
+        msg = await self._get_panel_message(guild_id)
+        if msg is None:
+            return
+        token = self._make_state_token(guild_id, voice_channel_id)
+        content = f"||music_state:{token}||"
+        await msg.edit(content=content, embed=self._build_panel_embed(guild_id, status), view=MusicControlView(disabled=disabled))
+
+    async def _ensure_panel(self, guild_id: int, channel: discord.TextChannel, move: bool = False):
+        # ensure there is a message tracked as the panel; if it's in a different channel and move=True delete old
+        msg = await self._get_panel_message(guild_id)
+        if msg and msg.channel.id == channel.id and not move:
+            return msg
+        if msg and msg.channel.id != channel.id:
+            try:
+                await msg.delete()
+            except Exception:
+                pass
+        status = "Tocando" if (self.voice_clients.get(guild_id) and self.voice_clients[guild_id].is_playing()) else ("Pausado" if (self.voice_clients.get(guild_id) and getattr(self.voice_clients[guild_id], "is_paused", lambda: False)()) else "Parado")
+        token = self._make_state_token(guild_id, getattr(getattr(self.voice_clients.get(guild_id), "channel", None), "id", None))
+        newmsg = await channel.send(content=f"||music_state:{token}||", embed=self._build_panel_embed(guild_id, status), view=MusicControlView(disabled=False))
+        await self._save_panel_message_id(guild_id, newmsg)
+        return newmsg
 
     # Tocador
     def check_auto_disconnect(self, guild_id):
@@ -93,6 +258,18 @@ class Music(commands.Cog):
                     self.play_next(guild_id)
                 else:
                     self.check_auto_disconnect(guild_id)
+                    try:
+                        asyncio.run_coroutine_threadsafe(
+                            self._update_panel(
+                                guild_id,
+                                "Parado",
+                                disabled=False,
+                                voice_channel_id=getattr(getattr(vc, "channel", None), "id", None),
+                            ),
+                            self.bot.loop,
+                        )
+                    except Exception:
+                        pass
                 return
 
             # Gerencia o loop após reprodução bem-sucedida
@@ -107,6 +284,18 @@ class Music(commands.Cog):
                     self.play_next(guild_id)
                 else:
                     self.check_auto_disconnect(guild_id)
+                    try:
+                        asyncio.run_coroutine_threadsafe(
+                            self._update_panel(
+                                guild_id,
+                                "Parado",
+                                disabled=False,
+                                voice_channel_id=getattr(getattr(vc, "channel", None), "id", None),
+                            ),
+                            self.bot.loop,
+                        )
+                    except Exception:
+                        pass
 
         try:
             # Configura opções do FFmpeg
@@ -140,6 +329,19 @@ class Music(commands.Cog):
                 ),
                 after=after_playback
             )
+            # refresh panel to reflect now playing
+            try:
+                asyncio.run_coroutine_threadsafe(
+                    self._update_panel(
+                        guild_id,
+                        "Tocando",
+                        disabled=False,
+                        voice_channel_id=getattr(getattr(vc, "channel", None), "id", None),
+                    ),
+                    self.bot.loop,
+                )
+            except Exception:
+                pass
 
         except Exception as e:
             print(f"Erro ao tocar a faixa: {e}")
@@ -193,6 +395,10 @@ class Music(commands.Cog):
             vc = await canal.connect()
             self.voice_clients[guild_id] = vc
 
+        # ensure a panel exists in this channel (and move existing if necessary)
+        if isinstance(interaction.channel, discord.TextChannel):
+            await self._ensure_panel(guild_id, interaction.channel, move=True)
+
         nomes = [n.strip() for n in arquivo.split(",")]
         encontrados: list[str] = []
         self.queues.setdefault(guild_id, [])
@@ -215,7 +421,7 @@ class Music(commands.Cog):
                     continue
 
                 title = os.path.basename(parsed.path) or nome
-                self.queues[guild_id].append({"path": nome, "title": title})
+                self.queues[guild_id].append({"path": nome, "title": title, "requester_id": interaction.user.id})
                 encontrados.append(title)
                 continue
 
@@ -230,7 +436,8 @@ class Music(commands.Cog):
                         if os.path.isfile(os.path.join(caminho_pasta, f))
                     )
                     if arquivos:
-                        self.queues[guild_id].extend(arquivos)
+                        # convert to dict entries
+                        self.queues[guild_id].extend({"path": p, "title": os.path.basename(p), "requester_id": interaction.user.id} for p in arquivos)
                         encontrados.append(f"[{len(arquivos)} faixas de {pasta}]")
                     else:
                         await interaction.followup.send(
@@ -245,7 +452,7 @@ class Music(commands.Cog):
             # ───  C) Arquivo local simples  ───────────────────────────────────
             audio_file = self.buscar_arquivo(nome)
             if audio_file:
-                self.queues[guild_id].append(audio_file)
+                self.queues[guild_id].append({"path": audio_file, "title": nome, "requester_id": interaction.user.id})
                 encontrados.append(nome)
             else:
                 await interaction.followup.send(
@@ -266,6 +473,108 @@ class Music(commands.Cog):
             await interaction.followup.send(
                 f"🎶 Adicionado à fila: {', '.join(encontrados)}"
             )
+
+        # depois de qualquer alteração, atualiza o painel
+        voice_id = getattr(getattr(vc, "channel", None), "id", None)
+        await self._update_panel(guild_id, "Tocando" if vc and vc.is_playing() else "Pausado", disabled=False, voice_channel_id=voice_id)
+
+    @app_commands.command(name="painel_musica", description="Cria/atualiza o painel de música neste servidor.")
+    async def painel_musica(self, interaction: discord.Interaction):
+        if interaction.guild is None:
+            return await interaction.response.send_message("❌ Isso só funciona em servidor.", ephemeral=True)
+        if not interaction.user.guild_permissions.manage_guild:
+            return await interaction.response.send_message("❌ Precisa **Gerenciar Servidor**.", ephemeral=True)
+
+        await interaction.response.defer(thinking=True, ephemeral=True)
+        guild_id = interaction.guild.id
+
+        # tenta pegar o canal configurado, senão usa o canal atual
+        b = self._cfg_bucket(guild_id)
+        ch_id = b.get("music_panel_channel_id")
+        ch = None
+        if ch_id:
+            ch = self.bot.get_channel(int(ch_id)) or await self.bot.fetch_channel(int(ch_id))
+        if not isinstance(ch, discord.TextChannel):
+            if isinstance(interaction.channel, discord.TextChannel):
+                ch = interaction.channel
+        if ch is None:
+            return await interaction.followup.send("❌ Não consegui identificar canal válido para o painel.", ephemeral=True)
+
+        await self._ensure_panel(guild_id, ch, move=True)
+        await interaction.followup.send(f"✅ Painel criado/atualizado em {ch.mention}!", ephemeral=True)
+
+    async def _panel_action(self, interaction: discord.Interaction, action: str):
+        if interaction.guild is None:
+            return await interaction.response.send_message("❌ Isso só funciona em servidor.", ephemeral=True)
+
+        guild_id = interaction.guild.id
+        vc = self.voice_clients.get(guild_id)
+
+        # se não tá conectado: desativa
+        if not vc or not getattr(vc, "channel", None):
+            await self._update_panel(guild_id, "Parado", disabled=True, voice_channel_id=None)
+            return await interaction.response.send_message("⚠️ Não estou em call aqui. Use `/tocar`.", ephemeral=True)
+
+        listeners = self._listeners_count(vc)
+        if listeners <= 0:
+            # ninguém ouvindo -> painel “morre”
+            await self._update_panel(guild_id, "Sem ouvintes", disabled=True, voice_channel_id=vc.channel.id)
+            return await interaction.response.send_message("⚠️ Ninguém está ouvindo música agora, painel desativado.", ephemeral=True)
+
+        # ações
+        if action == "music:toggle":
+            if getattr(vc, "is_paused", lambda: False)():
+                vc.resume()
+                status = "Tocando"
+            elif vc.is_playing():
+                vc.pause()
+                status = "Pausado"
+            else:
+                # se tem fila, tenta tocar
+                if self.queues.get(guild_id):
+                    self.play_next(guild_id)
+                status = "Tocando"
+            await self._update_panel(guild_id, status, disabled=False, voice_channel_id=vc.channel.id)
+            return await interaction.response.send_message("✅", ephemeral=True)
+
+        if action == "music:skip":
+            if vc.is_playing() or getattr(vc, "is_paused", lambda: False)():
+                vc.stop()
+            await self._update_panel(guild_id, "Pulando…", disabled=False, voice_channel_id=vc.channel.id)
+            return await interaction.response.send_message("⏭️", ephemeral=True)
+
+        if action == "music:stop":
+            self.queues[guild_id] = []
+            vc.stop()
+            await self._update_panel(guild_id, "Parado", disabled=False, voice_channel_id=vc.channel.id)
+            return await interaction.response.send_message("⏹️", ephemeral=True)
+
+        if action == "music:loop":
+            cur = int(self.loop_status.get(guild_id, 0))
+            self.loop_status[guild_id] = (cur + 1) % 3
+            await self._update_panel(guild_id, "Tocando" if vc.is_playing() else "Pausado", disabled=False, voice_channel_id=vc.channel.id)
+            return await interaction.response.send_message("🔁", ephemeral=True)
+
+        if action == "music:shuffle":
+            fila = self.queues.get(guild_id, [])
+            if len(fila) > 1:
+                tocando = fila[0]
+                rest = fila[1:]
+                random.shuffle(rest)
+                self.queues[guild_id] = [tocando] + rest
+            await self._update_panel(guild_id, "Tocando" if vc.is_playing() else "Pausado", disabled=False, voice_channel_id=vc.channel.id)
+            return await interaction.response.send_message("🔀", ephemeral=True)
+
+        if action == "music:queue":
+            queue = self.queues.get(guild_id, [])
+            if not queue:
+                return await interaction.response.send_message("🎶 fila vazia.", ephemeral=True)
+            now = self._track_title(queue[0])
+            upcoming = [self._track_title(x) for x in queue[1:16]]
+            txt = f"🎵 Agora: **{now}**\n" + ("\n".join(f"{i+1}. {t}" for i, t in enumerate(upcoming)) if upcoming else "—")
+            return await interaction.response.send_message(txt, ephemeral=True)
+
+        return await interaction.response.send_message("❌ ação desconhecida.", ephemeral=True)
 
     @app_commands.command(name="listar", description="Lista todos os áudios")
     async def listar(self, interaction: discord.Interaction):
@@ -315,6 +624,8 @@ class Music(commands.Cog):
         self.queues[guild_id] = []  # Limpa a fila
         vc.stop()
         await interaction.response.send_message("⏹️ Reprodução interrompida e fila limpa!")
+        # atualizar painel
+        await self._update_panel(guild_id, "Parado", disabled=False, voice_channel_id=getattr(getattr(vc, "channel", None), "id", None))
 
     @app_commands.command(name="sair", description="Faz o bot sair de todos os canais de voz e limpa todas as filas de reprodução")
     async def sair(self, interaction: discord.Interaction):
@@ -335,6 +646,8 @@ class Music(commands.Cog):
                 self.voice_clients.pop(guild_id, None)
                 self.queues.pop(guild_id, None)
                 self.loop_status.pop(guild_id, None)
+                # também atualiza painel se houver
+                await self._update_panel(guild_id, "Parado", disabled=True, voice_channel_id=None)
 
         # Tentativa adicional: remover diretamente uma instância problemática pelo ID conhecido
 
@@ -356,6 +669,7 @@ class Music(commands.Cog):
         await interaction.response.send_message("⏭️ Pulando para o próximo áudio...")
 
         self.play_next(guild_id)
+        # painel será atualizado por play_next quando a próxima música começar
 
     @app_commands.command(name="fila", description="Mostra a fila de áudios")
     async def fila(self, interaction: discord.Interaction):
@@ -438,6 +752,10 @@ class Music(commands.Cog):
         }
 
         await interaction.response.send_message(mensagens.get(novo_estado, "Modo de loop definido."))
+        # atualiza painel sem mudar disabled
+        vc = self.voice_clients.get(guild_id)
+        voice_id = getattr(getattr(vc, "channel", None), "id", None)
+        await self._update_panel(guild_id, "Tocando" if vc and getattr(vc, "is_playing", lambda: False)() else "Parado", disabled=False, voice_channel_id=voice_id)
 
     @app_commands.command(name="shuffle", description="Embaralha a fila de áudios")
     async def shuffle(self, interaction: discord.Interaction):
@@ -454,6 +772,9 @@ class Music(commands.Cog):
         self.queues[guild_id] = [tocando_agora] + restante
 
         await interaction.response.send_message("🔀 Fila embaralhada com sucesso!")
+        vc = self.voice_clients.get(guild_id)
+        voice_id = getattr(getattr(vc, "channel", None), "id", None)
+        await self._update_panel(guild_id, "Tocando" if vc and getattr(vc, "is_playing", lambda: False)() else "Parado", disabled=False, voice_channel_id=voice_id)
 
     @app_commands.command(name="salvar_fila", description="Salva a fila atual em um ID único")
     async def salvar_fila(self, interaction: discord.Interaction):
@@ -547,11 +868,11 @@ class Music(commands.Cog):
                         else:
                             not_found.append(title)
                             continue
-                    new_queue.append({"path": path, "title": title})
+                    new_queue.append({"path": path, "title": title, "requester_id": None})
                     loaded.append(title)
                 else:
                     # remote URL - mantêm como caminho para streaming ffmpeg
-                    new_queue.append({"path": path, "title": title})
+                    new_queue.append({"path": path, "title": title, "requester_id": None})
                     loaded.append(title)
             except Exception:
                 not_found.append(str(item))
@@ -596,6 +917,12 @@ class Music(commands.Cog):
             msg += f"\n⚠️ Não encontrados/ignorados: {', '.join(not_found)}"
 
         await interaction.response.send_message(msg)
+        # painel fica no canal do comando
+        if isinstance(interaction.channel, discord.TextChannel):
+            await self._ensure_panel(guild_id, interaction.channel, move=True)
+            vc = self.voice_clients.get(guild_id)
+            voice_id = getattr(getattr(vc, "channel", None), "id", None)
+            await self._update_panel(guild_id, "Tocando" if vc and getattr(vc, "is_playing", lambda: False)() else "Parado", disabled=False, voice_channel_id=voice_id)
 
     @app_commands.command(name="pausar", description="Pausa ou resume a reprodução (toggle)")
     async def pausar(self, interaction: discord.Interaction):
@@ -613,13 +940,112 @@ class Music(commands.Cog):
             if is_paused:
                 vc.resume()
                 await interaction.response.send_message("▶️ Reprodução retomada.", ephemeral=True)
+                # atualiza painel
+                vc2 = self.voice_clients.get(guild_id)
+                voice_id = getattr(getattr(vc2, "channel", None), "id", None)
+                await self._update_panel(guild_id, "Tocando", disabled=False, voice_channel_id=voice_id)
             elif is_playing:
                 vc.pause()
                 await interaction.response.send_message("⏸️ Reprodução pausada.", ephemeral=True)
+                vc2 = self.voice_clients.get(guild_id)
+                voice_id = getattr(getattr(vc2, "channel", None), "id", None)
+                await self._update_panel(guild_id, "Pausado", disabled=False, voice_channel_id=voice_id)
             else:
                 await interaction.response.send_message("❌ Não há áudio tocando no momento.", ephemeral=True)
         except Exception as e:
             await interaction.response.send_message(f"❌ Erro ao alterar o estado de reprodução: {e}", ephemeral=True)
+
+
+    @commands.Cog.listener()
+    async def on_voice_state_update(self, member: discord.Member, before, after):
+        if member.guild is None:
+            return
+        guild_id = member.guild.id
+        vc = self.voice_clients.get(guild_id)
+        if not vc or not getattr(vc, "channel", None):
+            return
+
+        if before.channel != vc.channel and after.channel != vc.channel:
+            return
+
+        listeners = self._listeners_count(vc)
+
+        if listeners <= 0:
+            try:
+                if vc.is_playing():
+                    vc.pause()
+                    self.paused_for_empty.add(guild_id)
+            except Exception:
+                pass
+            await self._update_panel(guild_id, "Sem ouvintes", disabled=True, voice_channel_id=vc.channel.id)
+        else:
+            if guild_id in self.paused_for_empty:
+                try:
+                    vc.resume()
+                except Exception:
+                    pass
+                self.paused_for_empty.discard(guild_id)
+            await self._update_panel(guild_id, "Tocando" if vc.is_playing() else "Pausado", disabled=False, voice_channel_id=vc.channel.id)
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        asyncio.create_task(self._restore_from_panel())
+
+    async def _restore_from_panel(self):
+        await asyncio.sleep(2)
+        for g in self.bot.guilds:
+            guild_id = g.id
+            msg = await self._get_panel_message(guild_id)
+            if msg is None:
+                continue
+
+            m = STATE_RE.search(msg.content or "")
+            if not m:
+                continue
+
+            try:
+                state = decode_state(m.group(1))
+            except Exception:
+                continue
+
+            try:
+                self.loop_status[guild_id] = int(state.get("loop", 0))
+            except Exception:
+                self.loop_status[guild_id] = 0
+
+            q = state.get("queue") or []
+            if isinstance(q, list):
+                rebuilt = []
+                for it in q:
+                    t = self._normalize_track(it)
+                    path = t["path"]
+                    if isinstance(path, str) and not path.startswith("http") and not os.path.exists(path):
+                        continue
+                    rebuilt.append(t)
+                self.queues[guild_id] = rebuilt
+
+            voice_id = state.get("voice")
+            if not voice_id:
+                await self._update_panel(guild_id, "Parado", disabled=True, voice_channel_id=None)
+                continue
+
+            ch = g.get_channel(int(voice_id))
+            if not isinstance(ch, discord.VoiceChannel):
+                await self._update_panel(guild_id, "Canal de voz não existe", disabled=True, voice_channel_id=None)
+                continue
+
+            if not any((not m.bot) for m in ch.members):
+                await self._update_panel(guild_id, "Sem ouvintes", disabled=True, voice_channel_id=int(voice_id))
+                continue
+
+            try:
+                vc = await ch.connect()
+                self.voice_clients[guild_id] = vc
+                if self.queues.get(guild_id):
+                    self.play_next(guild_id)
+                    await self._update_panel(guild_id, "Tocando", disabled=False, voice_channel_id=int(voice_id))
+            except Exception:
+                await self._update_panel(guild_id, "Falha ao reconectar", disabled=True, voice_channel_id=int(voice_id))
 
 
 async def setup(bot: commands.Bot) -> None:
