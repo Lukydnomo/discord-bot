@@ -193,6 +193,7 @@ class ServerConfig(commands.Cog):
         await interaction.followup.send("✅ Canal do painel de música configurado!" if ok else "❌ Falha ao salvar.", ephemeral=True)
 
     # no topo já tem Optional, di:contentReference[oaicite:11]{index=11} :contentReference[oaicite:12]{index=12}_role", description="Define o cargo que pode usar comandos de voz do FranBot.")
+    @config.command(name="voicecmd_role", description="Define o cargo que pode usar comandos de voz do FranBot.")
     @app_commands.describe(cargo="Cargo que pode falar 'ei franbot ...'")
     async def config_voicecmd_role(self, interaction: discord.Interaction, cargo: discord.Role):
         if interaction.guild is None:
