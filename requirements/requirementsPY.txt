@@ -6,5 +6,3 @@ pillow
 deep_translator
 pyfiglet
 pytz
-discord-ext-voice-recv
-vosk
