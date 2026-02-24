@@ -1,9 +1,0 @@
-discord.py
-pynacl
-requests
-unidecode
-pillow
-deep_translator
-pyfiglet
-yt-dlp
-pytz
