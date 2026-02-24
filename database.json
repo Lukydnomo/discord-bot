@@ -84,7 +84,22 @@
             }
         }
     },
-    "wordle": {},
+    "wordle": {
+        "1228383214049951815": {
+            "02/24/26": {
+                "word": "satisfizeramos",
+                "len": 14,
+                "players": {
+                    "767015394648915978": {
+                        "guesses": [
+                            "amadurecimento"
+                        ],
+                        "solved": false
+                    }
+                }
+            }
+        }
+    },
     "last_wordle_cleanup": "02/24/26",
     "wordle_weekly": {
         "1228383214049951815": {
@@ -98,6 +113,13 @@
                     "wins": 1,
                     "plays": 1,
                     "best": 1
+                }
+            },
+            "2026-W09": {
+                "767015394648915978": {
+                    "wins": 0,
+                    "plays": 1,
+                    "best": null
                 }
             }
         }
