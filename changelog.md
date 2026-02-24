@@ -533,7 +533,7 @@ Dito isso, vlw, por tudo. _Eu já não vejo mais nada_.
 
 ## [2.4.0] - 2026-02-24
 
-**grande update do player de música e experiência em call**
+**grande update do player de música e kk coisinhas**
 
 ### 🆕 Adicionado
 
