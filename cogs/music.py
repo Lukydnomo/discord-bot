@@ -13,7 +13,6 @@ from discord import app_commands
 from discord.ext import commands
 from core.modules import get_file_content, update_file_content
 
-
 STATE_RE = re.compile(r"\|\|music_state:([A-Za-z0-9_\-]+=*)\|\|")
 
 def encode_state(obj: dict) -> str:
