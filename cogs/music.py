@@ -7,7 +7,6 @@ import re
 import unidecode
 from base64 import urlsafe_b64encode, urlsafe_b64decode
 from typing import Optional
-from urllib.parse import urlparse
 
 import discord
 from discord import app_commands
@@ -24,7 +23,6 @@ def encode_state(obj: dict) -> str:
 def decode_state(token: str) -> dict:
     raw = urlsafe_b64decode(token.encode("ascii"))
     return json.loads(raw.decode("utf-8"))
-
 
 class MusicControlView(discord.ui.View):
     def __init__(self, disabled: bool = False):
@@ -303,9 +301,6 @@ class Music(commands.Cog):
             common_opts = {
                 "options": f"-vn -b:a {kbps}k"  # Apenas áudio, bitrate configurável
             }
-            reconnect_opts = {
-                "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"
-            }
 
             # Verifica o tipo de faixa e obtém o caminho correto
             audio_path = current_track.get("path", current_track) if isinstance(current_track, dict) else current_track
@@ -317,10 +312,7 @@ class Music(commands.Cog):
                 after_playback(Exception("Arquivo não encontrado"))
                 return
 
-            # Para URLs, aplica reconnect; para locais, só o básico
             opts = common_opts.copy()
-            if is_remote:
-                opts.update(reconnect_opts)
 
             vc.play(
                 discord.FFmpegPCMAudio(
@@ -376,8 +368,8 @@ class Music(commands.Cog):
 
     @app_commands.command(name="tocar", description="Toca um ou mais áudios no canal de voz")
     @app_commands.describe(
-        arquivo="Nome(s) de arquivo(s), pasta(s) (*nome) ou URL(s) direta(s) de áudio (mp3/ogg/wav), separados por vírgula"
-    )
+    arquivo="Nome(s) de áudio(s) ou pasta(s) (*nome), separados por vírgula"
+)
     async def tocar(self, interaction: discord.Interaction, arquivo: str):
         # 1) defer para dar tempo suficiente
         await interaction.response.defer(thinking=True)
@@ -404,27 +396,6 @@ class Music(commands.Cog):
         self.queues.setdefault(guild_id, [])
 
         for nome in nomes:
-            # ───  A) URL (YouTube desativado; permite só URL direta de áudio) ───
-            if nome.startswith(("http://", "https://")):
-                low = nome.lower()
-                if "youtube.com" in low or "youtu.be" in low:
-                    await interaction.followup.send(
-                        "❌ Links do YouTube foram desativados. "
-                        "Se quiser essa música no bot, pede pro dono do bot adicionar na biblioteca dele.",
-                        ephemeral=True
-                    )
-                    continue
-
-                parsed = urlparse(nome)
-                if not parsed.scheme or not parsed.netloc:
-                    await interaction.followup.send(f"❌ URL inválida: `{nome}`", ephemeral=True)
-                    continue
-
-                title = os.path.basename(parsed.path) or nome
-                self.queues[guild_id].append({"path": nome, "title": title, "requester_id": interaction.user.id})
-                encontrados.append(title)
-                continue
-
             # ───  B) Pasta local (*pasta)  ────────────────────────────────────
             if nome.startswith("*"):
                 pasta = nome[1:]
