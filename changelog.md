@@ -530,3 +530,50 @@ Dito isso, vlw, por tudo. _Eu já não vejo mais nada_.
 
 <!-- prettier-ignore -->
 - - - - - - - - - -
+
+## [2.4.0] - 2026-02-24
+
+**grande update do player de música e experiência em call**
+
+### 🆕 Adicionado
+
+🎧 **Painel de Música interativo**
+
+- Embed fixo com botões para **pausar, pular, parar, loop, embaralhar e ver fila**.
+- O painel se atualiza automaticamente conforme a música muda.
+- Novo comando para criar/mover o painel no servidor.
+
+💾 **Estado da música persistente**
+
+- A fila, modo de loop e contexto da call agora podem ser restaurados após reinicializações do bot.
+- O bot tenta reconectar e continuar a reprodução quando possível.
+
+👤 **Identificação de quem pediu a música**
+
+- Faixas agora guardam quem solicitou, preparando recursos sociais futuros.
+
+### ⚙️ Alterado
+
+- Sistema de fila refeito para suportar painel, persistência e controle por botões.
+- O player agora pausa automaticamente quando não há ouvintes e volta quando alguém retorna.
+- Configuração do painel de música passou a fazer parte das configurações do servidor.
+- Comandos de configuração foram simplificados e centralizados em `/config`.
+- Permissões de configuração ficaram mais claras (baseadas em administrador).
+
+### 🛠️ Correções
+
+- Correções em sincronização de configurações após reinicializações.
+- Melhor tratamento de erros em sistemas interativos como Hexatombe.
+- Ajustes na leitura de configurações para evitar dados desatualizados.
+
+### 🧹 Ajustes
+
+- Padronização de nomes e mensagens (ex.: Hexatombe).
+- Melhor organização interna de logs e limites do sistema de rolagem.
+
+### 📝 Observação
+
+- Este update prepara o player para recursos mais avançados (ex.: votação de skip, estatísticas, sessões de música e automações).
+
+<!-- prettier-ignore -->
+- - - - - - - - - -
