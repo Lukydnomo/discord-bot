@@ -9,6 +9,10 @@ from discord.ext import commands
 from core.modules import save, load
 from discord.ui import View, Button
 
+from core.modules import save, load, get_file_content, update_file_content
+
+AFK_PREFIX = "[AFK] "
+AFK_PREFIX_RE = re.compile(r"^\[AFK\]\s*")
 class MuteUnmuteView(View):
     def __init__(self, channel: discord.VoiceChannel):
         super().__init__(timeout=60)
@@ -506,6 +510,158 @@ class Moderation(commands.Cog):
         )
         view = MuteUnmuteView(channel)
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+    @app_commands.command(name="afk", description="Alterna seu apelido entre normal e [AFK] no servidor.")
+    async def afk(self, interaction: discord.Interaction):
+        if interaction.guild is None:
+            return await interaction.response.send_message(
+                "❌ Isso só funciona em servidor.",
+                ephemeral=True,
+            )
+
+        member = interaction.user
+        me = interaction.guild.me
+
+        if not isinstance(member, discord.Member):
+            return await interaction.response.send_message(
+                "❌ Não consegui identificar seu membro no servidor.",
+                ephemeral=True,
+            )
+
+        if me is None:
+            return await interaction.response.send_message(
+                "❌ Não consegui identificar meu usuário no servidor.",
+                ephemeral=True,
+            )
+
+        if not me.guild_permissions.manage_nicknames:
+            return await interaction.response.send_message(
+                "❌ Eu preciso da permissão **Gerenciar Apelidos** para usar esse comando.",
+                ephemeral=True,
+            )
+
+        if member == interaction.guild.owner:
+            return await interaction.response.send_message(
+                "❌ Não consigo alterar o apelido do dono do servidor.",
+                ephemeral=True,
+            )
+
+        if member.top_role >= me.top_role:
+            return await interaction.response.send_message(
+                "❌ Meu cargo precisa estar acima do seu para eu conseguir mudar seu apelido.",
+                ephemeral=True,
+            )
+
+        current_display = member.display_name or member.name
+        is_afk = bool(AFK_PREFIX_RE.match(current_display))
+
+        def _read_afk_state():
+            data = get_file_content()
+            if not isinstance(data, dict):
+                data = {}
+
+            afk_root = data.get("afk_nicks")
+            if not isinstance(afk_root, dict):
+                afk_root = {}
+                data["afk_nicks"] = afk_root
+
+            guild_bucket = afk_root.get(str(interaction.guild.id))
+            if not isinstance(guild_bucket, dict):
+                guild_bucket = {}
+                afk_root[str(interaction.guild.id)] = guild_bucket
+
+            user_key = str(member.id)
+            stored = guild_bucket.get(user_key)
+            if not isinstance(stored, dict):
+                stored = {}
+
+            original_nick = stored.get("nick")
+            fallback_name = AFK_PREFIX_RE.sub("", current_display, count=1).strip() or member.name
+            return original_nick, fallback_name
+
+        def _persist_afk_state(turn_on: bool):
+            data = get_file_content()
+            if not isinstance(data, dict):
+                data = {}
+
+            afk_root = data.get("afk_nicks")
+            if not isinstance(afk_root, dict):
+                afk_root = {}
+                data["afk_nicks"] = afk_root
+
+            guild_bucket = afk_root.get(str(interaction.guild.id))
+            if not isinstance(guild_bucket, dict):
+                guild_bucket = {}
+                afk_root[str(interaction.guild.id)] = guild_bucket
+
+            user_key = str(member.id)
+            if turn_on:
+                guild_bucket[user_key] = {
+                    "nick": member.nick,
+                    "display_name": current_display,
+                }
+            else:
+                guild_bucket.pop(user_key, None)
+
+            return update_file_content(data)
+
+        original_nick, fallback_name = await asyncio.to_thread(_read_afk_state)
+
+        if not is_afk:
+            base_name = current_display.strip() or member.name
+            max_base_len = 32 - len(AFK_PREFIX)
+            new_nick = f"{AFK_PREFIX}{base_name[:max_base_len]}"
+
+            try:
+                await member.edit(nick=new_nick)
+            except discord.Forbidden:
+                return await interaction.response.send_message(
+                    "❌ Não tenho permissão suficiente para alterar seu apelido.",
+                    ephemeral=True,
+                )
+            except discord.HTTPException as e:
+                return await interaction.response.send_message(
+                    f"❌ Não consegui ativar o AFK: {e}",
+                    ephemeral=True,
+                )
+
+            saved = await asyncio.to_thread(_persist_afk_state, True)
+            if not saved:
+                return await interaction.response.send_message(
+                    f"⚠️ Ativei seu AFK, mas não consegui salvar o nome original no banco. Seu apelido agora é **{new_nick}**.",
+                    ephemeral=True,
+                )
+
+            await interaction.response.send_message(
+                f"💤 Modo AFK ativado. Seu apelido agora é **{new_nick}**.",
+                ephemeral=True,
+            )
+        else:
+            try:
+                await member.edit(nick=original_nick)
+            except discord.Forbidden:
+                return await interaction.response.send_message(
+                    "❌ Não tenho permissão suficiente para restaurar seu apelido.",
+                    ephemeral=True,
+                )
+            except discord.HTTPException as e:
+                return await interaction.response.send_message(
+                    f"❌ Não consegui remover o AFK: {e}",
+                    ephemeral=True,
+                )
+
+            saved = await asyncio.to_thread(_persist_afk_state, False)
+            restored_name = original_nick if original_nick else fallback_name
+            if not saved:
+                return await interaction.response.send_message(
+                    f"⚠️ Removi seu AFK, mas não consegui limpar o registro salvo no banco. Seu apelido voltou para **{restored_name}**.",
+                    ephemeral=True,
+                )
+
+            await interaction.response.send_message(
+                f"✅ Modo AFK removido. Seu apelido voltou para **{restored_name}**.",
+                ephemeral=True,
+            )
 
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(Moderation(bot))
