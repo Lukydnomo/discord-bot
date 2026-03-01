@@ -138,5 +138,13 @@
             "music_panel_channel_id": 1318565102835859456,
             "music_panel_message_id": 1475887858031132742
         }
+    },
+    "afk_nicks": {
+        "1228383214049951815": {
+            "767015394648915978": {
+                "nick": "Luky",
+                "display_name": "Luky"
+            }
+        }
     }
 }
