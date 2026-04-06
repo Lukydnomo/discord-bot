@@ -347,6 +347,162 @@ class Utils(commands.Cog):
 
 #######################################################################
 
+    @app_commands.command(name="calcular_pe", description="Calcula os pontos de esforço (PE)")
+    @app_commands.describe(classe="Indica a classe do personagem.",
+                            nex="Indica o quanto de exposição paranormal ele tem.",
+                            atributo="Valor do atributo a ser calculado.",
+                            tem_potencial_aprimorado="Indica se o personagem tem potencial aprimorado (sim/não).", tem_afinidade_com_morte="Indica se o personagem tem afinidade com Morte (sim/não).")
+    @app_commands.choices(classe=[
+        app_commands.Choice(name="Combatente", value="Combatente"),
+        app_commands.Choice(name="Especialista", value="Especialista"),
+        app_commands.Choice(name="Ocultista", value="Ocultista")],
+    tem_potencial_aprimorado=[
+        app_commands.Choice(name="Sim", value=1),
+        app_commands.Choice(name="Não", value=0)
+    ], tem_afinidade_com_morte=[
+        app_commands.Choice(name="Sim", value=1),
+        app_commands.Choice(name="Não", value=0)
+    ])
+
+    async def calcular_pe(self, interaction: discord.Interaction,
+                          classe: str,
+                          nex: int,
+                          atributo: int,
+                          tem_potencial_aprimorado: app_commands.Choice[int],
+                          tem_afinidade_com_morte: app_commands.Choice[int]):
+        
+        nex_base = 100 if nex == 99 else nex
+        nex_pos = nex_base // 5
+
+        base_por_classe = {
+            "Combatente": 2,
+            "Especialista": 3,
+            "Ocultista": 4
+        }
+
+        ganho_por_classe ={
+            "Combatente": 2,
+            "Especialista": 3,
+            "Ocultista": 4
+        }
+
+        pre_pe = base_por_classe[classe] + atributo + ((nex_pos - 1) * (ganho_por_classe[classe] + atributo))
+
+        if tem_potencial_aprimorado.value == 1:
+            multiplicador = 2 if tem_afinidade_com_morte.value == 1 else 1
+            pre_pe += nex_pos * multiplicador
+        
+        if nex_base >= 105:
+            pre_pe += (nex_pos - 20) * 2
+
+        pe = pre_pe
+
+        await interaction.response.send_message(f"O valor é {pe} pontos de esforço (PE).")
+
+
+    @app_commands.command(name="calcular_san", description="Calcula os pontos de sanidade (SAN) de um personagem.")
+    @app_commands.describe(classe="Indica a classe do personagem.",
+                           nex="Indica o quanto de exposição paranormal ele tem.",
+                           tem_cicatrizes_psicologicas="Indica se o personagem tem cicatrizes psicológicas (sim/não).")
+    @app_commands.choices(classe=[
+        app_commands.Choice(name="Combatente", value="Combatente"),
+        app_commands.Choice(name="Especialista", value="Especialista"),
+        app_commands.Choice(name="Ocultista", value="Ocultista")
+    ], tem_cicatrizes_psicologicas=[
+        app_commands.Choice(name="Sim", value=1),
+        app_commands.Choice(name="Não", value=0)
+    ])
+    async def calcular_san(self, interaction: discord.Interaction,
+                          classe: str,
+                          nex: int,
+                          tem_cicatrizes_psicologicas: app_commands.Choice[int]):
+
+        nex_base = 100 if nex == 99 else nex
+        nex_pos = nex_base // 5
+
+        base_por_classe = {
+            "Combatente": 12,
+            "Especialista": 16,
+            "Ocultista": 20
+        }
+
+        ganho_por_classe ={
+            "Combatente": 3,
+            "Especialista": 4,
+            "Ocultista": 5
+        }
+
+        pre_san = base_por_classe[classe] + ((nex_pos - 1) * ganho_por_classe[classe])
+
+        if tem_cicatrizes_psicologicas.value == 1:
+            pre_san += nex_pos
+
+        san = pre_san
+
+        await interaction.response.send_message(f"O valor é {san} pontos de sanidade (SAN).")
+
+
+    @app_commands.command(name="calcular_pv", description="Calcula os pontos de vida (PV) de um personagem.")
+    @app_commands.describe(classe="Indica a classe do personagem.",
+                           nex="Indica o quanto de exposição paranormal ele tem.",
+                           atributo="Valor do atributo a ser calculado.",
+                           tem_sangue_de_ferro="Indica se o personagem tem sangue de ferro (sim/não).",
+                           tem_calejado="Indica se o personagem tem calejado (sim/não).",
+                           tem_vitalidade_sofrida="Indica se o personagem tem vitalidade sofrida (sim/não).")
+    @app_commands.choices(classe=[
+        app_commands.Choice(name="Combatente", value="Combatente"),
+        app_commands.Choice(name="Especialista", value="Especialista"),
+        app_commands.Choice(name="Ocultista", value="Ocultista")
+    ], tem_sangue_de_ferro=[
+        app_commands.Choice(name="Sim", value=1),
+        app_commands.Choice(name="Não", value=0)
+    ], tem_calejado=[
+        app_commands.Choice(name="Sim", value=1),
+        app_commands.Choice(name="Não", value=0)
+    ], tem_vitalidade_sofrida=[
+        app_commands.Choice(name="Sim", value=1),
+        app_commands.Choice(name="Não", value=0)
+    ])
+    async def calcular_pv(self, interaction: discord.Interaction,
+                          classe: str,
+                          nex: int,
+                          atributo: int,
+                          tem_sangue_de_ferro: app_commands.Choice[int],
+                          tem_calejado: app_commands.Choice[int],
+                          tem_vitalidade_sofrida: app_commands.Choice[int]):
+
+        nex_base = 100 if nex == 99 else nex
+        nex_pos = nex_base // 5
+
+        base_por_classe = {
+            "Combatente": 20,
+            "Especialista": 16,
+            "Ocultista": 12
+        }
+
+        ganho_por_classe ={
+            "Combatente": 4,
+            "Especialista": 3,
+            "Ocultista": 2
+        }
+
+        if tem_vitalidade_sofrida.value == 1:
+            base_por_classe["Combatente"], ganho_por_classe["Combatente"] = 24, 6
+
+        pre_pv = base_por_classe[classe] + atributo + ((nex_pos - 1) * (ganho_por_classe[classe] + atributo))
+
+        if tem_sangue_de_ferro.value == 1:
+            pre_pv += nex_pos * 2
+        
+        if tem_calejado.value == 1:
+            pre_pv += nex_pos
+
+        if nex_base >= 105:
+            pre_pv += (nex_pos - 20) *5
+
+        pv = pre_pv
+
+        await interaction.response.send_message(f"O valor é {pv} pontos de vida (PV).")
 
     @app_commands.command(name="calcular_pd", description="Calcula os pontos de determinação (PD)")
     @app_commands.describe(classe="Indica a classe do personagem.",
