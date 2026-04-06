@@ -577,3 +577,36 @@ Dito isso, vlw, por tudo. _Eu já não vejo mais nada_.
 
 <!-- prettier-ignore -->
 - - - - - - - - - -
+
+## [2.4.2] - 2026-04-06
+
+**novos cálculos automáticos para personagens**
+
+### 🆕 Adicionado
+
+📊 **Cálculo de Pontos de Esforço (PE)**
+
+- Novo comando `/calcular_pe`
+- Considera classe, NEX, atributo e modificadores como potencial aprimorado e afinidade.
+
+🧠 **Cálculo de Sanidade (SAN)**
+
+- Novo comando `/calcular_san`
+- Inclui variações por classe e bônus como cicatrizes psicológicas.
+
+❤️ **Cálculo de Pontos de Vida (PV)**
+
+- Novo comando `/calcular_pv`
+- Leva em conta classe, atributos e habilidades como sangue de ferro, calejado e vitalidade sofrida.
+
+### ⚙️ Como usar
+
+- Todos os cálculos são feitos automaticamente via comando.
+- Basta preencher os campos e o bot retorna o valor final.
+
+### 📝 Observação
+
+- Os cálculos seguem as regras do sistema e já consideram bônus e variações comuns automaticamente.
+
+<!-- prettier-ignore -->
+- - - - - - - - - -
