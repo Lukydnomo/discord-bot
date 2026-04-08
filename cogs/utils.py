@@ -448,7 +448,8 @@ class Utils(commands.Cog):
                            atributo="Valor do atributo a ser calculado.",
                            tem_sangue_de_ferro="Indica se o personagem tem sangue de ferro (sim/não).",
                            tem_calejado="Indica se o personagem tem calejado (sim/não).",
-                           tem_vitalidade_sofrida="Indica se o personagem tem vitalidade sofrida (sim/não).")
+                           tem_vitalidade_sofrida="Indica se o personagem tem vitalidade sofrida (sim/não).",
+                           tem_casca_grossa="Indica se o personagem tem casca grossa (sim/não).")
     @app_commands.choices(classe=[
         app_commands.Choice(name="Combatente", value="Combatente"),
         app_commands.Choice(name="Especialista", value="Especialista"),
@@ -462,6 +463,9 @@ class Utils(commands.Cog):
     ], tem_vitalidade_sofrida=[
         app_commands.Choice(name="Sim", value=1),
         app_commands.Choice(name="Não", value=0)
+    ], tem_casca_grossa=[
+        app_commands.Choice(name="Sim", value=1),
+        app_commands.Choice(name="Não", value=0)
     ])
     async def calcular_pv(self, interaction: discord.Interaction,
                           classe: str,
@@ -469,7 +473,8 @@ class Utils(commands.Cog):
                           atributo: int,
                           tem_sangue_de_ferro: app_commands.Choice[int],
                           tem_calejado: app_commands.Choice[int],
-                          tem_vitalidade_sofrida: app_commands.Choice[int]):
+                          tem_vitalidade_sofrida: app_commands.Choice[int],
+                          tem_casca_grossa: app_commands.Choice[int]):
 
         nex_base = 100 if nex == 99 else nex
         nex_pos = nex_base // 5
@@ -495,6 +500,9 @@ class Utils(commands.Cog):
             pre_pv += nex_pos * 2
         
         if tem_calejado.value == 1:
+            pre_pv += nex_pos
+
+        if tem_casca_grossa.value == 1:
             pre_pv += nex_pos
 
         if nex_base >= 105:
