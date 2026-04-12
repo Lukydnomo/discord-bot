@@ -155,6 +155,17 @@ class Music(commands.Cog):
         s = str(t)
         return {"path": s, "title": os.path.basename(s), "requester_id": requester_id}
 
+    async def _connect_voice_channel(self, channel: discord.VoiceChannel) -> discord.VoiceClient:
+        try:
+            return await channel.connect()
+        except RuntimeError as e:
+            if "davey" in str(e).lower():
+                raise RuntimeError(
+                    "A reprodução por voz requer a biblioteca `davey`. "
+                    "Instale-a com `pip install davey` e reinicie o bot."
+                ) from e
+            raise
+
     def _build_panel_embed(self, guild_id: int, status: str) -> discord.Embed:
         queue = self.queues.get(guild_id, [])
         vc = self.voice_clients.get(guild_id)
@@ -361,7 +372,11 @@ class Music(commands.Cog):
         if interaction.guild.id in self.voice_clients:
             return await interaction.response.send_message("⚠️ Já estou em um canal de voz!", ephemeral=True)
 
-        vc = await canal.connect()
+        try:
+            vc = await self._connect_voice_channel(canal)
+        except RuntimeError as e:
+            return await interaction.response.send_message(f"❌ {e}", ephemeral=True)
+
         self.voice_clients[interaction.guild.id] = vc
         await interaction.response.send_message(f"🔊 Entrei no canal {canal.mention}!")
 
@@ -383,7 +398,10 @@ class Music(commands.Cog):
                 return await interaction.followup.send(
                     "❌ Você precisa estar em um canal de voz!", ephemeral=True
                 )
-            vc = await canal.connect()
+            try:
+                vc = await self._connect_voice_channel(canal)
+            except RuntimeError as e:
+                return await interaction.followup.send(f"❌ {e}", ephemeral=True)
             self.voice_clients[guild_id] = vc
 
         # ensure a panel exists in this channel (and move existing if necessary)
@@ -868,8 +886,10 @@ class Music(commands.Cog):
                 return await interaction.response.send_message("❌ Você precisa estar em um canal de voz para eu tocar a fila.", ephemeral=True)
             try:
                 if not vc or not getattr(vc, "is_connected", lambda: False)():
-                    vc = await canal.connect()
+                    vc = await self._connect_voice_channel(canal)
                     self.voice_clients[guild_id] = vc
+            except RuntimeError as e:
+                return await interaction.response.send_message(f"❌ {e}", ephemeral=True)
             except Exception as e:
                 return await interaction.response.send_message(f"❌ Erro ao conectar no canal de voz: {e}", ephemeral=True)
 
@@ -1014,6 +1034,16 @@ class Music(commands.Cog):
                 if self.queues.get(guild_id):
                     self.play_next(guild_id)
                     await self._update_panel(guild_id, "Tocando", disabled=False, voice_channel_id=int(voice_id))
+            except RuntimeError as e:
+                if "davey" in str(e).lower():
+                    await self._update_panel(
+                        guild_id,
+                        "Falha ao reconectar: falta davey",
+                        disabled=True,
+                        voice_channel_id=int(voice_id),
+                    )
+                else:
+                    await self._update_panel(guild_id, "Falha ao reconectar", disabled=True, voice_channel_id=int(voice_id))
             except Exception:
                 await self._update_panel(guild_id, "Falha ao reconectar", disabled=True, voice_channel_id=int(voice_id))
 
