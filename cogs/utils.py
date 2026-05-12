@@ -10,7 +10,6 @@ from typing import Dict, Tuple, List, Optional
 
 from core.modules import get_file_content, update_file_content, rolar_dado
 
-
 # =========================
 # REFERÊNCIAS (DB)
 # =========================

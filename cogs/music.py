@@ -978,18 +978,23 @@ class Music(commands.Cog):
                     ephemeral=True
                 )
             
-            # Normaliza e adiciona à fila
+            # Normaliza a faixa selecionada
             track = self._normalize_track(found_path, requester_id=interaction.user.id)
             self.queues.setdefault(guild_id, [])
-            self.queues[guild_id].append(track)
-            
-            # Inicia reprodução se não estiver tocando
-            if not vc.is_playing():
+
+            # Para o painel de botões do hexatombe, se já houver reprodução ativa,
+            # substitui a fila pela nova faixa em vez de adicionar ao final.
+            is_active = bool(vc.is_playing() or getattr(vc, "is_paused", lambda: False)())
+            if is_active:
+                self.queues[guild_id] = [track]
+                vc.stop()
+                self.play_next(guild_id)
+                await interaction.response.send_message(f"🎵 Substituindo para **{os.path.basename(found_path)}**!", ephemeral=True)
+            else:
+                self.queues[guild_id].append(track)
                 self.play_next(guild_id)
                 await interaction.response.send_message(f"🎵 Tocando **{os.path.basename(found_path)}**!", ephemeral=True)
-            else:
-                await interaction.response.send_message(f"📝 **{os.path.basename(found_path)}** adicionado à fila!", ephemeral=True)
-            
+
             # Atualiza o painel
             voice_id = getattr(getattr(vc, "channel", None), "id", None)
             await self._update_panel(
