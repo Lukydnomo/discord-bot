@@ -958,14 +958,23 @@ class Music(commands.Cog):
                     ephemeral=True
                 )
             
-            # Monta o nome do arquivo
-            filename = f"{number}.mp3"
+            # Procura especificamente na pasta Hexatombe por arquivos no formato "xx - titulo.mp3"
+            hexatombe_dir = "assets/audios/musics/Hexatombe"
+            found_path = None
+            if os.path.exists(hexatombe_dir):
+                # Tenta padrões: "1 - " ou "01 - "
+                patterns = [f"{number} - ", f"{number:02d} - "]
+                for pattern in patterns:
+                    for file in os.listdir(hexatombe_dir):
+                        if file.startswith(pattern) and file.endswith(".mp3"):
+                            found_path = os.path.join(hexatombe_dir, file)
+                            break
+                    if found_path:
+                        break
             
-            # Tenta encontrar o arquivo
-            found_path = self.buscar_arquivo(filename)
             if not found_path:
                 return await interaction.response.send_message(
-                    f"❌ Arquivo '{filename}' não encontrado em assets/audios.",
+                    f"❌ Música {number} não encontrada em assets/audios/musics/Hexatombe.",
                     ephemeral=True
                 )
             
@@ -977,9 +986,9 @@ class Music(commands.Cog):
             # Inicia reprodução se não estiver tocando
             if not vc.is_playing():
                 self.play_next(guild_id)
-                await interaction.response.send_message(f"🎵 Tocando **{filename}**!", ephemeral=True)
+                await interaction.response.send_message(f"🎵 Tocando **{os.path.basename(found_path)}**!", ephemeral=True)
             else:
-                await interaction.response.send_message(f"📝 **{filename}** adicionado à fila!", ephemeral=True)
+                await interaction.response.send_message(f"📝 **{os.path.basename(found_path)}** adicionado à fila!", ephemeral=True)
             
             # Atualiza o painel
             voice_id = getattr(getattr(vc, "channel", None), "id", None)
