@@ -223,33 +223,18 @@ class HexaMusicButton(discord.ui.Button):
             if interaction.guild is None:
                 return await interaction.response.send_message("❌ Isso só funciona em servidor.", ephemeral=True)
 
-            cfg = await _get_guild_cfg(interaction.guild.id)
+            # Obtém o cog de Music para tocar a música
+            music_cog = interaction.client.get_cog("Music")
+            if music_cog is None:
+                return await interaction.response.send_message("❌ Cog de música não carregado.", ephemeral=True)
 
-            dest_id = cfg.get("hexatombe_dest_channel_id")
-            if not dest_id:
-                return await interaction.response.send_message(
-                    "❌ Hexatombe não configurado.\nUse: `/config hexatombe painel:#canal destino:#canal pingar:@alguem(opcional)`",
-                    ephemeral=True
-                )
-
-            dest = await _fetch_text_channel(interaction.client, int(dest_id))
-            if dest is None:
-                return await interaction.response.send_message("❌ Canal de destino inválido/sem acesso.", ephemeral=True)
-
-            ping_id = cfg.get("hexatombe_ping_user_id")
-            mention = f"<@{int(ping_id)}> " if ping_id else ""
-
-            await dest.send(f"{mention}Música {self.number}")
-
-            if interaction.response.is_done():
-                await interaction.followup.send(f"Número {self.number} enviado.", ephemeral=True)
-            else:
-                await interaction.response.send_message(f"Número {self.number} enviado.", ephemeral=True)
+            # Chama o método para tocar música do hexatombe
+            await music_cog.hexatombe_play_by_number(interaction, self.number)
 
         except Exception as e:
             # log the real error so we can diagnose permission/other issues
-            interaction.followup.send(f"[Hexatombe] erro: {type(e).__name__}: {e}")
-            msg = "Falha ao enviar o número. Verifique permissões."
+            await interaction.client.get_application_context().bot.get_cog("Utils")
+            msg = f"[Hexatombe] erro: {type(e).__name__}: {e}"
             if interaction.response.is_done():
                 await interaction.followup.send(msg, ephemeral=True)
             else:

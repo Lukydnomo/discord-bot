@@ -945,6 +945,56 @@ class Music(commands.Cog):
         except Exception as e:
             await interaction.response.send_message(f"❌ Erro ao alterar o estado de reprodução: {e}", ephemeral=True)
 
+    async def hexatombe_play_by_number(self, interaction: discord.Interaction, number: int):
+        """Toca uma música no formato '{number}.mp3' para o painel do hexatombe."""
+        try:
+            guild_id = interaction.guild.id
+            
+            # Garante que o bot está em um canal de voz
+            vc = self.voice_clients.get(guild_id)
+            if not vc or not getattr(vc, "channel", None):
+                return await interaction.response.send_message(
+                    f"❌ Bot não está em um canal de voz neste servidor. Use `/entrar` primeiro.",
+                    ephemeral=True
+                )
+            
+            # Monta o nome do arquivo
+            filename = f"{number}.mp3"
+            
+            # Tenta encontrar o arquivo
+            found_path = self.buscar_arquivo(filename)
+            if not found_path:
+                return await interaction.response.send_message(
+                    f"❌ Arquivo '{filename}' não encontrado em assets/audios.",
+                    ephemeral=True
+                )
+            
+            # Normaliza e adiciona à fila
+            track = self._normalize_track(found_path, requester_id=interaction.user.id)
+            self.queues.setdefault(guild_id, [])
+            self.queues[guild_id].append(track)
+            
+            # Inicia reprodução se não estiver tocando
+            if not vc.is_playing():
+                self.play_next(guild_id)
+                await interaction.response.send_message(f"🎵 Tocando **{filename}**!", ephemeral=True)
+            else:
+                await interaction.response.send_message(f"📝 **{filename}** adicionado à fila!", ephemeral=True)
+            
+            # Atualiza o painel
+            voice_id = getattr(getattr(vc, "channel", None), "id", None)
+            await self._update_panel(
+                guild_id,
+                "Tocando" if vc.is_playing() else "Pausado",
+                disabled=False,
+                voice_channel_id=voice_id
+            )
+        except Exception as e:
+            msg = f"❌ Erro ao tocar música: {type(e).__name__}: {e}"
+            if interaction.response.is_done():
+                await interaction.followup.send(msg, ephemeral=True)
+            else:
+                await interaction.response.send_message(msg, ephemeral=True)
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: discord.Member, before, after):
