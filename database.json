@@ -84,7 +84,22 @@
             }
         }
     },
-    "wordle": {},
+    "wordle": {
+        "1228383214049951815": {
+            "05/30/26": {
+                "word": "ululai",
+                "len": 6,
+                "players": {
+                    "767015394648915978": {
+                        "guesses": [
+                            "vomito"
+                        ],
+                        "solved": false
+                    }
+                }
+            }
+        }
+    },
     "last_wordle_cleanup": "05/30/26",
     "wordle_weekly": {
         "1228383214049951815": {
@@ -105,6 +120,13 @@
                     "wins": 1,
                     "plays": 1,
                     "best": 2
+                }
+            },
+            "2026-W22": {
+                "767015394648915978": {
+                    "wins": 0,
+                    "plays": 1,
+                    "best": null
                 }
             }
         }
