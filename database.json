@@ -97,9 +97,10 @@
                             "morder",
                             "animal",
                             "degrau",
-                            "eficaz"
+                            "eficaz",
+                            "ululai"
                         ],
-                        "solved": false
+                        "solved": true
                     }
                 }
             }
@@ -129,9 +130,9 @@
             },
             "2026-W22": {
                 "767015394648915978": {
-                    "wins": 0,
+                    "wins": 1,
                     "plays": 1,
-                    "best": null
+                    "best": 7
                 }
             }
         }
