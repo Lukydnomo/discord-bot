@@ -58,6 +58,7 @@ class Music(commands.Cog):
         self.voice_clients: dict[int, discord.VoiceClient] = {}
         self.queues: dict[int, list] = {}
         self.loop_status: dict[int, int] = {}  # 0=off,1=track loop,2=queue loop
+        self.hexatombe_loop: set[int] = set()  # loop exclusivo ao usar o painel Hexatombe
         # usado para pausar quando canal ficou vazio e restaurar ao voltar gente
         self.paused_for_empty: set[int] = set()
 
@@ -281,7 +282,9 @@ class Music(commands.Cog):
                 return
 
             # Gerencia o loop após reprodução bem-sucedida
-            if self.loop_status.get(guild_id, 0) == 1:  # Loop música atual
+            if guild_id in self.hexatombe_loop:
+                self.play_next(guild_id)
+            elif self.loop_status.get(guild_id, 0) == 1:  # Loop música atual
                 self.play_next(guild_id)
             elif self.loop_status.get(guild_id, 0) == 2:  # Loop fila inteira
                 self.queues[guild_id].append(self.queues[guild_id].pop(0))
@@ -389,6 +392,7 @@ class Music(commands.Cog):
         await interaction.response.defer(thinking=True)
 
         guild_id = interaction.guild.id
+        self.hexatombe_loop.discard(guild_id)
         vc = self.voice_clients.get(guild_id)
 
         # 2) conecta se não estiver em canal
@@ -837,6 +841,7 @@ class Music(commands.Cog):
         if not isinstance(data, dict) or "queue" not in data:
             return await interaction.response.send_message("❌ Estrutura de fila inválida.", ephemeral=True)
 
+        self.hexatombe_loop.discard(guild_id)
         loaded = []
         not_found = []
         self.queues.setdefault(guild_id, [])
@@ -981,6 +986,7 @@ class Music(commands.Cog):
             # Normaliza a faixa selecionada
             track = self._normalize_track(found_path, requester_id=interaction.user.id)
             self.queues.setdefault(guild_id, [])
+            self.hexatombe_loop.add(guild_id)
 
             # Para o painel de botões do hexatombe, se já houver reprodução ativa,
             # substitui a fila pela nova faixa em vez de adicionar ao final.
